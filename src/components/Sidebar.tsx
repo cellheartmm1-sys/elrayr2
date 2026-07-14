@@ -52,7 +52,12 @@ const rolePermissions: Record<string, string[]> = {
   accountant: ['/dashboard', '/finance', '/subcontractors']
 };
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [role, setRole] = useState('admin');
 
@@ -63,15 +68,40 @@ export default function Sidebar() {
 
   const allowedHrefs = rolePermissions[role] || rolePermissions['admin'];
 
+  // Automatically close sidebar on route change on mobile
+  useEffect(() => {
+    if (onClose) {
+      onClose();
+    }
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">🔥</div>
-        <div className="sidebar-logo-text">
-          <div className="sidebar-logo-title">الرايق ERP</div>
-          <div className="sidebar-logo-subtitle">المقاولات الكهروميكانيكية</div>
+      <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="sidebar-logo-icon">🔥</div>
+          <div className="sidebar-logo-text">
+            <div className="sidebar-logo-title">الرايق ERP</div>
+            <div className="sidebar-logo-subtitle">المقاولات الكهروميكانيكية</div>
+          </div>
         </div>
+        {onClose && (
+          <button 
+            className="sidebar-close-btn" 
+            onClick={onClose} 
+            style={{ 
+              display: 'none', 
+              background: 'none', 
+              border: 'none', 
+              color: 'var(--text-primary)', 
+              fontSize: '1.25rem', 
+              cursor: 'pointer' 
+            }}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

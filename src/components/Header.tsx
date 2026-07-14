@@ -7,6 +7,7 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   icon?: string;
+  onMenuToggle?: () => void;
 }
 
 const roleLabels: Record<string, string> = {
@@ -19,7 +20,7 @@ const roleLabels: Record<string, string> = {
   accountant: 'محاسب مالي'
 };
 
-export default function Header({ title, subtitle, icon }: HeaderProps) {
+export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderProps) {
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -46,11 +47,30 @@ export default function Header({ title, subtitle, icon }: HeaderProps) {
   return (
     <header className="header" style={{ position: 'fixed', zIndex: 900 }}>
       <div className="header-title">
+        {onMenuToggle && (
+          <button 
+            className="menu-toggle-btn header-icon-btn" 
+            onClick={onMenuToggle}
+            style={{ 
+              display: 'none', 
+              marginLeft: '0.75rem',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+            title="القائمة الجانبية"
+          >
+            <span style={{ fontSize: '1.25rem' }}>☰</span>
+          </button>
+        )}
         {icon && <span style={{ fontSize: '1.25rem' }}>{icon}</span>}
         <div>
           <div>{title}</div>
           {subtitle && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400, display: 'none' }} className="header-subtitle-mobile-hide">
               {subtitle}
             </div>
           )}
@@ -152,7 +172,7 @@ export default function Header({ title, subtitle, icon }: HeaderProps) {
             }}
           >
             <div className="user-avatar">{getInitials(userName)}</div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }} className="header-username-mobile-hide">
               {userName}
             </div>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>▾</span>
