@@ -1230,3 +1230,28 @@ textarea.form-control {
     padding: 1rem !important;
   }
 }
+
+/* Dashboard Grid Utilities */
+.dashboard-grid-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.25rem;
+}
+
+.dashboard-grid-1-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid-2-1 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid-1-1 {
+    grid-template-columns: 1fr !important;
+  }
+}

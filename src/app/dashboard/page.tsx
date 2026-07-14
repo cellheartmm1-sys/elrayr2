@@ -239,7 +239,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Charts Row 1 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+          <div className="dashboard-grid-2-1" style={{ marginBottom: '1.25rem' }}>
             <div className="card">
               <div className="card-header">
                 <div className="card-title">📈 المصروفات الشهرية (آخر 6 أشهر)</div>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Charts Row 2 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+          <div className="dashboard-grid-1-1" style={{ marginBottom: '1.25rem' }}>
             <div className="card">
               <div className="card-header">
                 <div className="card-title">📊 تقدم المشاريع: فعلي vs مخطط</div>
@@ -294,7 +294,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Projects & Fault Tickets */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+          <div className="dashboard-grid-1-1">
             {/* Recent Projects */}
             <div className="card">
               <div className="card-header">
