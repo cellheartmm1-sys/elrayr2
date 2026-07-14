@@ -1,0 +1,54 @@
+import { NextResponse, NextRequest } from 'next/server';
+import { query } from '@/lib/db';
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const warehouse_id = searchParams.get('warehouse_id');
+  const low_stock = searchParams.get('low_stock');
+
+  try {
+    let sql = `
+      SELECT ii.*, w.name as warehouse_name, ic.name_ar, ic.name_en, ic.category
+      FROM inventory_items ii
+      JOIN warehouses w ON w.id = ii.warehouse_id
+      LEFT JOIN items_catalog ic ON ic.id = ii.item_catalog_id
+      WHERE 1=1
+    `;
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (warehouse_id) {
+      sql += ` AND ii.warehouse_id = $${paramIdx++}`;
+      params.push(warehouse_id);
+    }
+
+    if (low_stock === 'true') {
+      sql += ` AND ii.current_quantity <= ii.min_quantity`;
+    }
+
+    sql += ` ORDER BY ii.description ASC`;
+
+    const result = await query(sql, params);
+    return NextResponse.json(result.rows);
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse } = body;
+
+    const result = await query(`
+      INSERT INTO inventory_items (warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+    `, [warehouse_id, item_catalog_id, description, unit, current_quantity || 0, min_quantity || 0, unit_cost || 0, location_in_warehouse]);
+
+    return NextResponse.json(result.rows[0], { status: 201 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

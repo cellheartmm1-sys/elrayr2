@@ -1,0 +1,391 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import AppLayout from '@/components/AppLayout';
+
+type TabType = 'contractors' | 'contracts' | 'ipc';
+
+interface Subcontractor {
+  id: string; name: string; specialty: string;
+  contact_person: string; phone: string; rating: number;
+  is_active: boolean; notes: string;
+}
+
+interface SubcontractorIPC {
+  id: string; ipc_number: string; subcontractor_name: string;
+  project_id: string; ipc_date: string; items_total: string;
+  retention_amount: string; net_payable: string; status: string;
+}
+
+const specialtyLabels: Record<string, string> = {
+  installation: 'تركيبات', welding: 'لحام', electrical: 'كهرباء',
+  plumbing: 'سباكة', testing: 'اختبار', painting: 'دهانات', civil: 'أعمال مدنية', other: 'أخرى'
+};
+const ipcStatusLabels: Record<string, string> = {
+  draft: 'مسودة', submitted: 'مُقدَّم', approved: 'معتمد', paid: 'مدفوع', rejected: 'مرفوض'
+};
+const ipcStatusBadge: Record<string, string> = {
+  draft: 'badge-muted', submitted: 'badge-warning', approved: 'badge-success', paid: 'badge-primary', rejected: 'badge-danger'
+};
+
+function formatCurrency(val: string | number) {
+  return Number(val).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ج.م';
+}
+
+export default function SubcontractorsPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('contractors');
+  const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
+  const [ipcs, setIpcs] = useState<SubcontractorIPC[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showIpcModal, setShowIpcModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const [specialtyFilter, setSpecialtyFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [form, setForm] = useState({ name: '', specialty: 'installation', contact_person: '', phone: '', email: '', rating: '4', notes: '' });
+  const [ipcForm, setIpcForm] = useState({ ipc_number: '', project_id: '', subcontractor_id: '', period_from: '', period_to: '', items_total: '', retention_amount: '', previous_payments: '', notes: '' });
+
+  const fetchSubcontractors = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (specialtyFilter) params.set('specialty', specialtyFilter);
+      const res = await fetch(`/api/subcontractors?${params}`);
+      const data = await res.json();
+      setSubcontractors(Array.isArray(data) ? data : []);
+    } finally { setLoading(false); }
+  }, [search, specialtyFilter]);
+
+  const fetchIPCs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set('status', statusFilter);
+      const res = await fetch(`/api/subcontractors/ipc?${params}`);
+      const data = await res.json();
+      setIpcs(Array.isArray(data) ? data : []);
+    } finally { setLoading(false); }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'contractors') fetchSubcontractors();
+    else if (activeTab === 'ipc') fetchIPCs();
+  }, [activeTab, fetchSubcontractors, fetchIPCs]);
+
+  const handleCreate = async () => {
+    try {
+      const res = await fetch('/api/subcontractors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setForm({ name: '', specialty: 'installation', contact_person: '', phone: '', email: '', rating: '4', notes: '' });
+        fetchSubcontractors();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleCreateIPC = async () => {
+    try {
+      const net = Number(ipcForm.items_total) - Number(ipcForm.retention_amount) - Number(ipcForm.previous_payments);
+      const res = await fetch('/api/subcontractors/ipc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...ipcForm, net_payable: net }),
+      });
+      if (res.ok) {
+        setShowIpcModal(false);
+        fetchIPCs();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const totalPending = ipcs.filter(i => i.status === 'submitted').reduce((s, i) => s + Number(i.net_payable), 0);
+  const totalPaid = ipcs.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.net_payable), 0);
+
+  return (
+    <AppLayout title="مقاولو الباطن والعمالة" subtitle="إدارة عقود مقاولي الباطن ومستخلصاتهم" icon="🤝">
+      {/* Tabs */}
+      <div className="tabs">
+        <button className={`tab-btn ${activeTab === 'contractors' ? 'active' : ''}`} onClick={() => setActiveTab('contractors')}>🏢 المقاولون</button>
+        <button className={`tab-btn ${activeTab === 'ipc' ? 'active' : ''}`} onClick={() => setActiveTab('ipc')}>📄 المستخلصات</button>
+      </div>
+
+      {/* ======================== CONTRACTORS TAB ======================== */}
+      {activeTab === 'contractors' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">🏢 قائمة المقاولين</div>
+              <div className="page-description">مقاولو الباطن المسجلون في النظام</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ إضافة مقاول</button>
+            </div>
+          </div>
+
+          <div className="filter-bar">
+            <div className="search-input-wrapper" style={{ maxWidth: '300px' }}>
+              <span className="search-icon">🔍</span>
+              <input className="search-input" placeholder="بحث في المقاولين..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <select className="form-control" style={{ width: 'auto' }} value={specialtyFilter} onChange={e => setSpecialtyFilter(e.target.value)}>
+              <option value="">كل التخصصات</option>
+              {Object.entries(specialtyLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+
+          {/* Stats */}
+          <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
+            <div className="stat-card">
+              <div className="stat-card-icon">🏢</div>
+              <div className="stat-value">{subcontractors.length}</div>
+              <div className="stat-label">إجمالي المقاولين</div>
+            </div>
+            <div className="stat-card success">
+              <div className="stat-card-icon">✅</div>
+              <div className="stat-value">{subcontractors.filter(s => s.is_active).length}</div>
+              <div className="stat-label">مقاولون نشطون</div>
+            </div>
+            <div className="stat-card accent">
+              <div className="stat-card-icon">⭐</div>
+              <div className="stat-value">{subcontractors.filter(s => s.rating >= 4).length}</div>
+              <div className="stat-label">تقييم ممتاز (4+)</div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="table-wrapper">
+              {loading ? (
+                <div className="empty-state"><div className="loading-spinner" /></div>
+              ) : subcontractors.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">🏢</div>
+                  <div className="empty-state-title">لا يوجد مقاولون مسجلون</div>
+                  <button className="btn btn-primary" onClick={() => setShowModal(true)}>إضافة أول مقاول</button>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>الاسم</th>
+                      <th>التخصص</th>
+                      <th>مسؤول التواصل</th>
+                      <th>الهاتف</th>
+                      <th>التقييم</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subcontractors.map(s => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.name}</td>
+                        <td><span className="badge badge-primary">{specialtyLabels[s.specialty] || s.specialty}</span></td>
+                        <td>{s.contact_person}</td>
+                        <td style={{ direction: 'ltr', textAlign: 'right' }}>{s.phone}</td>
+                        <td>{'⭐'.repeat(s.rating || 0)}</td>
+                        <td>
+                          <span className={`badge ${s.is_active ? 'badge-success' : 'badge-muted'}`}>
+                            {s.is_active ? 'نشط' : 'غير نشط'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ======================== IPCs TAB ======================== */}
+      {activeTab === 'ipc' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">📄 مستخلصات مقاولي الباطن</div>
+              <div className="page-description">Interim Payment Certificates للمقاولين</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ مستخلص جديد</button>
+            </div>
+          </div>
+
+          <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
+            <div className="stat-card">
+              <div className="stat-card-icon">📄</div>
+              <div className="stat-value">{ipcs.length}</div>
+              <div className="stat-label">إجمالي المستخلصات</div>
+            </div>
+            <div className="stat-card warning">
+              <div className="stat-card-icon">⏳</div>
+              <div className="stat-value">{formatCurrency(totalPending)}</div>
+              <div className="stat-label">مبالغ معلقة (ج.م)</div>
+            </div>
+            <div className="stat-card success">
+              <div className="stat-card-icon">💸</div>
+              <div className="stat-value">{formatCurrency(totalPaid)}</div>
+              <div className="stat-label">مبالغ مدفوعة (ج.م)</div>
+            </div>
+          </div>
+
+          <div className="filter-bar">
+            <select className="form-control" style={{ width: 'auto' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">كل الحالات</option>
+              {Object.entries(ipcStatusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+
+          <div className="card">
+            <div className="table-wrapper">
+              {loading ? (
+                <div className="empty-state"><div className="loading-spinner" /></div>
+              ) : ipcs.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">📄</div>
+                  <div className="empty-state-title">لا توجد مستخلصات</div>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>رقم المستخلص</th>
+                      <th>المقاول</th>
+                      <th>التاريخ</th>
+                      <th>الإجمالي</th>
+                      <th>الاستقطاع</th>
+                      <th>الصافي المستحق</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ipcs.map(ipc => (
+                      <tr key={ipc.id}>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ipc.ipc_number}</td>
+                        <td>{ipc.subcontractor_name}</td>
+                        <td>{ipc.ipc_date ? new Date(ipc.ipc_date).toLocaleDateString('ar-SA') : '-'}</td>
+                        <td style={{ color: 'var(--text-primary)' }}>{formatCurrency(ipc.items_total)}</td>
+                        <td style={{ color: 'var(--status-warning)' }}>{formatCurrency(ipc.retention_amount)}</td>
+                        <td style={{ color: 'var(--status-success)', fontWeight: 700 }}>{formatCurrency(ipc.net_payable)}</td>
+                        <td><span className={`badge ${ipcStatusBadge[ipc.status] || 'badge-muted'}`}>{ipcStatusLabels[ipc.status] || ipc.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ======================== ADD CONTRACTOR MODAL ======================== */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🏢 إضافة مقاول باطن جديد</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
+            </div>
+            <div className="form-grid form-grid-2">
+              <div className="form-group">
+                <label className="form-label required">اسم المقاول</label>
+                <input className="form-control" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="شركة النجوم للتركيبات" />
+              </div>
+              <div className="form-group">
+                <label className="form-label required">التخصص</label>
+                <select className="form-control" value={form.specialty} onChange={e => setForm({...form, specialty: e.target.value})}>
+                  {Object.entries(specialtyLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">مسؤول التواصل</label>
+                <input className="form-control" value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} placeholder="اسم المسؤول" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">رقم الهاتف</label>
+                <input className="form-control" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="05xxxxxxxx" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">البريد الإلكتروني</label>
+                <input className="form-control" type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="info@company.com" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">التقييم</label>
+                <select className="form-control" value={form.rating} onChange={e => setForm({...form, rating: e.target.value})}>
+                  <option value="1">⭐ 1 - ضعيف</option>
+                  <option value="2">⭐⭐ 2 - مقبول</option>
+                  <option value="3">⭐⭐⭐ 3 - جيد</option>
+                  <option value="4">⭐⭐⭐⭐ 4 - جيد جداً</option>
+                  <option value="5">⭐⭐⭐⭐⭐ 5 - ممتاز</option>
+                </select>
+              </div>
+              <div className="form-group col-span-2">
+                <label className="form-label">ملاحظات</label>
+                <textarea className="form-control" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="أي ملاحظات إضافية..." />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowModal(false)}>إلغاء</button>
+              <button className="btn btn-primary" onClick={handleCreate}>💾 حفظ المقاول</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== ADD IPC MODAL ======================== */}
+      {showIpcModal && (
+        <div className="modal-overlay" onClick={() => setShowIpcModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">📄 إصدار مستخلص مقاول باطن</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowIpcModal(false)}>✕</button>
+            </div>
+            <div className="form-grid form-grid-2">
+              <div className="form-group">
+                <label className="form-label required">رقم المستخلص</label>
+                <input className="form-control" value={ipcForm.ipc_number} onChange={e => setIpcForm({...ipcForm, ipc_number: e.target.value})} placeholder="IPC-001" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">الفترة من</label>
+                <input className="form-control" type="date" value={ipcForm.period_from} onChange={e => setIpcForm({...ipcForm, period_from: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">الفترة إلى</label>
+                <input className="form-control" type="date" value={ipcForm.period_to} onChange={e => setIpcForm({...ipcForm, period_to: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label required">إجمالي الأعمال (ج.م)</label>
+                <input className="form-control" type="number" value={ipcForm.items_total} onChange={e => setIpcForm({...ipcForm, items_total: e.target.value})} placeholder="0.00" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">مبلغ الاستقطاع (ج.م)</label>
+                <input className="form-control" type="number" value={ipcForm.retention_amount} onChange={e => setIpcForm({...ipcForm, retention_amount: e.target.value})} placeholder="0.00" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">مدفوعات سابقة (ج.م)</label>
+                <input className="form-control" type="number" value={ipcForm.previous_payments} onChange={e => setIpcForm({...ipcForm, previous_payments: e.target.value})} placeholder="0.00" />
+              </div>
+              <div className="form-group col-span-2">
+                <label className="form-label">ملاحظات</label>
+                <textarea className="form-control" value={ipcForm.notes} onChange={e => setIpcForm({...ipcForm, notes: e.target.value})} placeholder="ملاحظات المستخلص..." />
+              </div>
+            </div>
+            {ipcForm.items_total && (
+              <div className="alert alert-info" style={{ marginTop: '0.75rem' }}>
+                💡 <strong>الصافي المستحق:</strong> {formatCurrency(Number(ipcForm.items_total) - Number(ipcForm.retention_amount || 0) - Number(ipcForm.previous_payments || 0))}
+              </div>
+            )}
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowIpcModal(false)}>إلغاء</button>
+              <button className="btn btn-primary" onClick={handleCreateIPC}>💾 إصدار المستخلص</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  );
+}
