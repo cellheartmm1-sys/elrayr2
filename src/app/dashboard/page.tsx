@@ -100,9 +100,9 @@ export default function DashboardPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const activeProjects = data?.stats.projects.find(p => p.status === 'active');
-  const completedProjects = data?.stats.projects.find(p => p.status === 'completed');
-  const totalContractValue = data?.stats.projects.reduce((s, p) => s + Number(p.total_value || 0), 0) || 0;
+  const activeProjects = data?.stats?.projects?.find(p => p.status === 'active');
+  const completedProjects = data?.stats?.projects?.find(p => p.status === 'completed');
+  const totalContractValue = data?.stats?.projects?.reduce((s, p) => s + Number(p.total_value || 0), 0) || 0;
 
   const expensesChartData = {
     labels: data?.expensesTrend.map(e => e.month) || [],
@@ -161,9 +161,9 @@ export default function DashboardPage() {
   };
 
   const projectStatusData = {
-    labels: data?.stats.projects.map(p => statusLabels[p.status] || p.status) || [],
+    labels: data?.stats?.projects?.map(p => statusLabels[p.status] || p.status) || [],
     datasets: [{
-      data: data?.stats.projects.map(p => Number(p.count)) || [],
+      data: data?.stats?.projects?.map(p => Number(p.count)) || [],
       backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(139,92,246,0.8)'],
       borderWidth: 0,
     }],
@@ -192,47 +192,47 @@ export default function DashboardPage() {
               <div className="stat-card-icon">💰</div>
               <div className="stat-value">{formatCurrency(totalContractValue)}</div>
               <div className="stat-label">إجمالي قيمة العقود (ج.م)</div>
-              <div className="stat-change positive">▲ إيرادات {formatCurrency(data?.stats.yearlyRevenue?.total || 0)} هذا العام</div>
+              <div className="stat-change positive">▲ إيرادات {formatCurrency(data?.stats?.yearlyRevenue?.total || 0)} هذا العام</div>
             </div>
 
             <div className="stat-card success">
               <div className="stat-card-icon">👷</div>
-              <div className="stat-value">{data?.stats.employees.active || 0}</div>
+              <div className="stat-value">{data?.stats?.employees?.active || 0}</div>
               <div className="stat-label">موظف نشط</div>
-              <div className="stat-change positive">من إجمالي {data?.stats.employees.total || 0} موظف</div>
+              <div className="stat-change positive">من إجمالي {data?.stats?.employees?.total || 0} موظف</div>
             </div>
 
             <div className="stat-card danger">
               <div className="stat-card-icon">🔧</div>
-              <div className="stat-value">{data?.stats.faultTickets.open_tickets || 0}</div>
+              <div className="stat-value">{data?.stats?.faultTickets?.open_tickets || 0}</div>
               <div className="stat-label">بلاغات أعطال مفتوحة</div>
-              <div className="stat-change negative">من {data?.stats.faultTickets.total_tickets || 0} إجمالي</div>
+              <div className="stat-change negative">من {data?.stats?.faultTickets?.total_tickets || 0} إجمالي</div>
             </div>
 
             <div className="stat-card purple">
               <div className="stat-card-icon">📄</div>
-              <div className="stat-value">{data?.stats.expiringDocs.expiring || 0}</div>
+              <div className="stat-value">{data?.stats?.expiringDocs?.expiring || 0}</div>
               <div className="stat-label">وثائق تنتهي خلال 30 يوم</div>
               <div className="stat-change negative">تحتاج تجديد</div>
             </div>
 
             <div className="stat-card accent">
               <div className="stat-card-icon">⏰</div>
-              <div className="stat-value">{data?.stats.pendingOvertime.pending || 0}</div>
+              <div className="stat-value">{data?.stats?.pendingOvertime?.pending || 0}</div>
               <div className="stat-label">طلبات عمل إضافي معلقة</div>
               <div className="stat-change">بانتظار الاعتماد</div>
             </div>
 
             <div className="stat-card success">
               <div className="stat-card-icon">🔐</div>
-              <div className="stat-value">{data?.stats.maintenance.active || 0}</div>
+              <div className="stat-value">{data?.stats?.maintenance?.active || 0}</div>
               <div className="stat-label">عقود صيانة نشطة</div>
-              <div className="stat-change positive">من {data?.stats.maintenance.total || 0} إجمالي</div>
+              <div className="stat-change positive">من {data?.stats?.maintenance?.total || 0} إجمالي</div>
             </div>
 
             <div className="stat-card">
               <div className="stat-card-icon">📊</div>
-              <div className="stat-value">{formatCurrency(data?.stats.monthlyExpenses.total || 0)}</div>
+              <div className="stat-value">{formatCurrency(data?.stats?.monthlyExpenses?.total || 0)}</div>
               <div className="stat-label">مصروفات هذا الشهر (ج.م)</div>
               <div className="stat-change">إجمالي المصروفات</div>
             </div>
