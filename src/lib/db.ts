@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.gnfsmtammkivxlecvefp:H%40mzafarida123@aws-0-eu-north-1.pooler.supabase.com:6543/postgres';
+const connectionString = process.env.DATABASE_URL;
 
 const pool = new Pool({
   connectionString,
