@@ -38,7 +38,16 @@ export async function POST(request: NextRequest) {
     const result = await query(`
       INSERT INTO estimations (project_id, tender_name, tender_number, client_name, submission_date, status, overhead_percentage, profit_percentage)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-    `, [project_id || null, tender_name, tender_number, client_name, submission_date, status || 'draft', overhead_percentage || 15, profit_percentage || 10]);
+    `, [
+      project_id || null, 
+      tender_name, 
+      tender_number || null, 
+      client_name, 
+      submission_date || null, 
+      status || 'draft', 
+      overhead_percentage === '' ? 15 : Number(overhead_percentage), 
+      profit_percentage === '' ? 10 : Number(profit_percentage)
+    ]);
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {

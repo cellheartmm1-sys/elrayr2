@@ -70,8 +70,13 @@ export default function EstimationPage() {
           submission_date: '', status: 'draft', overhead_percentage: '15', profit_percentage: '10'
         });
         fetchEstimations();
+      } else {
+        const data = await res.json();
+        alert(`❌ فشل إنشاء عرض السعر: ${data.error || 'حدث خطأ ما'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err: any) {
+      alert(`❌ خطأ في الاتصال: ${err.message}`);
+    }
   };
 
   return (
