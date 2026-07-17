@@ -26,13 +26,28 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [userName, setUserName] = useState('محمد العمري');
   const [userRole, setUserRole] = useState('admin');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     const storedName = localStorage.getItem('user_name');
     const storedRole = localStorage.getItem('user_role');
     if (storedName) setUserName(storedName);
     if (storedRole) setUserRole(storedRole);
+
+    const storedTheme = localStorage.getItem('theme') as 'dark' | 'light';
+    if (storedTheme) {
+      setTheme(storedTheme);
+    } else {
+      setTheme('dark');
+    }
   }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('.').substring(0, 5);
@@ -78,6 +93,18 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
       </div>
 
       <div className="header-actions">
+        {/* Theme Toggle Button */}
+        <button 
+          className="header-icon-btn" 
+          title={theme === 'dark' ? 'تفعيل الوضع المضيء' : 'تفعيل الوضع المظلم'} 
+          onClick={toggleTheme}
+          style={{ transition: 'transform 0.3s ease' }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'rotate(15deg)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'rotate(0)'}
+        >
+          <span style={{ fontSize: '1.1rem' }}>{theme === 'dark' ? '☀️' : '🌙'}</span>
+        </button>
+
         {/* Notifications Button */}
         <div style={{ position: 'relative' }}>
           <button 

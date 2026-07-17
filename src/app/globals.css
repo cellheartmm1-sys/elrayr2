@@ -76,6 +76,92 @@
 }
 
 /* ============================================================
+   LIGHT THEME DESIGN SYSTEM
+   ============================================================ */
+html[data-theme="light"] {
+  /* Brand Colors Override */
+  --brand-primary: #2563eb;
+  --brand-primary-light: #3b82f6;
+  --brand-primary-dark: #1d4ed8;
+
+  /* Background Colors */
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-sidebar: #ffffff;
+  --bg-header: rgba(255, 255, 255, 0.9);
+  --bg-input: #f8fafc;
+  --bg-input-focus: rgba(37, 99, 235, 0.05);
+
+  /* Text Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-accent: #2563eb;
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-normal: rgba(0, 0, 0, 0.08);
+  --border-focus: rgba(37, 99, 235, 0.4);
+
+  /* Gradients Override */
+  --grad-primary: linear-gradient(135deg, #2563eb, #3b82f6);
+  --grad-card: linear-gradient(145deg, #ffffff, #f8fafc);
+  --grad-sidebar: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+
+  /* Glow Effects Override */
+  --glow-primary: 0 0 20px rgba(37, 99, 235, 0.15);
+  --glow-accent: 0 0 20px rgba(245, 158, 11, 0.15);
+
+  /* Shadows Override */
+  --shadow-card: 0 4px 20px rgba(15, 23, 42, 0.04);
+  --shadow-dropdown: 0 8px 30px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 20px 50px rgba(15, 23, 42, 0.12);
+}
+
+/* Light Theme Component Overrides */
+html[data-theme="light"] .card-glass {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+html[data-theme="light"] .data-table thead {
+  background: rgba(0,0,0,0.02);
+}
+
+html[data-theme="light"] .data-table tbody tr:hover {
+  background: rgba(0,0,0,0.015);
+}
+
+html[data-theme="light"] .progress-bar {
+  background: rgba(0,0,0,0.06);
+}
+
+html[data-theme="light"] .tab-btn:hover:not(.active) {
+  background: rgba(0,0,0,0.04);
+}
+
+html[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%);
+}
+
+/* Light Mode Badges Contrast Correction */
+html[data-theme="light"] .badge-primary { background: rgba(37, 99, 235, 0.08); color: #1d4ed8; border-color: rgba(37, 99, 235, 0.15); }
+html[data-theme="light"] .badge-success { background: rgba(16, 185, 129, 0.08); color: #065f46; border-color: rgba(16, 185, 129, 0.15); }
+html[data-theme="light"] .badge-warning { background: rgba(245, 158, 11, 0.08); color: #92400e; border-color: rgba(245, 158, 11, 0.15); }
+html[data-theme="light"] .badge-danger { background: rgba(220, 38, 38, 0.08); color: #991b1b; border-color: rgba(220, 38, 38, 0.15); }
+html[data-theme="light"] .badge-purple { background: rgba(109, 40, 217, 0.08); color: #5b21b6; border-color: rgba(109, 40, 217, 0.15); }
+html[data-theme="light"] .badge-muted { background: rgba(0,0,0,0.04); color: var(--text-secondary); border-color: var(--border-subtle); }
+
+/* Light Mode Alerts Contrast Correction */
+html[data-theme="light"] .alert-info { background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.15); color: #1e3a8a; }
+html[data-theme="light"] .alert-success { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.15); color: #065f46; }
+html[data-theme="light"] .alert-warning { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.15); color: #92400e; }
+html[data-theme="light"] .alert-danger { background: rgba(220, 38, 38, 0.08); border-color: rgba(220, 38, 38, 0.15); color: #991b1b; }
+
+
+/* ============================================================
    RESET & BASE
    ============================================================ */
 

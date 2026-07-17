@@ -36,11 +36,11 @@ const chartDefaults = {
   scales: {
     x: {
       ticks: { color: '#64748b', font: { family: 'Cairo' } },
-      grid: { color: 'rgba(255,255,255,0.04)' },
+      grid: { color: 'rgba(100, 116, 139, 0.12)' },
     },
     y: {
       ticks: { color: '#64748b', font: { family: 'Cairo' } },
-      grid: { color: 'rgba(255,255,255,0.04)' },
+      grid: { color: 'rgba(100, 116, 139, 0.12)' },
     },
   },
 };
