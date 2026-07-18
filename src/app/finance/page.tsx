@@ -26,7 +26,7 @@ ChartJS.register(
   Filler
 );
 
-type TabType = 'ipc' | 'expenses' | 'cashflow';
+type TabType = 'ipc' | 'expenses' | 'cashflow' | 'debts';
 
 interface IPC {
   id: string; ipc_number: string; project_name: string; ipc_date: string;
@@ -68,15 +68,18 @@ export default function FinancePage() {
   const [ipcs, setIpcs] = useState<IPC[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cashflow, setCashflow] = useState<CashFlowItem[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [showIpcModal, setShowIpcModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showDebtModal, setShowDebtModal] = useState(false);
 
   // Filters
   const [projectFilter, setProjectFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [debtTypeFilter, setDebtTypeFilter] = useState('');
 
   // Forms
   const [ipcForm, setIpcForm] = useState({
@@ -86,6 +89,10 @@ export default function FinancePage() {
 
   const [expenseForm, setExpenseForm] = useState({
     project_id: '', category: 'material', description: '', amount: '', supplier: '', invoice_number: ''
+  });
+
+  const [debtForm, setDebtForm] = useState({
+    creditor_name: '', debt_type: 'project_finance', project_id: '', amount: '', due_date: '', notes: ''
   });
 
   const fetchIPCs = useCallback(async () => {
@@ -121,6 +128,18 @@ export default function FinancePage() {
     } finally { setLoading(false); }
   }, []);
 
+  const fetchDebts = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (projectFilter) params.set('project_id', projectFilter);
+    if (debtTypeFilter) params.set('debt_type', debtTypeFilter);
+    try {
+      const res = await fetch(`/api/finance/debts?${params}`);
+      const data = await res.json();
+      setDebts(data && Array.isArray(data.data) ? data.data : []);
+    } finally { setLoading(false); }
+  }, [projectFilter, debtTypeFilter]);
+
   const fetchProjectsList = async () => {
     const res = await fetch('/api/projects');
     const data = await res.json();
@@ -135,7 +154,7 @@ export default function FinancePage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as TabType;
-      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow'];
+      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow', 'debts'];
       if (tab && validTabs.includes(tab)) {
         setActiveTab(tab);
       }
@@ -146,7 +165,8 @@ export default function FinancePage() {
     if (activeTab === 'ipc') fetchIPCs();
     if (activeTab === 'expenses') fetchExpenses();
     if (activeTab === 'cashflow') fetchCashflow();
-  }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow]);
+    if (activeTab === 'debts') fetchDebts();
+  }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow, fetchDebts]);
 
   const handleCreateIpc = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,6 +234,61 @@ export default function FinancePage() {
     }
   };
 
+  const handleCreateDebt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/finance/debts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creditor_name: debtForm.creditor_name,
+          debt_type: debtForm.debt_type,
+          project_id: debtForm.project_id || null,
+          amount: Number(debtForm.amount) || 0,
+          due_date: debtForm.due_date || null,
+          notes: debtForm.notes || ''
+        })
+      });
+      if (res.ok) {
+        setShowDebtModal(false);
+        setDebtForm({ creditor_name: '', debt_type: 'project_finance', project_id: '', amount: '', due_date: '', notes: '' });
+        fetchDebts();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة المديونية: ${errData.error || 'فشلت العملية'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handlePayDebt = async (id: string, currentPaid: number, totalAmount: number) => {
+    const payStr = prompt('أدخل قيمة المبلغ المراد سداده:', '0');
+    if (payStr === null) return;
+    const amountToPay = Number(payStr);
+    if (isNaN(amountToPay) || amountToPay <= 0) {
+      alert('الرجاء إدخال مبلغ صحيح.');
+      return;
+    }
+    const newPaid = currentPaid + amountToPay;
+    try {
+      const res = await fetch('/api/finance/debts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, paid_amount: newPaid })
+      });
+      if (res.ok) {
+        fetchDebts();
+        alert('✅ تم تسجيل سداد المديونية بنجاح!');
+      } else {
+        alert('❌ فشل تسجيل السداد.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // KPIs
   const totalInvoiced = ipcs.reduce((acc, i) => acc + Number(i.net_payable || 0), 0);
   const totalCollected = ipcs.filter(i => i.status === 'paid').reduce((acc, i) => acc + Number(i.net_payable || 0), 0);
@@ -251,6 +326,7 @@ export default function FinancePage() {
         <button className={`tab-btn ${activeTab === 'ipc' ? 'active' : ''}`} onClick={() => setActiveTab('ipc')}>📄 مستخلصات العميل</button>
         <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>🧾 مصروفات المشاريع</button>
         <button className={`tab-btn ${activeTab === 'cashflow' ? 'active' : ''}`} onClick={() => setActiveTab('cashflow')}>📈 التدفق النقدي والربحية</button>
+        <button className={`tab-btn ${activeTab === 'debts' ? 'active' : ''}`} onClick={() => setActiveTab('debts')}>🏛️ المديونيات وتمويل المشاريع</button>
       </div>
 
       {/* ======================== TAB: CLIENT IPCs ======================== */}
@@ -455,6 +531,207 @@ export default function FinancePage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ======================== TAB: DEBTS ======================== */}
+      {activeTab === 'debts' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">🏛️ مديونيات المؤسسة وقروض تمويل المشاريع</div>
+              <div className="page-description">تسجيل ومتابعة التزامات الشركة المالية ومبالغ التمويل الخارجي المؤقتة للمشاريع</div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowDebtModal(true)}>➕ تسجيل التزام / قرض جديد</button>
+          </div>
+
+          <div className="stats-grid mb-4">
+            <div className="stat-card">
+              <div className="stat-label">إجمالي الالتزامات والتمويل</div>
+              <div className="stat-value text-primary">
+                {formatCurrency(debts.reduce((acc, d) => acc + Number(d.amount || 0), 0))}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">إجمالي المبالغ المسددة</div>
+              <div className="stat-value text-success">
+                {formatCurrency(debts.reduce((acc, d) => acc + Number(d.paid_amount || 0), 0))}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">المتبقي المطلوب سداده</div>
+              <div className="stat-value text-danger">
+                {formatCurrency(
+                  debts.reduce((acc, d) => acc + (Number(d.amount || 0) - Number(d.paid_amount || 0)), 0)
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <div className="form-group mb-0">
+                <select className="form-control" value={projectFilter} onChange={e => setProjectFilter(e.target.value)}>
+                  <option value="">كل المشاريع...</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group mb-0">
+                <select className="form-control" value={debtTypeFilter} onChange={e => setDebtTypeFilter(e.target.value)}>
+                  <option value="">كل الأنواع...</option>
+                  <option value="project_finance">قروض تمويل المشاريع</option>
+                  <option value="subcontractor_ipc">مستخلصات مقاولي الباطن</option>
+                  <option value="supplier_invoice">فواتير التوريد</option>
+                  <option value="other">التزامات أخرى</option>
+                </select>
+              </div>
+            </div>
+
+            {debts.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🏛️</div>
+                <div className="empty-state-title">لا توجد مديونيات مسجلة تطابق التصفية</div>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>الجهة الدائنة / المقرض</th>
+                      <th>نوع الالتزام</th>
+                      <th>المشروع الممول/المرتبط</th>
+                      <th>القيمة الإجمالية</th>
+                      <th>تاريخ الاستحقاق</th>
+                      <th>المسدد</th>
+                      <th>المتبقي</th>
+                      <th>الحالة</th>
+                      <th>الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {debts.map((d) => {
+                      const remaining = Number(d.amount) - Number(d.paid_amount);
+                      return (
+                        <tr key={d.id}>
+                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.creditor_name}</td>
+                          <td>
+                            <span className="badge badge-purple">
+                              {d.debt_type === 'project_finance' ? '💵 تمويل مشروع' : d.debt_type === 'subcontractor_ipc' ? '🔗 مستخلص باطن' : d.debt_type === 'supplier_invoice' ? '🧾 فاتورة توريد' : 'أخرى'}
+                            </span>
+                          </td>
+                          <td>{d.project_name || '-'}</td>
+                          <td style={{ fontWeight: 600 }}>{formatCurrency(d.amount)}</td>
+                          <td>{d.due_date ? new Date(d.due_date).toLocaleDateString('ar-SA') : '-'}</td>
+                          <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{formatCurrency(d.paid_amount)}</td>
+                          <td style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{formatCurrency(remaining)}</td>
+                          <td>
+                            <span className={`badge ${d.status === 'paid' ? 'badge-success' : d.status === 'partially_paid' ? 'badge-warning' : 'badge-danger'}`}>
+                              {d.status === 'paid' ? 'مسدد بالكامل' : d.status === 'partially_paid' ? 'مسدد جزئياً' : 'غير مسدد'}
+                            </span>
+                          </td>
+                          <td>
+                            {d.status !== 'paid' && (
+                              <button
+                                className="btn btn-ghost text-primary btn-sm"
+                                onClick={() => handlePayDebt(d.id, Number(d.paid_amount), Number(d.amount))}
+                              >
+                                💸 تسجيل دفعة سداد
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ======================== MODAL: ADD DEBT ======================== */}
+      {showDebtModal && (
+        <div className="modal-overlay" onClick={() => setShowDebtModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🏛️ تسجيل التزام مالي أو تمويل مشروع جديد</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowDebtModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreateDebt}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">اسم الدائن / المقرض</label>
+                  <input
+                    className="form-control"
+                    required
+                    value={debtForm.creditor_name}
+                    onChange={e => setDebtForm({ ...debtForm, creditor_name: e.target.value })}
+                    placeholder="مثال: البنك الأهلي، المورد فلان..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">نوع الالتزام المالي</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={debtForm.debt_type}
+                    onChange={e => setDebtForm({ ...debtForm, debt_type: e.target.value })}
+                  >
+                    <option value="project_finance">قرض خارجي لتمويل تشغيل مشروع</option>
+                    <option value="subcontractor_ipc">مستخلص مستحق لمقاول باطن</option>
+                    <option value="supplier_invoice">فاتورة مستحقة لمورد مواد</option>
+                    <option value="other">التزام مالي إداري آخر</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">المشروع المرتبط/الممول</label>
+                  <select
+                    className="form-control"
+                    value={debtForm.project_id}
+                    onChange={e => setDebtForm({ ...debtForm, project_id: e.target.value })}
+                  >
+                    <option value="">لا يوجد مشروع مرتبط...</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">المبلغ الإجمالي (ج.م)</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    required
+                    value={debtForm.amount}
+                    onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ الاستحقاق/السداد</label>
+                  <input
+                    className="form-control"
+                    type="date"
+                    value={debtForm.due_date}
+                    onChange={e => setDebtForm({ ...debtForm, due_date: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">ملاحظات إضافية وشروط السداد</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={debtForm.notes}
+                    onChange={e => setDebtForm({ ...debtForm, notes: e.target.value })}
+                    placeholder="شروط تسوية الدين، أو ربطه بمستخلص المالك..."
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowDebtModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 حفظ المديونية</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* ======================== MODAL: ADD CLIENT IPC ======================== */}

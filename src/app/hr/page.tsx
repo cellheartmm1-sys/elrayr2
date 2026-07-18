@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 
-type TabType = 'employees' | 'payroll' | 'attendance' | 'overtime' | 'assets' | 'documents';
+type TabType = 'employees' | 'payroll' | 'attendance' | 'overtime' | 'assets' | 'documents' | 'loans';
 
 interface Employee {
   id: string; employee_number: string; full_name: string; job_title: string;
@@ -59,10 +59,12 @@ export default function HRPage() {
   const [overtime, setOvertime] = useState<OvertimeRequest[]>([]);
   const [assets, setAssets] = useState<PersonalAsset[]>([]);
   const [documents, setDocuments] = useState<DocumentAlert[]>([]);
+  const [loans, setLoans] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [showEmpModal, setShowEmpModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showLoanModal, setShowLoanModal] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -83,6 +85,10 @@ export default function HRPage() {
   const [assetForm, setAssetForm] = useState({
     asset_code: '', asset_name: '', asset_type: 'tool', brand: '', model: '',
     serial_number: '', purchase_cost: '', condition: 'good', status: 'available'
+  });
+
+  const [loanForm, setLoanForm] = useState({
+    employee_id: '', amount: '', monthly_deduction: '', repayment_method: 'salary_deduction', notes: ''
   });
 
   // Fetch functions
@@ -145,6 +151,15 @@ export default function HRPage() {
     } finally { setLoading(false); }
   }, []);
 
+  const fetchLoans = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/hr/loans');
+      const data = await res.json();
+      setLoans(data && Array.isArray(data.data) ? data.data : []);
+    } finally { setLoading(false); }
+  }, []);
+
   const fetchProjectsList = async () => {
     const res = await fetch('/api/projects');
     const data = await res.json();
@@ -159,7 +174,7 @@ export default function HRPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as TabType;
-      const validTabs: TabType[] = ['employees', 'payroll', 'attendance', 'overtime', 'assets', 'documents'];
+      const validTabs: TabType[] = ['employees', 'payroll', 'attendance', 'overtime', 'assets', 'documents', 'loans'];
       if (tab && validTabs.includes(tab)) {
         setActiveTab(tab);
       }
@@ -173,7 +188,8 @@ export default function HRPage() {
     if (activeTab === 'overtime') fetchOvertime();
     if (activeTab === 'assets') fetchAssets();
     if (activeTab === 'documents') fetchDocuments();
-  }, [activeTab, fetchEmployees, fetchPayroll, fetchAttendance, fetchOvertime, fetchAssets, fetchDocuments]);
+    if (activeTab === 'loans') fetchLoans();
+  }, [activeTab, fetchEmployees, fetchPayroll, fetchAttendance, fetchOvertime, fetchAssets, fetchDocuments, fetchLoans]);
 
   // Actions
   const handleCreateEmployee = async (e: React.FormEvent) => {
@@ -228,6 +244,54 @@ export default function HRPage() {
     }
   };
 
+  const handleCreateLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/hr/loans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loanForm)
+      });
+      if (res.ok) {
+        setShowLoanModal(false);
+        setLoanForm({ employee_id: '', amount: '', monthly_deduction: '', repayment_method: 'salary_deduction', notes: '' });
+        fetchLoans();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة السلفة: ${errData.error || 'فشلت العملية'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handlePayLoanInstallment = async (id: string, currentPaid: number, totalAmount: number) => {
+    const payStr = prompt('أدخل قيمة الدفعة المسددة نقداً:', '0');
+    if (payStr === null) return;
+    const amountToPay = Number(payStr);
+    if (isNaN(amountToPay) || amountToPay <= 0) {
+      alert('الرجاء إدخال مبلغ صحيح.');
+      return;
+    }
+    const newPaid = currentPaid + amountToPay;
+    try {
+      const res = await fetch('/api/hr/loans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, paid_amount: newPaid })
+      });
+      if (res.ok) {
+        fetchLoans();
+        alert('✅ تم تسجيل السداد بنجاح!');
+      } else {
+        alert('❌ فشل تسجيل السداد.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleOvertimeAction = async (id: string, action: 'approved' | 'rejected') => {
     try {
       const res = await fetch(`/api/hr/overtime`, {
@@ -263,6 +327,7 @@ export default function HRPage() {
         <button className={`tab-btn ${activeTab === 'overtime' ? 'active' : ''}`} onClick={() => setActiveTab('overtime')}>⏰ الموافقات الإضافية</button>
         <button className={`tab-btn ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => setActiveTab('assets')}>🔨 العهد الشخصية</button>
         <button className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>📜 تنبيهات الوثائق</button>
+        <button className={`tab-btn ${activeTab === 'loans' ? 'active' : ''}`} onClick={() => setActiveTab('loans')}>💵 السلفيات والقروض</button>
       </div>
 
       {/* ======================== TAB: EMPLOYEES ======================== */}
@@ -655,6 +720,187 @@ export default function HRPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* ======================== TAB: LOANS ======================== */}
+      {activeTab === 'loans' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">💵 السلفيات والقروض المالية للموظفين</div>
+              <div className="page-description">متابعة سلف الموظفين والعمال، الاستقطاعات الشهرية، وتسجيل الدفعات النقدية المستلمة</div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowLoanModal(true)}>➕ تسجيل سلفة جديدة</button>
+          </div>
+
+          <div className="stats-grid mb-4">
+            <div className="stat-card">
+              <div className="stat-label">إجمالي السلف والتمويل</div>
+              <div className="stat-value">
+                {formatCurrency(loans.reduce((acc, l) => acc + Number(l.amount || 0), 0))}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">إجمالي المبالغ المسددة</div>
+              <div className="stat-value text-success">
+                {formatCurrency(loans.reduce((acc, l) => acc + Number(l.paid_amount || 0), 0))}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">المتبقي للتحصيل</div>
+              <div className="stat-value text-danger">
+                {formatCurrency(
+                  loans.reduce((acc, l) => acc + (Number(l.amount || 0) - Number(l.paid_amount || 0)), 0)
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            {loans.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">💵</div>
+                <div className="empty-state-title">لا توجد سلفيات مسجلة حالياً</div>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>رقم الموظف</th>
+                      <th>اسم الموظف</th>
+                      <th>المسمى الوظيفي</th>
+                      <th>تاريخ السلفة</th>
+                      <th>قيمة السلفة</th>
+                      <th>القسط الشهري</th>
+                      <th>المسدد</th>
+                      <th>المتبقي</th>
+                      <th>طريقة السداد</th>
+                      <th>الحالة</th>
+                      <th>الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loans.map((l) => {
+                      const remaining = Number(l.amount) - Number(l.paid_amount);
+                      return (
+                        <tr key={l.id}>
+                          <td>{l.employee_number}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{l.employee_name}</td>
+                          <td>{l.employee_job_title}</td>
+                          <td>{l.loan_date ? new Date(l.loan_date).toLocaleDateString('ar-SA') : '-'}</td>
+                          <td style={{ fontWeight: 600 }}>{formatCurrency(l.amount)}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{formatCurrency(l.monthly_deduction)}</td>
+                          <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{formatCurrency(l.paid_amount)}</td>
+                          <td style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{formatCurrency(remaining)}</td>
+                          <td>
+                            <span className="badge badge-muted">
+                              {l.repayment_method === 'salary_deduction' ? 'استقطاع راتب' : l.repayment_method === 'cash' ? 'نقدي' : 'أخرى'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${l.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
+                              {l.status === 'paid' ? 'مسددة بالكامل' : 'نشطة'}
+                            </span>
+                          </td>
+                          <td>
+                            {l.status !== 'paid' && (
+                              <button
+                                className="btn btn-ghost text-primary btn-sm"
+                                onClick={() => handlePayLoanInstallment(l.id, Number(l.paid_amount), Number(l.amount))}
+                              >
+                                💰 تسجيل سداد نقدي
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ======================== MODAL: ADD LOAN ======================== */}
+      {showLoanModal && (
+        <div className="modal-overlay" onClick={() => setShowLoanModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">💵 تسجيل سلفة جديدة لموظف</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowLoanModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreateLoan}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">الموظف المستلف</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={loanForm.employee_id}
+                    onChange={e => setLoanForm({ ...loanForm, employee_id: e.target.value })}
+                  >
+                    <option value="">اختر الموظف...</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.job_title})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">قيمة السلفة (ج.م)</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    required
+                    value={loanForm.amount}
+                    onChange={e => setLoanForm({ ...loanForm, amount: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">قسط الاستقطاع الشهري (ج.م)</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    required
+                    value={loanForm.monthly_deduction}
+                    onChange={e => setLoanForm({ ...loanForm, monthly_deduction: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">طريقة سداد السلفة</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={loanForm.repayment_method}
+                    onChange={e => setLoanForm({ ...loanForm, repayment_method: e.target.value })}
+                  >
+                    <option value="salary_deduction">استقطاع من مسير الراتب الشهري</option>
+                    <option value="cash">سداد نقدي مباشر</option>
+                    <option value="other">طريقة أخرى</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">ملاحظات وشروط السلفة</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={loanForm.notes}
+                    onChange={e => setLoanForm({ ...loanForm, notes: e.target.value })}
+                    placeholder="مثال: خصم شهري يبدأ من شهر 8 القادم"
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowLoanModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 حفظ السلفة</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* ======================== MODAL: ADD EMPLOYEE ======================== */}

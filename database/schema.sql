@@ -655,6 +655,37 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Employee Loans (سلفيات الموظفين)
+CREATE TABLE IF NOT EXISTS employee_loans (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  loan_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  amount NUMERIC(10,2) NOT NULL,
+  monthly_deduction NUMERIC(10,2) NOT NULL DEFAULT 0,
+  paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  repayment_method TEXT DEFAULT 'salary_deduction' CHECK (repayment_method IN ('salary_deduction','cash','other')),
+  status TEXT DEFAULT 'active' CHECK (status IN ('pending','active','paid')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Company Debts & Project Financing (مديونيات الشركة وتمويل المشاريع)
+CREATE TABLE IF NOT EXISTS company_debts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  creditor_name TEXT NOT NULL,
+  debt_type TEXT NOT NULL DEFAULT 'other' CHECK (debt_type IN ('project_finance','subcontractor_ipc','supplier_invoice','other')),
+  subcontractor_id UUID REFERENCES subcontractors(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  amount NUMERIC(10,2) NOT NULL,
+  due_date DATE,
+  paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  status TEXT DEFAULT 'unpaid' CHECK (status IN ('unpaid','partially_paid','paid')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ============================================================
 -- VIEWS (Useful aggregated views)
 -- ============================================================

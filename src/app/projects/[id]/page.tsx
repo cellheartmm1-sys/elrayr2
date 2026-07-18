@@ -67,6 +67,16 @@ interface ProjectDetails {
     subcontractor_name: string;
     scope_of_work: string;
   }>;
+  debts: Array<{
+    id: string;
+    creditor_name: string;
+    debt_type: string;
+    amount: string;
+    due_date: string;
+    paid_amount: string;
+    status: string;
+    notes: string;
+  }>;
 }
 
 type TabType = 'overview' | 'phases' | 'progress' | 'financials';
@@ -146,7 +156,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     );
   }
 
-  const { project, phases, progress, expenses, ipcs, subIpcs } = details;
+  const { project, phases, progress, expenses, ipcs, subIpcs, debts = [] } = details;
   const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.total || 0), 0);
 
   return (
@@ -477,6 +487,60 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         <td style={{ fontWeight: 'bold', color: 'var(--status-danger)' }}>{formatCurrency(exp.total)}</td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Project Debts and Financing */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">📈 التمويل والمديونيات الخارجية للمشروع</div>
+              <div className="card-subtitle">سجل القروض التمويلية المؤقتة والالتزامات المالية الخاصة بهذا المشروع</div>
+            </div>
+            {debts.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🏛️</div>
+                <div className="empty-state-title">لا توجد قروض تمويلية أو مديونيات مسجلة لهذا المشروع</div>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>الدائن / المقرض</th>
+                      <th>نوع الالتزام</th>
+                      <th>القيمة الإجمالية</th>
+                      <th>تاريخ الاستحقاق</th>
+                      <th>المسدد نقداً</th>
+                      <th>المتبقي</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {debts.map(debt => {
+                      const remaining = Number(debt.amount) - Number(debt.paid_amount);
+                      return (
+                        <tr key={debt.id}>
+                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{debt.creditor_name}</td>
+                          <td>
+                            <span className="badge badge-purple">
+                              {debt.debt_type === 'project_finance' ? '💵 تمويل مشروع' : debt.debt_type === 'subcontractor_ipc' ? '🔗 مستخلص باطن' : debt.debt_type === 'supplier_invoice' ? '🧾 فاتورة توريد' : 'أخرى'}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 600 }}>{formatCurrency(debt.amount)}</td>
+                          <td>{debt.due_date ? new Date(debt.due_date).toLocaleDateString('ar-SA') : '-'}</td>
+                          <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{formatCurrency(debt.paid_amount)}</td>
+                          <td style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{formatCurrency(remaining)}</td>
+                          <td>
+                            <span className={`badge ${debt.status === 'paid' ? 'badge-success' : debt.status === 'partially_paid' ? 'badge-warning' : 'badge-danger'}`}>
+                              {debt.status === 'paid' ? 'مسدد بالكامل' : debt.status === 'partially_paid' ? 'مسدد جزئياً' : 'غير مسدد'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
