@@ -68,31 +68,32 @@ export async function GET(request: NextRequest) {
           mr.request_number,
           mr.project_id,
           p.name AS project_name,
-          p.project_number,
+          mr.warehouse_id,
+          w.name AS warehouse_name,
           mr.requested_by,
-          u.full_name AS requested_by_name,
+          e.full_name AS requested_by_name,
           mr.request_date,
           mr.required_date,
           mr.priority,
           mr.status,
-          mr.total_items,
-          mr.total_estimated_cost,
           mr.approved_by,
           approver.full_name AS approver_name,
           mr.approval_date,
           mr.notes,
           mr.created_at,
-          mr.updated_at
+          (SELECT COUNT(*) FROM material_request_items mri WHERE mri.request_id = mr.id) AS total_items,
+          (SELECT COALESCE(SUM(mri.unit_cost * mri.requested_quantity),0) FROM material_request_items mri WHERE mri.request_id = mr.id) AS total_estimated_cost
         FROM material_requests mr
         LEFT JOIN projects p ON p.id = mr.project_id
-        LEFT JOIN employees u ON u.id = mr.requested_by
+        LEFT JOIN warehouses w ON w.id = mr.warehouse_id
+        LEFT JOIN employees e ON e.id = mr.requested_by
         LEFT JOIN employees approver ON approver.id = mr.approved_by
         ${where}
         ORDER BY
           CASE mr.priority
             WHEN 'urgent' THEN 1
             WHEN 'high' THEN 2
-            WHEN 'medium' THEN 3
+            WHEN 'normal' THEN 3
             ELSE 4
           END,
           mr.request_date DESC
@@ -124,79 +125,83 @@ export async function POST(request: NextRequest) {
     const {
       request_number,
       project_id,
+      warehouse_id,
       requested_by,
       request_date,
       required_date,
-      priority = 'medium',
+      priority = 'normal',
       items,
       notes,
     } = body;
 
-    if (!requested_by || !items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { error: 'requested_by and at least one item are required' },
-        { status: 400 }
-      );
+    if (!project_id) {
+      return NextResponse.json({ error: 'project_id is required' }, { status: 400 });
     }
 
-    const totalItems = items.length;
-    const totalEstimatedCost = items.reduce(
-      (sum: number, item: { estimated_unit_cost?: number; quantity?: number }) =>
-        sum + (item.estimated_unit_cost ?? 0) * (item.quantity ?? 1),
-      0
+    if (!requested_by) {
+      return NextResponse.json({ error: 'requested_by is required' }, { status: 400 });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
+    }
+
+    const validItems = items.filter((item: { item_name?: string; description?: string }) =>
+      (item.item_name || item.description || '').trim() !== ''
     );
+
+    if (validItems.length === 0) {
+      return NextResponse.json({ error: 'At least one item with a name is required' }, { status: 400 });
+    }
+
+    const generatedNumber = request_number || `REQ-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const result = await query(
       `INSERT INTO material_requests (
-          request_number, project_id, requested_by, request_date, required_date,
-          priority, status, total_items, total_estimated_cost, notes
-        ) VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9)
+          request_number, project_id, warehouse_id, requested_by, request_date, required_date,
+          priority, status, notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8)
         RETURNING *`,
       [
-        request_number ?? null,
-        project_id ?? null,
+        generatedNumber,
+        project_id,
+        warehouse_id ?? null,
         requested_by,
         request_date ?? new Date().toISOString().split('T')[0],
         required_date ?? null,
         priority,
-        totalItems,
-        totalEstimatedCost,
         notes ?? null,
       ]
     );
 
     const requestId = result.rows[0].id;
 
-    // Insert line items if table exists
-    if (items.length > 0) {
-      const itemValues = items.map(
-        (_: unknown, i: number) =>
-          `($${i * 6 + 1}, $${i * 6 + 2}, $${i * 6 + 3}, $${i * 6 + 4}, $${i * 6 + 5}, $${i * 6 + 6})`
-      );
-      const itemParams = items.flatMap(
-        (item: {
-          item_name?: string;
-          item_code?: string;
-          quantity?: number;
-          unit?: string;
-          estimated_unit_cost?: number;
-          notes?: string;
-        }) => [
-          requestId,
-          item.item_name ?? null,
-          item.item_code ?? null,
-          item.quantity ?? 1,
-          item.unit ?? null,
-          item.estimated_unit_cost ?? null,
-        ]
-      );
+    // Insert line items matching actual schema columns
+    const itemValues = validItems.map(
+      (_: unknown, i: number) =>
+        `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`
+    );
+    const itemParams = validItems.flatMap(
+      (item: {
+        item_name?: string;
+        description?: string;
+        quantity?: number;
+        unit?: string;
+        estimated_unit_cost?: number;
+        unit_cost?: number;
+      }) => [
+        requestId,
+        item.description || item.item_name || '',
+        item.unit ?? 'قطعة',
+        item.quantity ?? 1,
+      ]
+    );
 
-      await query(
-        `INSERT INTO material_request_items (request_id, item_name, item_code, quantity, unit, estimated_unit_cost)
-          VALUES ${itemValues.join(', ')}`,
-        itemParams
-      );
-    }
+    await query(
+      `INSERT INTO material_request_items (request_id, description, unit, requested_quantity)
+        VALUES ${itemValues.join(', ')}`,
+      itemParams
+    );
 
     return NextResponse.json({ data: result.rows[0] }, { status: 201 });
   } catch (error) {

@@ -940,8 +940,7 @@ textarea.form-control {
   padding: 1.25rem;
   width: 100%;
   max-width: 600px;
-  max-height: 95vh;
-  overflow-y: auto;
+  overflow: visible;
   box-shadow: var(--shadow-modal);
   animation: slideUp var(--transition-normal) ease;
 }
@@ -1044,6 +1043,7 @@ textarea.form-control {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -1052,8 +1052,6 @@ textarea.form-control {
   margin-bottom: 1.25rem;
   width: 100%;
   max-width: max-content;
-  overflow-x: auto;
-  flex-wrap: nowrap;
 }
 
 .tab-btn {
@@ -1322,14 +1320,9 @@ textarea.form-control {
 
   .tabs {
     width: 100% !important;
-    overflow-x: auto !important;
-    white-space: nowrap !important;
     display: flex !important;
-    scrollbar-width: none !important;
-  }
-  
-  .tabs::-webkit-scrollbar {
-    display: none !important;
+    flex-wrap: wrap !important;
+    gap: 0.25rem !important;
   }
 
   .page-header {

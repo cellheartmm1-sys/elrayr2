@@ -105,9 +105,13 @@ export default function ProjectsPage() {
           description: ''
         });
         fetchProjects();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة المشروع: ${errData.error || 'فشلت العملية'}`);
       }
     } catch (err) {
       console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
     }
   };
 

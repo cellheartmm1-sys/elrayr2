@@ -53,12 +53,11 @@ export default function LaborPage() {
   const fetchLaborers = useCallback(async () => {
     setLoading(true);
     try {
-      // Use existing subcontractors/sub-workers or standard daily laborers endpoint
-      // We've seeded standard daily laborers in the database
       const res = await fetch('/api/employees?employment_type=daily');
       const data = await res.json();
-      // Map employees of type daily to Laborer interface
-      setLaborers(Array.isArray(data) ? data.map((e: { id: string; full_name: string; nationality: string; job_title: string; id_number: string; phone: string; base_salary: string; status: string }) => ({
+      // API returns {data: [...], pagination: {}} - handle both formats
+      const list = Array.isArray(data) ? data : (data?.data ?? []);
+      setLaborers(list.map((e: { id: string; full_name: string; nationality: string; job_title: string; id_number: string; phone: string; base_salary: string; status: string }) => ({
         id: e.id,
         name: e.full_name,
         nationality: e.nationality,
@@ -67,7 +66,7 @@ export default function LaborPage() {
         phone: e.phone,
         daily_rate: e.base_salary,
         is_active: e.status === 'active'
-      })) : []);
+      })));
     } finally { setLoading(false); }
   }, []);
 
@@ -75,12 +74,13 @@ export default function LaborPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (projectFilter) params.set('project_id', projectFilter);
-    params.set('date', dateFilter);
+    if (dateFilter) params.set('date_from', dateFilter);
     try {
-      const res = await fetch(`/api/hr/attendance?date=${dateFilter}&${params}`);
+      const res = await fetch(`/api/hr/attendance?${params}`);
       const data = await res.json();
-      // Map to LaborAttendance
-      setAttendance(Array.isArray(data) ? data.map((a: { id: string; employee_name: string; job_title: string; project_name: string; attendance_date: string; attendance_type: string; overtime_hours: number; base_salary: string }) => ({
+      // API returns {data: [...], pagination: {}} - handle both formats
+      const list = Array.isArray(data) ? data : (data?.data ?? []);
+      setAttendance(list.map((a: { id: string; employee_name: string; job_title: string; project_name: string; attendance_date: string; attendance_type: string; overtime_hours: number; base_salary: string }) => ({
         id: a.id,
         worker_name: a.employee_name,
         skill: a.job_title,
@@ -88,9 +88,9 @@ export default function LaborPage() {
         attendance_date: a.attendance_date,
         is_present: a.attendance_type === 'present',
         hours_worked: '8',
-        overtime_hours: String(a.overtime_hours),
-        total_pay: String(Number(a.base_salary || 150) + (a.overtime_hours * 25))
-      })) : []);
+        overtime_hours: String(a.overtime_hours ?? 0),
+        total_pay: String(Number(a.base_salary || 150) + (Number(a.overtime_hours || 0) * 25))
+      })));
     } finally { setLoading(false); }
   }, [projectFilter, dateFilter]);
 

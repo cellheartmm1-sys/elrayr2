@@ -1,6 +1,10 @@
 import { query } from '@/lib/db';
 import { NextResponse, NextRequest } from 'next/server';
 
+// Actual table: attendance_records (NOT 'attendance')
+// Columns: employee_id, project_id, attendance_date, attendance_type,
+//          check_in_time, check_out_time, hours_worked, overtime_hours, notes, created_at
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -8,7 +12,7 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get('employee_id') ?? '';
     const dateFrom = searchParams.get('date_from') ?? '';
     const dateTo = searchParams.get('date_to') ?? '';
-    const status = searchParams.get('status') ?? '';
+    const attendanceType = searchParams.get('status') ?? searchParams.get('attendance_type') ?? '';
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10)));
     const offset = (page - 1) * limit;
@@ -17,42 +21,15 @@ export async function GET(request: NextRequest) {
     const params: unknown[] = [];
     let paramIndex = 1;
 
-    if (projectId) {
-      conditions.push(`a.project_id = $${paramIndex}`);
-      params.push(projectId);
-      paramIndex++;
-    }
-
-    if (employeeId) {
-      conditions.push(`a.employee_id = $${paramIndex}`);
-      params.push(employeeId);
-      paramIndex++;
-    }
-
-    if (dateFrom) {
-      conditions.push(`a.attendance_date >= $${paramIndex}`);
-      params.push(dateFrom);
-      paramIndex++;
-    }
-
-    if (dateTo) {
-      conditions.push(`a.attendance_date <= $${paramIndex}`);
-      params.push(dateTo);
-      paramIndex++;
-    }
-
-    if (status) {
-      conditions.push(`a.status = $${paramIndex}`);
-      params.push(status);
-      paramIndex++;
-    }
+    if (projectId) { conditions.push(`a.project_id = $${paramIndex}`); params.push(projectId); paramIndex++; }
+    if (employeeId) { conditions.push(`a.employee_id = $${paramIndex}`); params.push(employeeId); paramIndex++; }
+    if (dateFrom) { conditions.push(`a.attendance_date >= $${paramIndex}`); params.push(dateFrom); paramIndex++; }
+    if (dateTo) { conditions.push(`a.attendance_date <= $${paramIndex}`); params.push(dateTo); paramIndex++; }
+    if (attendanceType) { conditions.push(`a.attendance_type = $${paramIndex}`); params.push(attendanceType); paramIndex++; }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countResult = await query(
-      `SELECT COUNT(*) AS total FROM attendance a ${where}`,
-      params
-    );
+    const countResult = await query(`SELECT COUNT(*) AS total FROM attendance_records a ${where}`, params);
     const total = parseInt(countResult.rows[0].total, 10);
 
     const dataResult = await query(
@@ -65,13 +42,17 @@ export async function GET(request: NextRequest) {
           a.project_id,
           p.name AS project_name,
           a.attendance_date,
-          a.check_in,
-          a.check_out,
+          a.attendance_type,
+          a.attendance_type AS status,
+          a.check_in_time,
+          a.check_in_time AS check_in,
+          a.check_out_time,
+          a.check_out_time AS check_out,
           a.hours_worked,
-          a.status,
+          a.overtime_hours,
           a.notes,
           a.created_at
-        FROM attendance a
+        FROM attendance_records a
         JOIN employees e ON e.id = a.employee_id
         LEFT JOIN projects p ON p.id = a.project_id
         ${where}
@@ -82,19 +63,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: dataResult.rows,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error('[GET /api/hr/attendance]', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch attendance records' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch attendance records' }, { status: 500 });
   }
 }
 
@@ -105,54 +78,48 @@ export async function POST(request: NextRequest) {
       employee_id,
       project_id,
       attendance_date,
-      check_in,
-      check_out,
+      check_in_time,
+      check_in,         // legacy alias
+      check_out_time,
+      check_out,        // legacy alias
       hours_worked,
-      status = 'present',
+      overtime_hours,
+      attendance_type,
+      status,           // legacy alias → attendance_type
       notes,
     } = body;
 
     if (!employee_id || !attendance_date) {
-      return NextResponse.json(
-        { error: 'employee_id and attendance_date are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'employee_id and attendance_date are required' }, { status: 400 });
     }
+
+    const resolvedType = attendance_type ?? status ?? 'present';
+    const resolvedCheckIn = check_in_time ?? check_in ?? null;
+    const resolvedCheckOut = check_out_time ?? check_out ?? null;
 
     // Prevent duplicate
     const existing = await query(
-      'SELECT id FROM attendance WHERE employee_id = $1 AND attendance_date = $2 AND (project_id = $3 OR ($3::uuid IS NULL AND project_id IS NULL))',
+      `SELECT id FROM attendance_records WHERE employee_id = $1 AND attendance_date = $2 AND (project_id = $3 OR ($3::uuid IS NULL AND project_id IS NULL))`,
       [employee_id, attendance_date, project_id ?? null]
     );
     if (existing.rows.length > 0) {
-      return NextResponse.json(
-        { error: 'Attendance record already exists for this employee on this date/project' },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: 'Attendance already recorded for this employee on this date' }, { status: 409 });
     }
 
     const result = await query(
-      `INSERT INTO attendance (employee_id, project_id, attendance_date, check_in, check_out, hours_worked, status, notes)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO attendance_records (employee_id, project_id, attendance_date, attendance_type, check_in_time, check_out_time, hours_worked, overtime_hours, notes)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
         RETURNING *`,
       [
-        employee_id,
-        project_id ?? null,
-        attendance_date,
-        check_in ?? null,
-        check_out ?? null,
-        hours_worked ?? null,
-        status,
-        notes ?? null,
+        employee_id, project_id ?? null, attendance_date,
+        resolvedType, resolvedCheckIn, resolvedCheckOut,
+        hours_worked ?? null, overtime_hours ?? null, notes ?? null,
       ]
     );
 
     return NextResponse.json({ data: result.rows[0] }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/hr/attendance]', error);
-    return NextResponse.json(
-      { error: 'Failed to record attendance' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to record attendance' }, { status: 500 });
   }
 }

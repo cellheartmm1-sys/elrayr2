@@ -102,17 +102,28 @@ export async function POST(request: NextRequest) {
     const {
       employee_number,
       full_name,
+      full_name_en,
       nationality,
+      id_number,
+      iqama_number,
+      iqama_expiry,
+      passport_number,
+      passport_expiry,
+      hire_date,
       job_title,
       department_id,
       base_salary,
       housing_allowance,
       transport_allowance,
       other_allowances,
+      bank_account,
+      bank_name,
+      iban,
       phone,
+      email,
       status = 'active',
       employment_type,
-      iqama_expiry,
+      notes,
     } = body;
 
     if (!full_name || !employee_number) {
@@ -136,25 +147,22 @@ export async function POST(request: NextRequest) {
 
     const result = await query(
       `INSERT INTO employees (
-          employee_number, full_name, nationality, job_title, department_id,
+          employee_number, full_name, full_name_en, nationality,
+          id_number, iqama_number, iqama_expiry, passport_number, passport_expiry,
+          hire_date, job_title, department_id,
           base_salary, housing_allowance, transport_allowance, other_allowances,
-          phone, status, employment_type, iqama_expiry
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+          bank_account, bank_name, iban, phone, email,
+          status, employment_type, notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
         RETURNING *`,
       [
-        employee_number,
-        full_name,
-        nationality ?? null,
-        job_title ?? null,
-        department_id ?? null,
-        base_salary ?? 0,
-        housing_allowance ?? 0,
-        transport_allowance ?? 0,
-        other_allowances ?? 0,
-        phone ?? null,
-        status,
-        employment_type ?? null,
-        iqama_expiry ?? null,
+        employee_number, full_name, full_name_en ?? null, nationality ?? null,
+        id_number ?? null, iqama_number ?? null, iqama_expiry ?? null,
+        passport_number ?? null, passport_expiry ?? null,
+        hire_date ?? null, job_title ?? null, department_id ?? null,
+        base_salary ?? 0, housing_allowance ?? 0, transport_allowance ?? 0, other_allowances ?? 0,
+        bank_account ?? null, bank_name ?? null, iban ?? null, phone ?? null, email ?? null,
+        status, employment_type ?? null, notes ?? null,
       ]
     );
 

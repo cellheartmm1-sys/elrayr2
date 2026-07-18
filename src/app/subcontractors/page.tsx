@@ -54,7 +54,7 @@ export default function SubcontractorsPage() {
       if (specialtyFilter) params.set('specialty', specialtyFilter);
       const res = await fetch(`/api/subcontractors?${params}`);
       const data = await res.json();
-      setSubcontractors(Array.isArray(data) ? data : []);
+      setSubcontractors(Array.isArray(data) ? data : (data?.data ?? []));
     } finally { setLoading(false); }
   }, [search, specialtyFilter]);
 
@@ -62,7 +62,7 @@ export default function SubcontractorsPage() {
     try {
       const res = await fetch('/api/projects');
       const data = await res.json();
-      setProjects(Array.isArray(data) ? data : []);
+      setProjects(Array.isArray(data) ? data : (data?.data ?? []));
     } catch (e) {
       console.error(e);
     }

@@ -733,7 +733,7 @@ export default function HRPage() {
             <button className="btn btn-primary" onClick={() => setShowLoanModal(true)}>➕ تسجيل سلفة جديدة</button>
           </div>
 
-          <div className="stats-grid mb-4">
+          <div className="stat-grid mb-4">
             <div className="stat-card">
               <div className="stat-label">إجمالي السلف والتمويل</div>
               <div className="stat-value">

@@ -76,7 +76,8 @@ export default function MaintenancePage() {
     try {
       const res = await fetch('/api/maintenance/contracts');
       const data = await res.json();
-      setContracts(Array.isArray(data) ? data : []);
+      // API returns {data: [...], pagination: {...}}
+      setContracts(Array.isArray(data) ? data : (data?.data ?? []));
     } finally { setLoading(false); }
   }, []);
 
@@ -84,7 +85,7 @@ export default function MaintenancePage() {
     try {
       const res = await fetch('/api/employees');
       const data = await res.json();
-      setEmployees(Array.isArray(data) ? data : []);
+      setEmployees(Array.isArray(data) ? data : (data?.data ?? []));
     } catch (e) {
       console.error(e);
     }
@@ -139,9 +140,20 @@ export default function MaintenancePage() {
       });
       if (res.ok) {
         setShowContractModal(false);
+        setContractForm({
+          contract_number: '', client_name: '', client_contact: '', client_phone: '',
+          site_address: '', system_type: 'fire_pump', start_date: '', end_date: '',
+          annual_value: '', visit_frequency: 'quarterly', status: 'active', notes: ''
+        });
         fetchContracts();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء تسجيل العقد: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateVisit = async (e: React.FormEvent) => {
@@ -154,9 +166,16 @@ export default function MaintenancePage() {
       });
       if (res.ok) {
         setShowVisitModal(false);
+        setVisitForm({ contract_id: '', scheduled_date: '', technician_id: '', notes: '' });
         fetchVisits();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء جدولة الزيارة: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateTicket = async (e: React.FormEvent) => {
@@ -169,9 +188,19 @@ export default function MaintenancePage() {
       });
       if (res.ok) {
         setShowTicketModal(false);
+        setTicketForm({
+          contract_id: '', client_name: '', site_address: '', reported_by: '', phone: '',
+          fault_description: '', urgency: 'normal', status: 'open'
+        });
         fetchTickets();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء فتح بلاغ العطل: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   // KPIs

@@ -544,7 +544,7 @@ export default function FinancePage() {
             <button className="btn btn-primary" onClick={() => setShowDebtModal(true)}>➕ تسجيل التزام / قرض جديد</button>
           </div>
 
-          <div className="stats-grid mb-4">
+          <div className="stat-grid mb-4">
             <div className="stat-card">
               <div className="stat-label">إجمالي الالتزامات والتمويل</div>
               <div className="stat-value text-primary">

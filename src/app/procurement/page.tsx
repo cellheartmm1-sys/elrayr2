@@ -52,6 +52,10 @@ export default function ProcurementPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
   const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [requestItems, setRequestItems] = useState<Array<{ item_name: string; quantity: number; unit: string; estimated_unit_cost: number }>>([
+    { item_name: '', quantity: 1, unit: 'قطعة', estimated_unit_cost: 0 }
+  ]);
   
   const [loading, setLoading] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -65,12 +69,12 @@ export default function ProcurementPage() {
 
   // Forms
   const [requestForm, setRequestForm] = useState({
-    project_id: '', warehouse_id: '', required_date: '', priority: 'normal', notes: ''
+    project_id: '', warehouse_id: '', required_date: '', priority: 'normal', requested_by: '', notes: ''
   });
 
   const [submittalForm, setSubmittalForm] = useState({
-    project_id: '', submittal_number: '', item_description: '', brand: '', model: '',
-    origin: '', consultant_name: '', status: 'pending'
+    project_id: '', submittal_number: '', title: '', item_description: '', brand: '', model: '',
+    origin: '', consultant_name: '', submitted_by: '', status: 'pending'
   });
 
   const [inventoryForm, setInventoryForm] = useState({
@@ -108,21 +112,26 @@ export default function ProcurementPage() {
     try {
       const res = await fetch(`/api/procurement/inventory?${params}`);
       const data = await res.json();
-      setInventory(data && Array.isArray(data.data) ? data.data : []);
+      // inventory API returns array directly (not wrapped in {data:[]})
+      setInventory(Array.isArray(data) ? data : (data?.data ?? []));
     } finally { setLoading(false); }
   }, [lowStockFilter]);
 
   const fetchFiltersData = async () => {
-    const [prjRes, whRes] = await Promise.all([
-      fetch('/api/projects'),
-      fetch('/api/dashboard') // Get general dashboard data that contains basic info
-    ]);
-    const prjData = await prjRes.json();
-    setProjects(prjData);
-    
-    // Create mock warehouses based on projects for select input
-    if (Array.isArray(prjData)) {
-      setWarehouses(prjData.map(p => ({ id: p.id, name: `مستودع موقع: ${p.name}` })));
+    try {
+      const [prjRes, whRes, empRes] = await Promise.all([
+        fetch('/api/projects'),
+        fetch('/api/warehouses'),
+        fetch('/api/employees')
+      ]);
+      const prjData = await prjRes.json();
+      const whData = await whRes.json();
+      const empData = await empRes.json();
+      setProjects(Array.isArray(prjData) ? prjData : (prjData?.data ?? []));
+      setWarehouses(Array.isArray(whData) ? whData : (whData?.data ?? []));
+      setEmployees(Array.isArray(empData) ? empData : (empData?.data ?? []));
+    } catch (err) {
+      console.error('fetchFiltersData error:', err);
     }
   };
 
@@ -139,14 +148,35 @@ export default function ProcurementPage() {
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Validate items list
+      const validItems = requestItems.filter(item => item.item_name.trim() !== '');
+      if (validItems.length === 0) {
+        alert('الرجاء إضافة صنف واحد على الأقل يحتوي على اسم المادة.');
+        return;
+      }
+
       const res = await fetch('/api/procurement/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestForm)
+        body: JSON.stringify({
+          project_id: requestForm.project_id || null,
+          warehouse_id: requestForm.warehouse_id || null,
+          required_date: requestForm.required_date || null,
+          priority: requestForm.priority,
+          requested_by: requestForm.requested_by,
+          notes: requestForm.notes || '',
+          items: validItems.map(item => ({
+            item_name: item.item_name,
+            quantity: Number(item.quantity) || 1,
+            unit: item.unit || 'قطعة',
+            estimated_unit_cost: Number(item.estimated_unit_cost) || 0
+          }))
+        })
       });
       if (res.ok) {
         setShowRequestModal(false);
-        setRequestForm({ project_id: '', warehouse_id: '', required_date: '', priority: 'normal', notes: '' });
+        setRequestForm({ project_id: '', warehouse_id: '', required_date: '', priority: 'normal', requested_by: '', notes: '' });
+        setRequestItems([{ item_name: '', quantity: 1, unit: 'قطعة', estimated_unit_cost: 0 }]);
         fetchRequests();
       } else {
         const errData = await res.json();
@@ -164,13 +194,23 @@ export default function ProcurementPage() {
       const res = await fetch('/api/procurement/submittals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submittalForm)
+        body: JSON.stringify({
+          project_id: submittalForm.project_id || null,
+          submittal_number: submittalForm.submittal_number || null,
+          item_description: submittalForm.item_description || submittalForm.title,
+          brand: submittalForm.brand || null,
+          model: submittalForm.model || null,
+          origin: submittalForm.origin || null,
+          consultant_name: submittalForm.consultant_name || null,
+          submitted_by: submittalForm.submitted_by,
+          submitted_date: new Date().toISOString().split('T')[0]
+        })
       });
       if (res.ok) {
         setShowSubmittalModal(false);
         setSubmittalForm({
-          project_id: '', submittal_number: '', item_description: '', brand: '', model: '',
-          origin: '', consultant_name: '', status: 'pending'
+          project_id: '', submittal_number: '', title: '', item_description: '', brand: '', model: '',
+          origin: '', consultant_name: '', submitted_by: '', status: 'pending'
         });
         fetchSubmittals();
       } else {
@@ -189,7 +229,14 @@ export default function ProcurementPage() {
       const res = await fetch('/api/procurement/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inventoryForm)
+        body: JSON.stringify({
+          warehouse_id: inventoryForm.warehouse_id,
+          description: inventoryForm.description,
+          unit: inventoryForm.unit || 'قطعة',
+          current_quantity: Number(inventoryForm.current_quantity) || 0,
+          min_quantity: Number(inventoryForm.min_quantity) || 0,
+          unit_cost: Number(inventoryForm.unit_cost) || 0
+        })
       });
       if (res.ok) {
         setShowInventoryModal(false);
@@ -430,43 +477,105 @@ export default function ProcurementPage() {
       {/* ======================== MODAL: ADD REQUEST ======================== */}
       {showRequestModal && (
         <div className="modal-overlay" onClick={() => setShowRequestModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📋 إنشاء طلب مواد للموقع</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowRequestModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateRequest}>
-              <div className="form-grid form-grid-3">
-                <div className="form-group col-span-3">
-                  <label className="form-label required">المشروع / الموقع المستلم</label>
-                  <select className="form-control" required value={requestForm.project_id} onChange={e => setRequestForm({...requestForm, project_id: e.target.value})}>
-                    <option value="">اختر المشروع...</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                {/* Row 1: Project + Warehouse */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr', gap: '0.75rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label required">المشروع / الموقع المستلم</label>
+                    <select className="form-control" required value={requestForm.project_id} onChange={e => setRequestForm({...requestForm, project_id: e.target.value})}>
+                      <option value="">اختر المشروع...</option>
+                      {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label required">المخزن المرتبط</label>
+                    <select className="form-control" required value={requestForm.warehouse_id} onChange={e => setRequestForm({...requestForm, warehouse_id: e.target.value})}>
+                      <option value="">اختر المخزن...</option>
+                      {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div className="form-group col-span-3">
-                  <label className="form-label required">المخزن المرتبط بالمشروع</label>
-                  <select className="form-control" required value={requestForm.warehouse_id} onChange={e => setRequestForm({...requestForm, warehouse_id: e.target.value})}>
-                    <option value="">اختر المخزن...</option>
-                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
+
+                {/* Row 2: Engineer + Date + Priority */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label required">المهندس طالب المواد (مقدم الطلب)</label>
+                    <select className="form-control" required value={requestForm.requested_by} onChange={e => setRequestForm({ ...requestForm, requested_by: e.target.value })}>
+                      <option value="">اختر المهندس...</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.role === 'admin' ? 'مدير نظام' : emp.role === 'engineer' ? 'مهندس موقع' : 'مستخدم'})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label required">تاريخ التوريد</label>
+                    <input className="form-control" type="date" required value={requestForm.required_date} onChange={e => setRequestForm({...requestForm, required_date: e.target.value})} />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">الأولوية</label>
+                    <select className="form-control" value={requestForm.priority} onChange={e => setRequestForm({...requestForm, priority: e.target.value})}>
+                      <option value="normal">عادي</option>
+                      <option value="high">مرتفع</option>
+                      <option value="urgent">عاجل جداً 🚨</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label required">تاريخ التوريد المطلوب</label>
-                  <input className="form-control" type="date" required value={requestForm.required_date} onChange={e => setRequestForm({...requestForm, required_date: e.target.value})} />
+
+                {/* Row 3: Items Table */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <label className="form-label required" style={{ margin: 0, fontWeight: 700 }}>📋 الأصناف والمواد المطلوبة</label>
+                    <button type="button" className="btn btn-ghost btn-sm text-primary" onClick={() => setRequestItems([...requestItems, { item_name: '', quantity: 1, unit: 'قطعة', estimated_unit_cost: 0 }])}>
+                      ➕ إضافة صنف
+                    </button>
+                  </div>
+                  <table className="data-table" style={{ width: '100%', tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr>
+                        <th>اسم المادة المطلوب شراؤها</th>
+                        <th style={{ width: '90px' }}>الكمية</th>
+                        <th style={{ width: '110px' }}>الوحدة</th>
+                        <th style={{ width: '120px' }}>السعر التقديري</th>
+                        <th style={{ width: '50px' }}>حذف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requestItems.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <input className="form-control form-control-sm" style={{ width: '100%' }} required value={item.item_name} onChange={e => { const n = [...requestItems]; n[idx].item_name = e.target.value; setRequestItems(n); }} placeholder="مثال: ماسورة حريق 4 بوصة..." />
+                          </td>
+                          <td>
+                            <input className="form-control form-control-sm" style={{ width: '100%' }} type="number" required min="1" value={item.quantity} onChange={e => { const n = [...requestItems]; n[idx].quantity = Number(e.target.value); setRequestItems(n); }} />
+                          </td>
+                          <td>
+                            <input className="form-control form-control-sm" style={{ width: '100%' }} value={item.unit} onChange={e => { const n = [...requestItems]; n[idx].unit = e.target.value; setRequestItems(n); }} placeholder="قطعة / متر" />
+                          </td>
+                          <td>
+                            <input className="form-control form-control-sm" style={{ width: '100%' }} type="number" value={item.estimated_unit_cost} onChange={e => { const n = [...requestItems]; n[idx].estimated_unit_cost = Number(e.target.value); setRequestItems(n); }} placeholder="0.00" />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button type="button" className="btn btn-ghost text-danger btn-sm" style={{ padding: '0.25rem' }} disabled={requestItems.length === 1} onClick={() => setRequestItems(requestItems.filter((_, i) => i !== idx))}>✕</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="form-group col-span-2">
-                  <label className="form-label">الأولوية</label>
-                  <select className="form-control" value={requestForm.priority} onChange={e => setRequestForm({...requestForm, priority: e.target.value})}>
-                    <option value="normal">عادي</option>
-                    <option value="high">مرتفع</option>
-                    <option value="urgent">عاجل جداً 🚨</option>
-                  </select>
+
+                {/* Row 4: Notes */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">ملاحظات عامة حول التوريد</label>
+                  <textarea className="form-control" value={requestForm.notes} onChange={e => setRequestForm({...requestForm, notes: e.target.value})} placeholder="أية ملاحظات إضافية حول التوريد والتسليم..." rows={2} />
                 </div>
-                <div className="form-group col-span-3">
-                  <label className="form-label">ملاحظات وكميات المواد المطلوبة بالتفصيل</label>
-                  <textarea className="form-control" value={requestForm.notes} onChange={e => setRequestForm({...requestForm, notes: e.target.value})} placeholder="الرجاء شراء مواسير حريق 4 بوصة عدد 50 حبة مع 100 رشاش رأس معلق K5.6..." rows={2} />
-                </div>
+
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowRequestModal(false)}>إلغاء</button>
@@ -487,11 +596,28 @@ export default function ProcurementPage() {
             </div>
             <form onSubmit={handleCreateSubmittal}>
               <div className="form-grid form-grid-3">
-                <div className="form-group">
-                  <label className="form-label required">المشروع</label>
-                  <select className="form-control" required value={submittalForm.project_id} onChange={e => setSubmittalForm({...submittalForm, project_id: e.target.value})}>
-                    <option value="">اختر المشروع...</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <div className="form-group col-span-3">
+                  <label className="form-label required">عنوان تقديم الاعتماد (المادة المستهدفة)</label>
+                  <input
+                    className="form-control"
+                    required
+                    value={submittalForm.title}
+                    onChange={e => setSubmittalForm({ ...submittalForm, title: e.target.value })}
+                    placeholder="مثال: اعتماد مضخات الحريق ماركة Armstrong..."
+                  />
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label required">المهندس مقدم طلب الاعتماد</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={submittalForm.submitted_by}
+                    onChange={e => setSubmittalForm({ ...submittalForm, submitted_by: e.target.value })}
+                  >
+                    <option value="">اختر المهندس...</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.role === 'admin' ? 'مدير نظام' : emp.role === 'engineer' ? 'مهندس موقع' : 'مستخدم'})</option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">
@@ -499,6 +625,13 @@ export default function ProcurementPage() {
                   <input className="form-control" required value={submittalForm.submittal_number} onChange={e => setSubmittalForm({...submittalForm, submittal_number: e.target.value})} placeholder="SUB-ELR-xxx" />
                 </div>
                 <div className="form-group">
+                  <label className="form-label required">المشروع</label>
+                  <select className="form-control" required value={submittalForm.project_id} onChange={e => setSubmittalForm({...submittalForm, project_id: e.target.value})}>
+                    <option value="">اختر المشروع...</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
                   <label className="form-label required">اسم استشاري المشروع</label>
                   <input className="form-control" required value={submittalForm.consultant_name} onChange={e => setSubmittalForm({...submittalForm, consultant_name: e.target.value})} placeholder="مكتب دار الهندسة..." />
                 </div>

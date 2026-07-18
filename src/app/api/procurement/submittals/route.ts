@@ -36,13 +36,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (dateFrom) {
-      conditions.push(`ms.submission_date >= $${paramIndex}`);
+      conditions.push(`ms.submitted_date >= $${paramIndex}`);
       params.push(dateFrom);
       paramIndex++;
     }
 
     if (dateTo) {
-      conditions.push(`ms.submission_date <= $${paramIndex}`);
+      conditions.push(`ms.submitted_date <= $${paramIndex}`);
       params.push(dateTo);
       paramIndex++;
     }
@@ -61,28 +61,23 @@ export async function GET(request: NextRequest) {
           ms.submittal_number,
           ms.project_id,
           p.name AS project_name,
-          p.project_number,
-          ms.title,
-          ms.description,
-          ms.category,
+          ms.item_description,
+          ms.brand,
+          ms.model,
+          ms.origin,
+          ms.consultant_name,
           ms.submitted_by,
           e.full_name AS submitted_by_name,
-          ms.submission_date,
+          ms.submitted_date,
           ms.status,
-          ms.reviewed_by,
-          reviewer.full_name AS reviewer_name,
-          ms.review_date,
-          ms.revision_number,
-          ms.file_url,
+          ms.response_date,
           ms.comments,
-          ms.created_at,
-          ms.updated_at
+          ms.created_at
         FROM material_submittals ms
         LEFT JOIN projects p ON p.id = ms.project_id
         LEFT JOIN employees e ON e.id = ms.submitted_by
-        LEFT JOIN employees reviewer ON reviewer.id = ms.reviewed_by
         ${where}
-        ORDER BY ms.submission_date DESC
+        ORDER BY ms.submitted_date DESC NULLS LAST
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -111,39 +106,54 @@ export async function POST(request: NextRequest) {
     const {
       submittal_number,
       project_id,
+      // Accept either old field names (from form) or new schema names
+      item_description,
+      brand,
+      model,
+      origin,
+      consultant_name,
+      submitted_by,
+      submitted_date,
+      submission_date, // legacy alias
+      comments,
+      // Old fields mapped to new schema
       title,
       description,
-      category,
-      submitted_by,
-      submission_date,
-      revision_number = 1,
-      file_url,
-      comments,
     } = body;
 
-    if (!title || !submitted_by) {
-      return NextResponse.json(
-        { error: 'title and submitted_by are required' },
-        { status: 400 }
-      );
+    if (!project_id) {
+      return NextResponse.json({ error: 'project_id is required' }, { status: 400 });
     }
+
+    if (!submitted_by) {
+      return NextResponse.json({ error: 'submitted_by is required' }, { status: 400 });
+    }
+
+    // Resolve item_description from various possible field names
+    const resolvedDescription = item_description || description || title || '';
+    if (!resolvedDescription) {
+      return NextResponse.json({ error: 'item_description is required' }, { status: 400 });
+    }
+
+    const generatedSubNumber = submittal_number || `SUB-${Math.floor(100000 + Math.random() * 900000)}`;
+    const finalDate = submitted_date || submission_date || new Date().toISOString().split('T')[0];
 
     const result = await query(
       `INSERT INTO material_submittals (
-          submittal_number, project_id, title, description, category,
-          submitted_by, submission_date, status, revision_number, file_url, comments
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,$10)
+          submittal_number, project_id, item_description, brand, model, origin,
+          consultant_name, submitted_by, submitted_date, status, comments
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10)
         RETURNING *`,
       [
-        submittal_number ?? null,
-        project_id ?? null,
-        title,
-        description ?? null,
-        category ?? null,
+        generatedSubNumber,
+        project_id,
+        resolvedDescription,
+        brand ?? null,
+        model ?? null,
+        origin ?? null,
+        consultant_name ?? null,
         submitted_by,
-        submission_date ?? new Date().toISOString().split('T')[0],
-        revision_number,
-        file_url ?? null,
+        finalDate,
         comments ?? null,
       ]
     );
