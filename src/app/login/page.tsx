@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,9 +15,25 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
+    const input = usernameOrEmail.trim().toLowerCase();
+
     // Simulate authentication
     setTimeout(() => {
-      // Seeded accounts check for mock validation, or allow any for demo ease
+      let matchedEmail = '';
+      
+      // Seeded accounts check
+      if (input.includes('@')) {
+        matchedEmail = input;
+      } else {
+        if (input === 'admin') matchedEmail = 'admin@alrayeq.com';
+        else if (input === 'manager') matchedEmail = 'manager@alrayeq.com';
+        else if (input === 'engineer' || input === 'engineer1') matchedEmail = 'engineer1@alrayeq.com';
+        else if (input === 'supervisor' || input === 'supervisor1') matchedEmail = 'supervisor1@alrayeq.com';
+        else if (input === 'store' || input === 'store1') matchedEmail = 'store1@alrayeq.com';
+        else if (input === 'hr') matchedEmail = 'hr@alrayeq.com';
+        else if (input === 'accountant') matchedEmail = 'accountant@alrayeq.com';
+      }
+
       const validEmails = [
         'admin@alrayeq.com',
         'manager@alrayeq.com',
@@ -28,8 +44,8 @@ export default function LoginPage() {
         'accountant@alrayeq.com'
       ];
 
-      if (!email.includes('@')) {
-        setError('يرجى إدخال بريد إلكتروني صالح.');
+      if (!matchedEmail || !validEmails.includes(matchedEmail)) {
+        setError('البريد الإلكتروني أو اسم المستخدم غير مسجل بالنظام.');
         setLoading(false);
         return;
       }
@@ -42,18 +58,18 @@ export default function LoginPage() {
 
       let role = 'admin';
       let name = 'مدير النظام';
-      if (email.startsWith('manager')) { role = 'manager'; name = 'محمد العمري'; }
-      else if (email.startsWith('engineer')) { role = 'engineer'; name = 'أحمد الزهراني'; }
-      else if (email.startsWith('supervisor')) { role = 'supervisor'; name = 'سالم الغامدي'; }
-      else if (email.startsWith('store')) { role = 'store_keeper'; name = 'خالد المطيري'; }
-      else if (email.startsWith('hr')) { role = 'hr'; name = 'نورة السهلي'; }
-      else if (email.startsWith('accountant')) { role = 'accountant'; name = 'ريم الحربي'; }
+      if (matchedEmail.startsWith('manager')) { role = 'manager'; name = 'محمد العمري'; }
+      else if (matchedEmail.startsWith('engineer')) { role = 'engineer'; name = 'أحمد الزهراني'; }
+      else if (matchedEmail.startsWith('supervisor')) { role = 'supervisor'; name = 'سالم الغامدي'; }
+      else if (matchedEmail.startsWith('store')) { role = 'store_keeper'; name = 'خالد المطيري'; }
+      else if (matchedEmail.startsWith('hr')) { role = 'hr'; name = 'نورة السهلي'; }
+      else if (matchedEmail.startsWith('accountant')) { role = 'accountant'; name = 'ريم الحربي'; }
 
       localStorage.setItem('user_role', role);
-      localStorage.setItem('user_email', email);
+      localStorage.setItem('user_email', matchedEmail);
       localStorage.setItem('user_name', name);
 
-      console.log(`User logged in: ${email} with role: ${role}`);
+      console.log(`User logged in: ${matchedEmail} with role: ${role}`);
       router.push('/dashboard');
     }, 1000);
   };
@@ -164,15 +180,15 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="form-group">
-            <label className="form-label required" style={{ color: '#cbd5e1' }}>البريد الإلكتروني</label>
+            <label className="form-label required" style={{ color: '#cbd5e1' }}>اسم المستخدم أو البريد الإلكتروني</label>
             <input
               className="form-control"
-              type="email"
+              type="text"
               required
               disabled={loading}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@alrayeq.com"
+              value={usernameOrEmail}
+              onChange={(e) => setUsernameOrEmail(e.target.value)}
+              placeholder="مثال: admin أو admin@alrayeq.com"
               style={{
                 background: 'rgba(15, 23, 42, 0.6)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -228,20 +244,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Demo Credentials Helper */}
-        <div style={{
-          marginTop: '2rem',
-          paddingTop: '1.25rem',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          fontSize: '0.75rem',
-          color: '#64748b',
-          lineHeight: '1.5'
-        }}>
-          <div style={{ fontWeight: 600, color: '#94a3b8', marginBottom: '0.4rem' }}>💡 بيانات الدخول التجريبية (Demo):</div>
-          <div>البريد: <span style={{ color: '#cbd5e1' }}>admin@alrayeq.com</span></div>
-          <div>الرمز: <span style={{ color: '#cbd5e1' }}>123456</span></div>
-        </div>
       </div>
 
       <style jsx global>{`
