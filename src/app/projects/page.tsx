@@ -220,8 +220,16 @@ export default function ProjectsPage() {
               <tbody>
                 {projects.map((project) => (
                   <tr key={project.id}>
-                    <td style={{ fontWeight: 'bold' }}>{project.code}</td>
-                    <td>{project.name}</td>
+                    <td style={{ fontWeight: 'bold' }}>
+                      <a href={`/projects/${project.id}`} style={{ textDecoration: 'none', color: 'var(--text-accent)' }} title="عرض الملف الفني للمشروع">
+                        {project.code}
+                      </a>
+                    </td>
+                    <td>
+                      <a href={`/projects/${project.id}`} style={{ textDecoration: 'none', color: 'var(--brand-primary-light)', fontWeight: 600 }} title="عرض الملف الفني للمشروع">
+                        {project.name}
+                      </a>
+                    </td>
                     <td>{project.client_name}</td>
                     <td>{project.location || '-'}</td>
                     <td>{formatCurrency(project.contract_value)}</td>
