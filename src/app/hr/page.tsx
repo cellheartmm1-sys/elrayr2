@@ -94,7 +94,7 @@ export default function HRPage() {
     try {
       const res = await fetch(`/api/employees?${params}`);
       const data = await res.json();
-      setEmployees(Array.isArray(data) ? data : []);
+      setEmployees(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [empStatusFilter, search]);
 
@@ -103,7 +103,7 @@ export default function HRPage() {
     try {
       const res = await fetch(`/api/hr/payroll?month=${month}&year=${year}`);
       const data = await res.json();
-      setPayroll(Array.isArray(data) ? data : []);
+      setPayroll(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [month, year]);
 
@@ -114,7 +114,7 @@ export default function HRPage() {
     try {
       const res = await fetch(`/api/hr/attendance?${params}`);
       const data = await res.json();
-      setAttendance(Array.isArray(data) ? data : []);
+      setAttendance(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [selectedProject]);
 
@@ -123,7 +123,7 @@ export default function HRPage() {
     try {
       const res = await fetch('/api/hr/overtime');
       const data = await res.json();
-      setOvertime(Array.isArray(data) ? data : []);
+      setOvertime(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, []);
 
@@ -132,7 +132,7 @@ export default function HRPage() {
     try {
       const res = await fetch('/api/hr/assets');
       const data = await res.json();
-      setAssets(Array.isArray(data) ? data : []);
+      setAssets(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, []);
 
@@ -141,7 +141,7 @@ export default function HRPage() {
     try {
       const res = await fetch('/api/hr/documents');
       const data = await res.json();
-      setDocuments(Array.isArray(data) ? data : []);
+      setDocuments(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, []);
 
@@ -186,9 +186,21 @@ export default function HRPage() {
       });
       if (res.ok) {
         setShowEmpModal(false);
+        setEmpForm({
+          employee_number: '', full_name: '', full_name_en: '', nationality: 'سعودي', id_number: '',
+          iqama_number: '', iqama_expiry: '', passport_number: '', passport_expiry: '', job_title: '',
+          employment_type: 'full_time', base_salary: '', housing_allowance: '', transport_allowance: '',
+          other_allowances: '', bank_account: '', bank_name: '', iban: '', phone: '', email: '', status: 'active'
+        });
         fetchEmployees();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة الموظف: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateAsset = async (e: React.FormEvent) => {
@@ -201,9 +213,19 @@ export default function HRPage() {
       });
       if (res.ok) {
         setShowAssetModal(false);
+        setAssetForm({
+          asset_code: '', asset_name: '', asset_type: 'tool', brand: '', model: '',
+          serial_number: '', purchase_cost: '', condition: 'good', status: 'available'
+        });
         fetchAssets();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء حفظ العهدة: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleOvertimeAction = async (id: string, action: 'approved' | 'rejected') => {

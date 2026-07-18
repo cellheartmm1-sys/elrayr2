@@ -50,7 +50,18 @@ export async function POST(request: NextRequest) {
     const result = await query(
       `INSERT INTO projects (name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [name, code, client_name, client_contact, location, start_date, end_date, contract_value, status || 'active', description]
+      [
+        name,
+        code,
+        client_name,
+        client_contact || null,
+        location || null,
+        start_date || null,
+        end_date || null,
+        contract_value ? Number(contract_value) : null,
+        status || 'active',
+        description || null
+      ]
     );
 
     return NextResponse.json(result.rows[0], { status: 201 });

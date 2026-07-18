@@ -129,37 +129,50 @@ export default function LaborPage() {
       });
       if (res.ok) {
         setShowLaborerModal(false);
+        setLaborerForm({ name: '', nationality: 'مقيم', skill: 'installer', id_number: '', phone: '', daily_rate: '150', notes: '' });
         fetchLaborers();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة العامل: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateAttendance = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Calculate total pay
-      const pay = Number(attForm.daily_rate) + (Number(attForm.overtime_hours) * Number(attForm.overtime_rate));
-      
       const res = await fetch('/api/hr/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employee_id: attForm.worker_id,
-          project_id: attForm.project_id,
+          project_id: attForm.project_id || null,
           attendance_date: attForm.attendance_date,
-          attendance_type: attForm.is_present ? 'present' : 'absent',
-          overtime_hours: Number(attForm.overtime_hours),
-          check_in_time: attForm.is_present ? `${attForm.attendance_date}T08:00:00Z` : null,
-          check_out_time: attForm.is_present ? `${attForm.attendance_date}T17:00:00Z` : null,
-          source: 'manual',
-          notes: attForm.notes
+          status: attForm.is_present ? 'present' : 'absent',
+          hours_worked: attForm.is_present ? 8 : 0,
+          check_in: attForm.is_present ? `${attForm.attendance_date}T08:00:00Z` : null,
+          check_out: attForm.is_present ? `${attForm.attendance_date}T17:00:00Z` : null,
+          notes: attForm.notes || ''
         })
       });
       if (res.ok) {
         setShowAttendanceModal(false);
+        setAttForm({
+          worker_id: '', project_id: '', daily_rate: '150', attendance_date: new Date().toISOString().split('T')[0],
+          is_present: true, hours_worked: '8', overtime_hours: '0', overtime_rate: '25', notes: ''
+        });
         fetchAttendance();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء تسجيل حضور اليومية: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const totalDailyLaborCost = attendance.reduce((acc, a) => acc + Number(a.total_pay || 0), 0);

@@ -85,7 +85,7 @@ export default function ProcurementPage() {
     try {
       const res = await fetch(`/api/procurement/requests?${params}`);
       const data = await res.json();
-      setRequests(Array.isArray(data) ? data : []);
+      setRequests(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [projectFilter, statusFilter]);
 
@@ -97,7 +97,7 @@ export default function ProcurementPage() {
     try {
       const res = await fetch(`/api/procurement/submittals?${params}`);
       const data = await res.json();
-      setSubmittals(Array.isArray(data) ? data : []);
+      setSubmittals(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [projectFilter, statusFilter]);
 
@@ -108,7 +108,7 @@ export default function ProcurementPage() {
     try {
       const res = await fetch(`/api/procurement/inventory?${params}`);
       const data = await res.json();
-      setInventory(Array.isArray(data) ? data : []);
+      setInventory(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [lowStockFilter]);
 
@@ -146,9 +146,16 @@ export default function ProcurementPage() {
       });
       if (res.ok) {
         setShowRequestModal(false);
+        setRequestForm({ project_id: '', warehouse_id: '', required_date: '', priority: 'normal', notes: '' });
         fetchRequests();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إرسال طلب المواد: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateSubmittal = async (e: React.FormEvent) => {
@@ -161,9 +168,19 @@ export default function ProcurementPage() {
       });
       if (res.ok) {
         setShowSubmittalModal(false);
+        setSubmittalForm({
+          project_id: '', submittal_number: '', item_description: '', brand: '', model: '',
+          origin: '', consultant_name: '', status: 'pending'
+        });
         fetchSubmittals();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة الاعتماد: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateInventory = async (e: React.FormEvent) => {
@@ -176,9 +193,18 @@ export default function ProcurementPage() {
       });
       if (res.ok) {
         setShowInventoryModal(false);
+        setInventoryForm({
+          warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: ''
+        });
         fetchInventory();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء حفظ الجرد: ${errData.error || 'فشلت العملية'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   // KPIs

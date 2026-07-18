@@ -164,10 +164,12 @@ export default function SettingsPage() {
         setUserForm({ full_name: '', email: '', role: 'engineer', phone: '' });
         fetchUsers();
       } else {
-        alert('❌ فشل إضافة المستخدم.');
+        const errData = await res.json();
+        alert(`❌ فشل إضافة المستخدم: ${errData.error || 'فشلت العملية'}`);
       }
     } catch (err) {
       console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
     }
   };
 

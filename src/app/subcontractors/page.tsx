@@ -36,6 +36,7 @@ export default function SubcontractorsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('contractors');
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [ipcs, setIpcs] = useState<SubcontractorIPC[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showIpcModal, setShowIpcModal] = useState(false);
@@ -57,6 +58,16 @@ export default function SubcontractorsPage() {
     } finally { setLoading(false); }
   }, [search, specialtyFilter]);
 
+  const fetchProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      setProjects(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const fetchIPCs = useCallback(async () => {
     setLoading(true);
     try {
@@ -64,14 +75,18 @@ export default function SubcontractorsPage() {
       if (statusFilter) params.set('status', statusFilter);
       const res = await fetch(`/api/subcontractors/ipc?${params}`);
       const data = await res.json();
-      setIpcs(Array.isArray(data) ? data : []);
+      setIpcs(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [statusFilter]);
 
   useEffect(() => {
     if (activeTab === 'contractors') fetchSubcontractors();
-    else if (activeTab === 'ipc') fetchIPCs();
-  }, [activeTab, fetchSubcontractors, fetchIPCs]);
+    else if (activeTab === 'ipc') {
+      fetchIPCs();
+      fetchSubcontractors();
+      fetchProjects();
+    }
+  }, [activeTab, fetchSubcontractors, fetchIPCs, fetchProjects]);
 
   const handleCreate = async () => {
     try {
@@ -84,23 +99,53 @@ export default function SubcontractorsPage() {
         setShowModal(false);
         setForm({ name: '', specialty: 'installation', contact_person: '', phone: '', email: '', rating: '4', notes: '' });
         fetchSubcontractors();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ: ${errData.error || 'فشلت عملية الإضافة'}`);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateIPC = async () => {
     try {
-      const net = Number(ipcForm.items_total) - Number(ipcForm.retention_amount) - Number(ipcForm.previous_payments);
+      const currentAmt = Number(ipcForm.items_total) || 0;
+      const retAmt = Number(ipcForm.retention_amount) || 0;
+      const prevAmt = Number(ipcForm.previous_payments) || 0;
+      const net = currentAmt - retAmt - prevAmt;
+
       const res = await fetch('/api/subcontractors/ipc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...ipcForm, net_payable: net }),
+        body: JSON.stringify({
+          ipc_number: ipcForm.ipc_number,
+          subcontractor_id: ipcForm.subcontractor_id,
+          project_id: ipcForm.project_id || null,
+          ipc_date: new Date().toISOString().split('T')[0],
+          period_from: ipcForm.period_from || null,
+          period_to: ipcForm.period_to || null,
+          current_amount: currentAmt,
+          retention_amount: retAmt,
+          net_amount: net,
+          previous_amount: prevAmt,
+          notes: ipcForm.notes || '',
+          status: 'submitted'
+        }),
       });
       if (res.ok) {
         setShowIpcModal(false);
+        setIpcForm({ ipc_number: '', project_id: '', subcontractor_id: '', period_from: '', period_to: '', items_total: '', retention_amount: '', previous_payments: '', notes: '' });
         fetchIPCs();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء حفظ المستخلص: ${errData.error || 'فشلت عملية الإضافة'}`);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const totalPending = ipcs.filter(i => i.status === 'submitted').reduce((s, i) => s + Number(i.net_payable), 0);
@@ -345,6 +390,20 @@ export default function SubcontractorsPage() {
               <button className="btn btn-ghost btn-icon" onClick={() => setShowIpcModal(false)}>✕</button>
             </div>
             <div className="form-grid form-grid-3">
+              <div className="form-group">
+                <label className="form-label required">مقاول الباطن</label>
+                <select className="form-control" required value={ipcForm.subcontractor_id} onChange={e => setIpcForm({...ipcForm, subcontractor_id: e.target.value})}>
+                  <option value="">اختر مقاول الباطن...</option>
+                  {subcontractors.map(s => <option key={s.id} value={s.id}>{s.name} ({specialtyLabels[s.specialty] || s.specialty})</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label required">المشروع المرتبط</label>
+                <select className="form-control" required value={ipcForm.project_id} onChange={e => setIpcForm({...ipcForm, project_id: e.target.value})}>
+                  <option value="">اختر المشروع...</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
               <div className="form-group">
                 <label className="form-label required">رقم المستخلص</label>
                 <input className="form-control" value={ipcForm.ipc_number} onChange={e => setIpcForm({...ipcForm, ipc_number: e.target.value})} placeholder="IPC-001" />

@@ -96,7 +96,7 @@ export default function FinancePage() {
     try {
       const res = await fetch(`/api/finance/ipc?${params}`);
       const data = await res.json();
-      setIpcs(Array.isArray(data) ? data : []);
+      setIpcs(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [projectFilter, statusFilter]);
 
@@ -108,7 +108,7 @@ export default function FinancePage() {
     try {
       const res = await fetch(`/api/finance/expenses?${params}`);
       const data = await res.json();
-      setExpenses(Array.isArray(data) ? data : []);
+      setExpenses(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, [projectFilter, categoryFilter]);
 
@@ -117,7 +117,7 @@ export default function FinancePage() {
     try {
       const res = await fetch('/api/finance/cashflow');
       const data = await res.json();
-      setCashflow(Array.isArray(data) ? data : []);
+      setCashflow(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, []);
 
@@ -154,13 +154,32 @@ export default function FinancePage() {
       const res = await fetch('/api/finance/ipc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ipcForm)
+        body: JSON.stringify({
+          ipc_number: ipcForm.ipc_number,
+          project_id: ipcForm.project_id,
+          ipc_date: new Date().toISOString().split('T')[0],
+          period_from: ipcForm.period_from || null,
+          period_to: ipcForm.period_to || null,
+          current_amount: Number(ipcForm.items_total) || 0,
+          retention_percentage: Number(ipcForm.retention_percentage) || 0,
+          notes: ipcForm.notes || ''
+        })
       });
       if (res.ok) {
         setShowIpcModal(false);
+        setIpcForm({
+          project_id: '', ipc_number: '', period_from: '', period_to: '',
+          items_total: '', vat_percentage: '15', retention_percentage: '10', notes: ''
+        });
         fetchIPCs();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء حفظ المستخلص: ${errData.error || 'فشلت عملية الإضافة'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   const handleCreateExpense = async (e: React.FormEvent) => {
@@ -169,13 +188,30 @@ export default function FinancePage() {
       const res = await fetch('/api/finance/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(expenseForm)
+        body: JSON.stringify({
+          project_id: expenseForm.project_id || null,
+          category: expenseForm.category,
+          description: expenseForm.description || '',
+          expense_date: new Date().toISOString().split('T')[0],
+          amount: Number(expenseForm.amount) || 0,
+          vendor: expenseForm.supplier || null,
+          invoice_number: expenseForm.invoice_number || null
+        })
       });
       if (res.ok) {
         setShowExpenseModal(false);
+        setExpenseForm({
+          project_id: '', category: 'material', description: '', amount: '', supplier: '', invoice_number: ''
+        });
         fetchExpenses();
+      } else {
+        const errData = await res.json();
+        alert(`حدث خطأ أثناء إضافة المصروف: ${errData.error || 'فشلت عملية الإضافة'}`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالخادم.');
+    }
   };
 
   // KPIs
