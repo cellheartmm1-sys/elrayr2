@@ -171,6 +171,16 @@ export default function EstimationPage() {
 
   return (
     <AppLayout title="الهندسة والتسعير" subtitle="إدخال مقايسات حصر الكميات (BOQ) وتحديد تكلفة المواد والمصنعيات لتقديم عروض الأسعار" icon="📐">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .compact-table th, .compact-table td {
+          padding: 0.625rem 0.5rem !important;
+          font-size: 0.825rem !important;
+        }
+        .compact-table th {
+          font-size: 0.75rem !important;
+        }
+      ` }} />
+
       <div className="page-header">
         <div className="page-header-left">
           <div className="page-title">📐 عروض أسعار المناقصات والمقايسات</div>
@@ -198,7 +208,7 @@ export default function EstimationPage() {
           </div>
         ) : (
           <div className="table-wrapper">
-            <table className="data-table">
+            <table className="data-table compact-table">
               <thead>
                 <tr>
                   <th>رقم المناقصة</th>
@@ -209,7 +219,7 @@ export default function EstimationPage() {
                   <th>تكلفة المصنعية والعمالة</th>
                   <th>السعر النهائي المقترح</th>
                   <th>الحالة</th>
-                  <th style={{ textAlign: 'center', width: '180px' }}>العمليات</th>
+                  <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                 </tr>
               </thead>
               <tbody>
