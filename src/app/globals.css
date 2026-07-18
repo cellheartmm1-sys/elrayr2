@@ -636,6 +636,12 @@ body {
   overflow-x: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.table-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .data-table {

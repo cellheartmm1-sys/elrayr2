@@ -128,3 +128,87 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create IPC' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      id,
+      ipc_number,
+      project_id,
+      ipc_date,
+      period_from,
+      period_to,
+      items_total,
+      vat_percentage = 0,
+      vat_amount,
+      retention_percentage = 0,
+      retention_amount,
+      previous_payments,
+      net_payable,
+      status,
+      notes,
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const checkRes = await query('SELECT * FROM client_ipc WHERE id = $1', [id]);
+    if (checkRes.rows.length === 0) {
+      return NextResponse.json({ error: 'IPC record not found' }, { status: 404 });
+    }
+    const current = checkRes.rows[0];
+
+    const finalIpcNumber = ipc_number ?? current.ipc_number;
+    const finalProjectId = project_id ?? current.project_id;
+    const finalIpcDate = ipc_date ?? current.ipc_date;
+    const finalPeriodFrom = period_from !== undefined ? period_from : current.period_from;
+    const finalPeriodTo = period_to !== undefined ? period_to : current.period_to;
+    const finalNotes = notes !== undefined ? notes : current.notes;
+    const finalStatus = status ?? current.status;
+
+    const resolvedItemsTotal = items_total !== undefined ? Number(items_total) : Number(current.items_total);
+    const resolvedVatPercentage = vat_percentage !== undefined ? Number(vat_percentage) : Number(current.vat_percentage);
+    const resolvedRetentionPercentage = retention_percentage !== undefined ? Number(retention_percentage) : Number(current.retention_percentage);
+    const resolvedPreviousPayments = previous_payments !== undefined ? Number(previous_payments) : Number(current.previous_payments);
+
+    const resolvedVatAmount = vat_amount !== undefined ? Number(vat_amount) : (resolvedItemsTotal * (resolvedVatPercentage / 100));
+    const resolvedRetentionAmount = retention_amount !== undefined ? Number(retention_amount) : (resolvedItemsTotal * (resolvedRetentionPercentage / 100));
+    const resolvedNetPayable = net_payable !== undefined ? Number(net_payable) : (resolvedItemsTotal + resolvedVatAmount - resolvedRetentionAmount);
+
+    const result = await query(
+      `UPDATE client_ipc SET
+        ipc_number = $1,
+        project_id = $2,
+        ipc_date = $3,
+        period_from = $4,
+        period_to = $5,
+        items_total = $6,
+        vat_percentage = $7,
+        vat_amount = $8,
+        retention_percentage = $9,
+        retention_amount = $10,
+        previous_payments = $11,
+        net_payable = $12,
+        status = $13,
+        notes = $14
+      WHERE id = $15
+      RETURNING *`,
+      [
+        finalIpcNumber, finalProjectId, finalIpcDate,
+        finalPeriodFrom, finalPeriodTo,
+        resolvedItemsTotal, resolvedVatPercentage, resolvedVatAmount,
+        resolvedRetentionPercentage, resolvedRetentionAmount,
+        resolvedPreviousPayments, resolvedNetPayable,
+        finalStatus, finalNotes, id
+      ]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error) {
+    console.error('[PUT /api/finance/ipc]', error);
+    return NextResponse.json({ error: 'Failed to update IPC record' }, { status: 500 });
+  }
+}
+

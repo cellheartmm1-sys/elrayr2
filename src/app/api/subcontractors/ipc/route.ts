@@ -145,3 +145,92 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create IPC record' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      id,
+      ipc_number,
+      contract_id,
+      subcontractor_id,
+      project_id,
+      ipc_date,
+      period_from,
+      period_to,
+      items_total,
+      retention_amount,
+      previous_payments,
+      net_payable,
+      status,
+      notes,
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const checkRes = await query('SELECT * FROM subcontractor_ipc WHERE id = $1', [id]);
+    if (checkRes.rows.length === 0) {
+      return NextResponse.json({ error: 'IPC record not found' }, { status: 404 });
+    }
+    const current = checkRes.rows[0];
+
+    const finalIpcNumber = ipc_number ?? current.ipc_number;
+    const finalSubcontractorId = subcontractor_id ?? current.subcontractor_id;
+    const finalProjectId = project_id ?? current.project_id;
+    const finalIpcDate = ipc_date ?? current.ipc_date;
+    const finalPeriodFrom = period_from !== undefined ? period_from : current.period_from;
+    const finalPeriodTo = period_to !== undefined ? period_to : current.period_to;
+    const finalNotes = notes !== undefined ? notes : current.notes;
+    const finalStatus = status ?? current.status;
+
+    const resolvedItemsTotal = items_total !== undefined ? Number(items_total) : Number(current.items_total);
+    const resolvedRetentionAmount = retention_amount !== undefined ? Number(retention_amount) : Number(current.retention_amount);
+    const resolvedPreviousPayments = previous_payments !== undefined ? Number(previous_payments) : Number(current.previous_payments);
+    const resolvedNetPayable = net_payable !== undefined ? Number(net_payable) : (resolvedItemsTotal - resolvedRetentionAmount - resolvedPreviousPayments);
+
+    let finalContractId = contract_id ?? current.contract_id;
+    if ((subcontractor_id && subcontractor_id !== current.subcontractor_id) || (project_id && project_id !== current.project_id)) {
+      const contractRes = await query(
+        `SELECT id FROM subcontractor_contracts WHERE subcontractor_id = $1 AND project_id = $2 AND status = 'active' LIMIT 1`,
+        [finalSubcontractorId, finalProjectId]
+      );
+      if (contractRes.rows.length > 0) {
+        finalContractId = contractRes.rows[0].id;
+      }
+    }
+
+    const result = await query(
+      `UPDATE subcontractor_ipc SET
+        ipc_number = $1,
+        contract_id = $2,
+        subcontractor_id = $3,
+        project_id = $4,
+        ipc_date = $5,
+        period_from = $6,
+        period_to = $7,
+        items_total = $8,
+        retention_amount = $9,
+        previous_payments = $10,
+        net_payable = $11,
+        status = $12,
+        notes = $13
+      WHERE id = $14
+      RETURNING *`,
+      [
+        finalIpcNumber, finalContractId, finalSubcontractorId, finalProjectId, finalIpcDate,
+        finalPeriodFrom, finalPeriodTo,
+        resolvedItemsTotal, resolvedRetentionAmount,
+        resolvedPreviousPayments, resolvedNetPayable,
+        finalStatus, finalNotes, id
+      ]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error) {
+    console.error('[PUT /api/subcontractors/ipc]', error);
+    return NextResponse.json({ error: 'Failed to update IPC record' }, { status: 500 });
+  }
+}
+

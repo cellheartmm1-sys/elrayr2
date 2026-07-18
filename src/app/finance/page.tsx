@@ -29,13 +29,33 @@ ChartJS.register(
 type TabType = 'ipc' | 'expenses' | 'cashflow' | 'debts';
 
 interface IPC {
-  id: string; ipc_number: string; project_name: string; ipc_date: string;
-  items_total: string; vat_amount: string; retention_amount: string; net_payable: string; status: string;
+  id: string;
+  ipc_number: string;
+  project_name: string;
+  project_id: string;
+  ipc_date: string;
+  period_from?: string;
+  period_to?: string;
+  items_total: string;
+  vat_percentage?: string;
+  vat_amount: string;
+  retention_percentage?: string;
+  retention_amount: string;
+  previous_payments?: string;
+  net_payable: string;
+  status: string;
+  notes?: string;
 }
 
 interface Expense {
-  id: string; expense_date: string; project_name: string;
-  category: string; description: string; amount: string; supplier: string; invoice_number: string;
+  id: string;
+  expense_date: string;
+  project_name: string;
+  category: string;
+  description: string;
+  amount: string;
+  supplier: string;
+  invoice_number: string;
 }
 
 interface CashFlowItem {
@@ -75,6 +95,11 @@ export default function FinancePage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
 
+  // Edit & Print States
+  const [editingIpc, setEditingIpc] = useState<IPC | null>(null);
+  const [printIpc, setPrintIpc] = useState<IPC | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+
   // Filters
   const [projectFilter, setProjectFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -84,7 +109,7 @@ export default function FinancePage() {
   // Forms
   const [ipcForm, setIpcForm] = useState({
     project_id: '', ipc_number: '', period_from: '', period_to: '',
-    items_total: '', vat_percentage: '15', retention_percentage: '10', notes: ''
+    items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
   });
 
   const [expenseForm, setExpenseForm] = useState({
@@ -94,6 +119,7 @@ export default function FinancePage() {
   const [debtForm, setDebtForm] = useState({
     creditor_name: '', debt_type: 'project_finance', project_id: '', amount: '', due_date: '', notes: ''
   });
+
 
   const fetchIPCs = useCallback(async () => {
     setLoading(true);
@@ -140,6 +166,18 @@ export default function FinancePage() {
     } finally { setLoading(false); }
   }, [projectFilter, debtTypeFilter]);
 
+  const fetchCompanyInfo = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanyInfo(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchProjectsList = async () => {
     const res = await fetch('/api/projects');
     const data = await res.json();
@@ -148,6 +186,7 @@ export default function FinancePage() {
 
   useEffect(() => {
     fetchProjectsList();
+    fetchCompanyInfo();
   }, []);
 
   useEffect(() => {
@@ -171,30 +210,38 @@ export default function FinancePage() {
   const handleCreateIpc = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/finance/ipc', {
-        method: 'POST',
+      const isEdit = !!editingIpc;
+      const url = '/api/finance/ipc';
+      const method = isEdit ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: editingIpc?.id,
           ipc_number: ipcForm.ipc_number,
           project_id: ipcForm.project_id,
-          ipc_date: new Date().toISOString().split('T')[0],
+          ipc_date: editingIpc ? editingIpc.ipc_date : new Date().toISOString().split('T')[0],
           period_from: ipcForm.period_from || null,
           period_to: ipcForm.period_to || null,
-          current_amount: Number(ipcForm.items_total) || 0,
+          items_total: Number(ipcForm.items_total) || 0,
+          vat_percentage: Number(ipcForm.vat_percentage) || 0,
           retention_percentage: Number(ipcForm.retention_percentage) || 0,
-          notes: ipcForm.notes || ''
+          previous_payments: Number(ipcForm.previous_payments) || 0,
+          notes: ipcForm.notes || '',
+          status: editingIpc ? editingIpc.status : 'draft'
         })
       });
       if (res.ok) {
         setShowIpcModal(false);
+        setEditingIpc(null);
         setIpcForm({
           project_id: '', ipc_number: '', period_from: '', period_to: '',
-          items_total: '', vat_percentage: '15', retention_percentage: '10', notes: ''
+          items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
         });
         fetchIPCs();
       } else {
         const errData = await res.json();
-        alert(`حدث خطأ أثناء حفظ المستخلص: ${errData.error || 'فشلت عملية الإضافة'}`);
+        alert(`حدث خطأ أثناء حفظ المستخلص: ${errData.error || 'فشلت عملية الحفظ'}`);
       }
     } catch (err) {
       console.error(err);
@@ -392,6 +439,7 @@ export default function FinancePage() {
                       <th>استقطاع الضمان</th>
                       <th>الصافي المطلوب</th>
                       <th>الحالة</th>
+                      <th>الإجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -405,6 +453,38 @@ export default function FinancePage() {
                         <td style={{ color: 'var(--status-warning)' }}>{formatCurrency(ipc.retention_amount)}</td>
                         <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{formatCurrency(ipc.net_payable)}</td>
                         <td><span className={`badge ${statusBadge[ipc.status] || 'badge-muted'}`}>{statusLabels[ipc.status] || ipc.status}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              className="btn btn-ghost text-primary btn-sm"
+                              onClick={() => {
+                                setEditingIpc(ipc);
+                                setIpcForm({
+                                  project_id: ipc.project_id || '',
+                                  ipc_number: ipc.ipc_number,
+                                  period_from: ipc.period_from ? new Date(ipc.period_from).toISOString().split('T')[0] : '',
+                                  period_to: ipc.period_to ? new Date(ipc.period_to).toISOString().split('T')[0] : '',
+                                  items_total: ipc.items_total,
+                                  vat_percentage: ipc.vat_percentage || '15',
+                                  retention_percentage: ipc.retention_percentage || '10',
+                                  notes: ipc.notes || '',
+                                  previous_payments: ipc.previous_payments || ''
+                                });
+                                setShowIpcModal(true);
+                              }}
+                              title="تعديل"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="btn btn-ghost text-success btn-sm"
+                              onClick={() => setPrintIpc(ipc)}
+                              title="طباعة"
+                            >
+                              🖨️
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -736,11 +816,25 @@ export default function FinancePage() {
 
       {/* ======================== MODAL: ADD CLIENT IPC ======================== */}
       {showIpcModal && (
-        <div className="modal-overlay" onClick={() => setShowIpcModal(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setShowIpcModal(false);
+          setEditingIpc(null);
+          setIpcForm({
+            project_id: '', ipc_number: '', period_from: '', period_to: '',
+            items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+          });
+        }}>
           <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">📄 إصدار مستخلص عميل جديد</div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowIpcModal(false)}>✕</button>
+              <div className="modal-title">{editingIpc ? '✏️ تعديل مستخلص عميل' : '📄 إصدار مستخلص عميل جديد'}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => {
+                setShowIpcModal(false);
+                setEditingIpc(null);
+                setIpcForm({
+                  project_id: '', ipc_number: '', period_from: '', period_to: '',
+                  items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+                });
+              }}>✕</button>
             </div>
             <form onSubmit={handleCreateIpc}>
               <div className="form-grid form-grid-3">
@@ -775,10 +869,45 @@ export default function FinancePage() {
                   <label className="form-label">نسبة استقطاع الضمان %</label>
                   <input className="form-control" type="number" value={ipcForm.retention_percentage} onChange={e => setIpcForm({...ipcForm, retention_percentage: e.target.value})} placeholder="10" />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">الدفعات السابقة (ج.م)</label>
+                  <input className="form-control" type="number" value={ipcForm.previous_payments} onChange={e => setIpcForm({...ipcForm, previous_payments: e.target.value})} placeholder="0.00" />
+                </div>
+                {editingIpc && (
+                  <div className="form-group">
+                    <label className="form-label required">حالة المستخلص</label>
+                    <select className="form-control" required value={editingIpc.status} onChange={e => setEditingIpc({...editingIpc, status: e.target.value})}>
+                      {Object.entries(statusLabels).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="form-group" style={{ gridColumn: 'span 3' }}>
+                  <label className="form-label">ملاحظات</label>
+                  <textarea className="form-control" value={ipcForm.notes} onChange={e => setIpcForm({...ipcForm, notes: e.target.value})} placeholder="ملاحظات المستخلص..." rows={2} />
+                </div>
+                {ipcForm.items_total && (
+                  <div className="alert alert-info" style={{ marginTop: '0.75rem', gridColumn: 'span 3' }}>
+                    💡 <strong>الصافي التقديري المستحق:</strong> {formatCurrency(
+                      Number(ipcForm.items_total) + 
+                      (Number(ipcForm.items_total) * (Number(ipcForm.vat_percentage || 0) / 100)) - 
+                      (Number(ipcForm.items_total) * (Number(ipcForm.retention_percentage || 0) / 100)) - 
+                      Number(ipcForm.previous_payments || 0)
+                    )}
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => setShowIpcModal(false)}>إلغاء</button>
-                <button type="submit" className="btn btn-primary">💾 رفع المستخلص</button>
+                <button type="button" className="btn btn-outline" onClick={() => {
+                  setShowIpcModal(false);
+                  setEditingIpc(null);
+                  setIpcForm({
+                    project_id: '', ipc_number: '', period_from: '', period_to: '',
+                    items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+                  });
+                }}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">{editingIpc ? '💾 حفظ التعديلات' : '💾 رفع المستخلص'}</button>
               </div>
             </form>
           </div>
@@ -830,6 +959,245 @@ export default function FinancePage() {
                 <button type="submit" className="btn btn-primary">💾 تسجيل التكلفة</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== PRINT MODAL ======================== */}
+      {printIpc && (
+        <div className="modal-overlay print-modal-overlay" onClick={() => setPrintIpc(null)}>
+          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', background: 'var(--card-bg)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
+              <div className="modal-title">🖨️ معاينة طباعة المستخلص</div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة المستخلص</button>
+                <button className="btn btn-ghost" onClick={() => setPrintIpc(null)}>إغلاق</button>
+              </div>
+            </div>
+            
+            {/* The printable sheet */}
+            <div className="print-container" style={{ direction: 'rtl', padding: '1.5rem', background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minHeight: 'auto' }}>
+              {/* Style element inside to style print */}
+              <style dangerouslySetInnerHTML={{ __html: `
+                @page {
+                  size: A4;
+                  margin: 10mm;
+                }
+                @media print {
+                  html, body {
+                    height: 99%;
+                    overflow: hidden;
+                  }
+                  body * {
+                    visibility: hidden;
+                  }
+                  .print-container, .print-container * {
+                    visibility: visible !important;
+                  }
+                  .print-container {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    box-shadow: none !important;
+                    background: #fff !important;
+                    color: #000 !important;
+                  }
+                  .print-modal-overlay {
+                    position: static !important;
+                    background: transparent !important;
+                    padding: 0 !important;
+                    backdrop-filter: none !important;
+                    display: block !important;
+                  }
+                  .print-modal-content {
+                    max-height: none !important;
+                    overflow: visible !important;
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    max-width: 100% !important;
+                    animation: none !important;
+                  }
+                  .print-actions, .modal-header, .tabs, .sidebar, .header, .btn, .nav, .modal-overlay:not(.print-modal-overlay) {
+                    display: none !important;
+                  }
+                }
+                .print-header {
+                  display: flex;
+                  justify-content: space-between;
+                  border-bottom: 2px solid #000;
+                  padding-bottom: 0.5rem;
+                  margin-bottom: 1rem;
+                }
+                .print-company-info {
+                  text-align: right;
+                }
+                .print-company-title {
+                  font-size: 1.25rem;
+                  font-weight: bold;
+                  margin-bottom: 0.25rem;
+                }
+                .print-document-title {
+                  font-size: 1.5rem;
+                  font-weight: bold;
+                  text-align: center;
+                  margin: 1rem 0;
+                  text-decoration: underline;
+                }
+                .print-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 0.75rem;
+                  margin-bottom: 1.25rem;
+                  font-size: 0.95rem;
+                }
+                .print-grid-item {
+                  display: flex;
+                  gap: 0.5rem;
+                }
+                .print-grid-label {
+                  font-weight: bold;
+                  min-width: 110px;
+                }
+                .print-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 1.25rem;
+                }
+                .print-table th, .print-table td {
+                  border: 1px solid #000;
+                  padding: 0.5rem 0.75rem;
+                  text-align: right;
+                  font-size: 0.95rem;
+                }
+                .print-table th {
+                  background-color: #f2f2f2;
+                  font-weight: bold;
+                }
+                .print-footer {
+                  margin-top: 2.5rem;
+                  display: flex;
+                  justify-content: space-between;
+                }
+                .print-signature-box {
+                  text-align: center;
+                  width: 200px;
+                  font-size: 0.95rem;
+                }
+                .print-signature-line {
+                  margin-top: 2.5rem;
+                  border-top: 1px dashed #000;
+                }
+              ` }} />
+
+              <div className="print-header">
+                <div className="print-company-info">
+                  <div className="print-company-title">{companyInfo?.name_ar || 'الرايق للمقاولات الكهروميكانيكية'}</div>
+                  <div>سجل تجاري: {companyInfo?.cr_number || '١٠١٠١٢٣٤٥٦'}</div>
+                  <div>الرقم الضريبي: {companyInfo?.vat_number || '٣٠٠٠١٢٣٤٥٦٠٠٠٠٣'}</div>
+                </div>
+                <div style={{ textAlign: 'left', fontSize: '0.9rem' }}>
+                  <div>العنوان: {companyInfo?.address || 'القاهرة، مصر'}</div>
+                  <div>الهاتف: {companyInfo?.phone || '+20-100-000-0000'}</div>
+                  <div>البريد: {companyInfo?.email || 'info@alrayeq.com'}</div>
+                </div>
+              </div>
+
+              <div className="print-document-title">مستخلص مستحقات عميل</div>
+
+              <div className="print-grid">
+                <div className="print-grid-item">
+                  <span className="print-grid-label">رقم المستخلص:</span>
+                  <span>{printIpc.ipc_number}</span>
+                </div>
+                <div className="print-grid-item">
+                  <span className="print-grid-label">المشروع:</span>
+                  <span>{printIpc.project_name}</span>
+                </div>
+                <div className="print-grid-item">
+                  <span className="print-grid-label">تاريخ الإصدار:</span>
+                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-EG')}</span>
+                </div>
+                <div className="print-grid-item">
+                  <span className="print-grid-label">الفترة المالية:</span>
+                  <span>
+                    {printIpc.period_from && printIpc.period_to 
+                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-EG')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-EG')}` 
+                      : 'غير محددة'}
+                  </span>
+                </div>
+                <div className="print-grid-item">
+                  <span className="print-grid-label">حالة المستخلص:</span>
+                  <span>{statusLabels[printIpc.status] || printIpc.status}</span>
+                </div>
+              </div>
+
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th>الوصف</th>
+                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة (ج.م)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>إجمالي قيمة الأعمال المنجزة خلال الفترة</td>
+                    <td style={{ textAlign: 'left', fontWeight: 'bold' }}>{formatCurrency(printIpc.items_total)}</td>
+                  </tr>
+                  <tr>
+                    <td>ضريبة القيمة المضافة ({printIpc.vat_percentage || 15}%)</td>
+                    <td style={{ textAlign: 'left' }}>{formatCurrency(printIpc.vat_amount)}</td>
+                  </tr>
+                  <tr>
+                    <td>استقطاع الضمان المالي ({printIpc.retention_percentage || 10}%)</td>
+                    <td style={{ textAlign: 'left', color: '#c00' }}>{formatCurrency(printIpc.retention_amount)}</td>
+                  </tr>
+                  {Number(printIpc.previous_payments) > 0 && (
+                    <tr>
+                      <td>خصم دفعات سابقة</td>
+                      <td style={{ textAlign: 'left', color: '#c00' }}>{formatCurrency(printIpc.previous_payments || 0)}</td>
+                    </tr>
+                  )}
+                  <tr style={{ backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>
+                    <td>الصافي المطلوب صرفه للمؤسسة</td>
+                    <td style={{ textAlign: 'left', fontSize: '1.2rem', color: '#080' }}>
+                      {formatCurrency(
+                        Number(printIpc.items_total) + 
+                        Number(printIpc.vat_amount) - 
+                        Number(printIpc.retention_amount) - 
+                        Number(printIpc.previous_payments || 0)
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {printIpc.notes && (
+                <div style={{ marginTop: '1.5rem', border: '1px solid #ccc', padding: '1rem', borderRadius: '4px' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>ملاحظات:</div>
+                  <p style={{ margin: 0, fontSize: '0.95rem' }}>{printIpc.notes}</p>
+                </div>
+              )}
+
+              <div className="print-footer">
+                <div className="print-signature-box">
+                  <div>المهندس المشرف</div>
+                  <div className="print-signature-line"></div>
+                </div>
+                <div className="print-signature-box">
+                  <div>المدير المالي</div>
+                  <div className="print-signature-line"></div>
+                </div>
+                <div className="print-signature-box">
+                  <div>اعتماد الاستشاري / العميل</div>
+                  <div className="print-signature-line"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
