@@ -13,6 +13,13 @@ interface CompanyProfile {
   address: string;
   phone: string;
   email: string;
+  r2_account_id?: string;
+  r2_endpoint?: string;
+  r2_bucket_name?: string;
+  r2_access_key_id?: string;
+  r2_secret_access_key?: string;
+  r2_backup_interval_hours?: string | number;
+  r2_last_backup_at?: string;
 }
 
 interface User {
@@ -47,7 +54,13 @@ const roleBadge: Record<string, string> = {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
   const [company, setCompany] = useState<CompanyProfile>({
-    name_ar: '', name_en: '', cr_number: '', vat_number: '', address: '', phone: '', email: ''
+    name_ar: '', name_en: '', cr_number: '', vat_number: '', address: '', phone: '', email: '',
+    r2_account_id: '47aa407c8a51f1fe4fe1f387b381e424',
+    r2_endpoint: 'https://47aa407c8a51f1fe4fe1f387b381e424.r2.cloudflarestorage.com',
+    r2_bucket_name: 'elraye2',
+    r2_access_key_id: '',
+    r2_secret_access_key: '',
+    r2_backup_interval_hours: '8'
   });
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +82,98 @@ export default function SettingsPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [dbActionRunning, setDbActionRunning] = useState(false);
+
+  // R2 Backup States & Operations
+  const [r2Backups, setR2Backups] = useState<any[]>([]);
+  const [r2Loading, setR2Loading] = useState(false);
+
+  const fetchR2Backups = async () => {
+    setR2Loading(true);
+    try {
+      const res = await fetch('/api/database/r2-backup');
+      if (res.ok) {
+        const data = await res.json();
+        setR2Backups(data);
+      } else {
+        setR2Backups([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setR2Backups([]);
+    } finally {
+      setR2Loading(false);
+    }
+  };
+
+  const handleManualR2Backup = async () => {
+    setDbActionRunning(true);
+    try {
+      const res = await fetch('/api/database/r2-backup', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ تم إنشاء نسخة احتياطية ورفعها إلى Cloudflare R2 بنجاح!\nاسم الملف: ${data.filename}`);
+        fetchR2Backups();
+        fetchCompanyInfo(); // Refresh metadata
+      } else {
+        alert(`❌ فشل النسخ الاحتياطي: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ: ${err.message}`);
+    } finally {
+      setDbActionRunning(false);
+    }
+  };
+
+  const handleDownloadR2Backup = (key: string) => {
+    window.open(`/api/database/r2-download?key=${encodeURIComponent(key)}`, '_blank');
+  };
+
+  const handleRestoreR2Backup = async (key: string) => {
+    if (!confirm(`⚠️ تحذير مهم جداً!\nهل أنت متأكد من استعادة النسخة الاحتياطية "${key}"؟\nهذا الإجراء سيقوم بحذف جميع البيانات الحالية واستبدالها بالكامل ببيانات النسخة الاحتياطية، ولا يمكن التراجع عن هذا الإجراء!`)) {
+      return;
+    }
+    setDbActionRunning(true);
+    try {
+      const res = await fetch('/api/database/r2-restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('✅ تم استعادة قاعدة البيانات بالكامل من النسخة الاحتياطية في R2 بنجاح!');
+        window.location.reload();
+      } else {
+        alert(`❌ فشل استعادة البيانات: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ: ${err.message}`);
+    } finally {
+      setDbActionRunning(false);
+    }
+  };
+
+  const handleSaveR2Settings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(company)
+      });
+      if (res.ok) {
+        alert('✅ تم حفظ إعدادات Cloudflare R2 للنسخ الاحتياطي بنجاح!');
+        fetchR2Backups();
+      } else {
+        alert('❌ فشل حفظ الإعدادات.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Add User Form State
   const [userForm, setUserForm] = useState({
@@ -211,7 +316,11 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'company') fetchCompanyInfo();
     if (activeTab === 'users') fetchUsers();
-    if (activeTab === 'database') fetchDbInfo();
+    if (activeTab === 'database') {
+      fetchDbInfo();
+      fetchCompanyInfo();
+      fetchR2Backups();
+    }
     if (activeTab === 'defaults') fetchCurrencies();
   }, [activeTab]);
 
@@ -776,6 +885,191 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+
+          {/* Cloudflare R2 Cloud Backup Section */}
+          <div className="dashboard-grid-1-1">
+            {/* R2 Configuration Form */}
+            <div className="card">
+              <div className="card-header">
+                <div className="card-title">☁️ إعدادات النسخ الاحتياطي السحابي (Cloudflare R2)</div>
+                <div className="card-subtitle">تكوين إعدادات النسخ الاحتياطي التلقائي للبيانات إلى سحابة Cloudflare R2</div>
+              </div>
+              <form onSubmit={handleSaveR2Settings} style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label required">Account ID (معرف الحساب)</label>
+                  <input 
+                    className="form-control"
+                    required
+                    value={company.r2_account_id || ''}
+                    onChange={e => setCompany({ ...company, r2_account_id: e.target.value })}
+                    placeholder="47aa407c8a51f1fe4fe1f387b381e424"
+                    disabled={dbActionRunning || saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">S3 API / Endpoint</label>
+                  <input 
+                    className="form-control"
+                    required
+                    value={company.r2_endpoint || ''}
+                    onChange={e => setCompany({ ...company, r2_endpoint: e.target.value })}
+                    placeholder="https://47aa407c8a51f1fe4fe1f387b381e424.r2.cloudflarestorage.com"
+                    disabled={dbActionRunning || saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">Bucket Name (اسم وعاء التخزين)</label>
+                  <input 
+                    className="form-control"
+                    required
+                    value={company.r2_bucket_name || ''}
+                    onChange={e => setCompany({ ...company, r2_bucket_name: e.target.value })}
+                    placeholder="elraye2"
+                    disabled={dbActionRunning || saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">R2 Access Key ID</label>
+                  <input 
+                    className="form-control"
+                    type="password"
+                    required
+                    value={company.r2_access_key_id || ''}
+                    onChange={e => setCompany({ ...company, r2_access_key_id: e.target.value })}
+                    placeholder="أدخل Access Key ID..."
+                    disabled={dbActionRunning || saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">R2 Secret Access Key</label>
+                  <input 
+                    className="form-control"
+                    type="password"
+                    required
+                    value={company.r2_secret_access_key || ''}
+                    onChange={e => setCompany({ ...company, r2_secret_access_key: e.target.value })}
+                    placeholder="أدخل Secret Access Key..."
+                    disabled={dbActionRunning || saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">فترة النسخ الاحتياطي التلقائي (بالساعات)</label>
+                  <input 
+                    className="form-control"
+                    type="number"
+                    min="1"
+                    max="168"
+                    required
+                    value={company.r2_backup_interval_hours || '8'}
+                    onChange={e => setCompany({ ...company, r2_backup_interval_hours: e.target.value })}
+                    placeholder="8"
+                    disabled={dbActionRunning || saving}
+                  />
+                </div>
+                
+                {company.r2_last_backup_at && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    📅 آخر نسخ احتياطي سحابي ناجح: {new Date(company.r2_last_backup_at).toLocaleString('ar-EG')}
+                  </div>
+                )}
+
+                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    disabled={dbActionRunning || saving}
+                  >
+                    {saving ? 'جاري الحفظ...' : '💾 حفظ إعدادات R2'}
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleManualR2Backup}
+                    className="btn btn-outline" 
+                    disabled={dbActionRunning || saving || !company.r2_access_key_id}
+                  >
+                    ☁️ اختبار الاتصال والنسخ الآن
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* R2 Backups List */}
+            <div className="card">
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div className="card-title">☁️ النسخ الاحتياطية في Cloudflare R2</div>
+                  <div className="card-subtitle">قائمة بملفات النسخ الاحتياطي المرفوعة والمسجلة في السحابة</div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={fetchR2Backups} 
+                  className="btn btn-ghost btn-sm"
+                  disabled={r2Loading}
+                >
+                  🔄 تحديث القائمة
+                </button>
+              </div>
+              
+              {r2Loading ? (
+                <div className="empty-state"><div className="loading-spinner" /></div>
+              ) : r2Backups.length === 0 ? (
+                <div className="empty-state" style={{ minHeight: '200px' }}>
+                  <div className="empty-state-icon">☁️</div>
+                  <div className="empty-state-title">لا توجد نسخ احتياطية مرفوعة بعد</div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>قم بتهيئة الإعدادات ورفع أول نسخة اختبارية</p>
+                </div>
+              ) : (
+                <div className="table-wrapper" style={{ maxHeight: '450px', overflowY: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>اسم الملف سحابياً</th>
+                        <th>تاريخ الحفظ</th>
+                        <th>الحجم</th>
+                        <th style={{ textAlign: 'center' }}>العمليات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r2Backups.map((backup) => (
+                        <tr key={backup.key}>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-accent)' }}>
+                            {backup.key}
+                          </td>
+                          <td style={{ fontSize: '0.8rem' }}>
+                            {new Date(backup.lastModified).toLocaleString('ar-EG')}
+                          </td>
+                          <td style={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                            {(backup.sizeBytes / 1024).toFixed(1)} KB
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
+                              <button 
+                                type="button"
+                                onClick={() => handleDownloadR2Backup(backup.key)}
+                                className="btn btn-outline btn-sm"
+                                title="تنزيل الملف للجهاز"
+                              >
+                                📥 تنزيل
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => handleRestoreR2Backup(backup.key)}
+                                className="btn btn-accent btn-sm"
+                                disabled={dbActionRunning}
+                                title="استعادة هذه النسخة كبيانات حية"
+                              >
+                                ⏪ استعادة
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
 
