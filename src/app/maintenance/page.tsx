@@ -48,6 +48,7 @@ export default function MaintenancePage() {
   const [contracts, setContracts] = useState<MaintenanceContract[]>([]);
   const [visits, setVisits] = useState<MaintenanceVisit[]>([]);
   const [tickets, setTickets] = useState<FaultTicket[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
@@ -79,12 +80,22 @@ export default function MaintenancePage() {
     } finally { setLoading(false); }
   }, []);
 
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const res = await fetch('/api/employees');
+      const data = await res.json();
+      setEmployees(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const fetchVisits = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/maintenance/visits');
       const data = await res.json();
-      setVisits(Array.isArray(data) ? data : []);
+      setVisits(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, []);
 
@@ -93,7 +104,7 @@ export default function MaintenancePage() {
     try {
       const res = await fetch('/api/maintenance/tickets');
       const data = await res.json();
-      setTickets(Array.isArray(data) ? data : []);
+      setTickets(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
   }, []);
 
@@ -110,9 +121,13 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     if (activeTab === 'contracts') fetchContracts();
-    if (activeTab === 'visits') fetchVisits();
+    if (activeTab === 'visits') {
+      fetchVisits();
+      fetchContracts();
+      fetchEmployees();
+    }
     if (activeTab === 'tickets') fetchTickets();
-  }, [activeTab, fetchContracts, fetchVisits, fetchTickets]);
+  }, [activeTab, fetchContracts, fetchVisits, fetchTickets, fetchEmployees]);
 
   const handleCreateContract = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -407,6 +422,48 @@ export default function MaintenancePage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowContractModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">💾 تسجيل العقد</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: ADD VISIT ======================== */}
+      {showVisitModal && (
+        <div className="modal-overlay" onClick={() => setShowVisitModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">📅 جدولة زيارة صيانة جديدة</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowVisitModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreateVisit}>
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
+                  <label className="form-label required">عقد الصيانة المرتبط</label>
+                  <select className="form-control" required value={visitForm.contract_id} onChange={e => setVisitForm({...visitForm, contract_id: e.target.value})}>
+                    <option value="">اختر العقد...</option>
+                    {contracts.map(c => <option key={c.id} value={c.id}>{c.client_name} ({c.contract_number})</option>)}
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label required">الفني المكلف بالزيارة</label>
+                  <select className="form-control" required value={visitForm.technician_id} onChange={e => setVisitForm({...visitForm, technician_id: e.target.value})}>
+                    <option value="">اختر الفني...</option>
+                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.job_title})</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">تاريخ الزيارة المجدول</label>
+                  <input className="form-control" type="date" required value={visitForm.scheduled_date} onChange={e => setVisitForm({...visitForm, scheduled_date: e.target.value})} />
+                </div>
+                <div className="form-group col-span-3">
+                  <label className="form-label">ملاحظات الزيارة / نطاق الفحص</label>
+                  <textarea className="form-control" value={visitForm.notes} onChange={e => setVisitForm({...visitForm, notes: e.target.value})} placeholder="فحص ضغط مضخات الحريق، اختبار كواشف الدخان..." rows={2} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowVisitModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">📅 جدولة الزيارة</button>
               </div>
             </form>
           </div>
