@@ -364,13 +364,13 @@ export default function MaintenancePage() {
       {/* ======================== MODAL: ADD CONTRACT ======================== */}
       {showContractModal && (
         <div className="modal-overlay" onClick={() => setShowContractModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📜 تسجيل عقد صيانة جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowContractModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateContract}>
-              <div className="form-grid form-grid-2">
+              <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">رقم العقد</label>
                   <input className="form-control" required value={contractForm.contract_number} onChange={e => setContractForm({...contractForm, contract_number: e.target.value})} placeholder="MNT-2026-xxx" />
@@ -392,7 +392,7 @@ export default function MaintenancePage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">القيمة السنوية للعقد (ج.م)</label>
+                  <label className="form-label required">القيمة السنوية للعام (ج.م)</label>
                   <input className="form-control" type="number" required value={contractForm.annual_value} onChange={e => setContractForm({...contractForm, annual_value: e.target.value})} placeholder="0.00" />
                 </div>
                 <div className="form-group">
@@ -416,18 +416,18 @@ export default function MaintenancePage() {
       {/* ======================== MODAL: ADD TICKET ======================== */}
       {showTicketModal && (
         <div className="modal-overlay" onClick={() => setShowTicketModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">🚨 فتح بلاغ عطل طارئ</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowTicketModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateTicket}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">اسم الجهة/العميل المستغيث</label>
                   <input className="form-control" required value={ticketForm.client_name} onChange={e => setTicketForm({...ticketForm, client_name: e.target.value})} placeholder="مستشفى الشرق الطبي..." />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-2">
                   <label className="form-label required">موقع العطل بالتفصيل</label>
                   <input className="form-control" required value={ticketForm.site_address} onChange={e => setTicketForm({...ticketForm, site_address: e.target.value})} placeholder="مبنى ب - الطابق الأرضي" />
                 </div>
@@ -439,9 +439,9 @@ export default function MaintenancePage() {
                     <option value="emergency">طارئ جداً 🚨</option>
                   </select>
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label required">تفاصيل العطل والتقرير الأولي</label>
-                  <textarea className="form-control" required value={ticketForm.fault_description} onChange={e => setTicketForm({...ticketForm, fault_description: e.target.value})} placeholder="تسريب مياه في صمامات غرف مضخة الحريق مما أدى لانخفاض ضغط الشبكة..." />
+                  <textarea className="form-control" required value={ticketForm.fault_description} onChange={e => setTicketForm({...ticketForm, fault_description: e.target.value})} placeholder="تسريب مياه في صمامات غرف مضخة الحريق مما أدى لانخفاض ضغط الشبكة..." rows={2} />
                 </div>
               </div>
               <div className="modal-footer">

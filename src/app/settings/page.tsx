@@ -662,14 +662,14 @@ export default function SettingsPage() {
       {/* ======================== MODAL: ADD USER ======================== */}
       {showUserModal && (
         <div className="modal-overlay" onClick={() => setShowUserModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">👥 إضافة مستخدم جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowUserModal(false)}>✕</button>
             </div>
             <form onSubmit={handleAddUser}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">الاسم الكامل للمستخدم</label>
                   <input
                     className="form-control"
@@ -679,7 +679,7 @@ export default function SettingsPage() {
                     placeholder="م. أحمد الشافعي"
                   />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-2">
                   <label className="form-label required">البريد الإلكتروني للفرع</label>
                   <input
                     className="form-control"
@@ -699,7 +699,7 @@ export default function SettingsPage() {
                     placeholder="01xxxxxxxxx"
                   />
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label required">الدور والصلاحية</label>
                   <select
                     className="form-control"

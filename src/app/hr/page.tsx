@@ -644,7 +644,7 @@ export default function HRPage() {
               <button className="btn btn-ghost btn-icon" onClick={() => setShowEmpModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateEmployee}>
-              <div className="form-grid form-grid-3">
+              <div className="form-grid form-grid-4">
                 <div className="form-group">
                   <label className="form-label required">الرقم الوظيفي</label>
                   <input className="form-control" required value={empForm.employee_number} onChange={e => setEmpForm({...empForm, employee_number: e.target.value})} placeholder="EMP-001" />
@@ -711,13 +711,13 @@ export default function HRPage() {
       {/* ======================== MODAL: ADD ASSET ======================== */}
       {showAssetModal && (
         <div className="modal-overlay" onClick={() => setShowAssetModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">🔨 إضافة عهدة جديدة</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowAssetModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateAsset}>
-              <div className="form-grid form-grid-2">
+              <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">كود العهدة</label>
                   <input className="form-control" required value={assetForm.asset_code} onChange={e => setAssetForm({...assetForm, asset_code: e.target.value})} placeholder="AST-100" />
@@ -740,7 +740,7 @@ export default function HRPage() {
                   <label className="form-label">الماركة (Brand)</label>
                   <input className="form-control" value={assetForm.brand} onChange={e => setAssetForm({...assetForm, brand: e.target.value})} placeholder="Bosch / Makita" />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-2">
                   <label className="form-label">حالة المعدة</label>
                   <select className="form-control" value={assetForm.condition} onChange={e => setAssetForm({...assetForm, condition: e.target.value})}>
                     <option value="new">جديدة</option>

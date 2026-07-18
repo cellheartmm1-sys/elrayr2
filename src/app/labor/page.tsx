@@ -314,14 +314,14 @@ export default function LaborPage() {
       {/* ======================== MODAL: ADD LABORER ======================== */}
       {showLaborerModal && (
         <div className="modal-overlay" onClick={() => setShowLaborerModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">👷 تسجيل عامل يومية جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowLaborerModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateLaborer}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">الاسم الكامل</label>
                   <input className="form-control" required value={laborerForm.name} onChange={e => setLaborerForm({...laborerForm, name: e.target.value})} placeholder="محمد إقبال شاه..." />
                 </div>
@@ -343,7 +343,7 @@ export default function LaborPage() {
                   <label className="form-label">رقم جوال الاتصال</label>
                   <input className="form-control" value={laborerForm.phone} onChange={e => setLaborerForm({...laborerForm, phone: e.target.value})} placeholder="05xxxxxxxx" />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-2">
                   <label className="form-label required">أجر اليومية المتفق عليه (ج.م)</label>
                   <input className="form-control" type="number" required value={laborerForm.daily_rate} onChange={e => setLaborerForm({...laborerForm, daily_rate: e.target.value})} placeholder="150" />
                 </div>
@@ -360,14 +360,14 @@ export default function LaborPage() {
       {/* ======================== MODAL: ADD DAILY ATTENDANCE ======================== */}
       {showAttendanceModal && (
         <div className="modal-overlay" onClick={() => setShowAttendanceModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📅 تسجيل يومية حضور عمال</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowAttendanceModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateAttendance}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">العامل</label>
                   <select className="form-control" required value={attForm.worker_id} onChange={e => {
                     const worker = laborers.find(l => l.id === e.target.value);
@@ -377,7 +377,7 @@ export default function LaborPage() {
                     {laborers.map(l => <option key={l.id} value={l.id}>{l.name} ({skillLabels[l.skill] || l.skill})</option>)}
                   </select>
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label required">الموقع / المشروع المستضيف</label>
                   <select className="form-control" required value={attForm.project_id} onChange={e => setAttForm({...attForm, project_id: e.target.value})}>
                     <option value="">اختر المشروع...</option>
@@ -393,10 +393,10 @@ export default function LaborPage() {
                   <input className="form-control" type="number" value={attForm.overtime_hours} onChange={e => setAttForm({...attForm, overtime_hours: e.target.value})} placeholder="0" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">الأجر اليومي لهذا اليوم (ج.م)</label>
+                  <label className="form-label required">الأجر اليومي (ج.م)</label>
                   <input className="form-control" type="number" required value={attForm.daily_rate} onChange={e => setAttForm({...attForm, daily_rate: e.target.value})} />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-3">
                   <label className="form-label">أجر الساعة الإضافية (ج.م)</label>
                   <input className="form-control" type="number" value={attForm.overtime_rate} onChange={e => setAttForm({...attForm, overtime_rate: e.target.value})} placeholder="25" />
                 </div>

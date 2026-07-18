@@ -424,13 +424,13 @@ export default function FinancePage() {
       {/* ======================== MODAL: ADD CLIENT IPC ======================== */}
       {showIpcModal && (
         <div className="modal-overlay" onClick={() => setShowIpcModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📄 إصدار مستخلص عميل جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowIpcModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateIpc}>
-              <div className="form-grid form-grid-2">
+              <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">المشروع</label>
                   <select className="form-control" required value={ipcForm.project_id} onChange={e => setIpcForm({...ipcForm, project_id: e.target.value})}>
@@ -451,7 +451,7 @@ export default function FinancePage() {
                   <input className="form-control" type="date" value={ipcForm.period_to} onChange={e => setIpcForm({...ipcForm, period_to: e.target.value})} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">إجمالي قيمة الأعمال المنفذة (ج.م)</label>
+                  <label className="form-label required">إجمالي قيمة الأعمال (ج.م)</label>
                   <input className="form-control" type="number" required value={ipcForm.items_total} onChange={e => setIpcForm({...ipcForm, items_total: e.target.value})} placeholder="0.00" />
                 </div>
                 <div className="form-group">
@@ -475,14 +475,14 @@ export default function FinancePage() {
       {/* ======================== MODAL: ADD EXPENSE ======================== */}
       {showExpenseModal && (
         <div className="modal-overlay" onClick={() => setShowExpenseModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">🧾 تسجيل مصروف للموقع</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowExpenseModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateExpense}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">المشروع المستهدف</label>
                   <select className="form-control" required value={expenseForm.project_id} onChange={e => setExpenseForm({...expenseForm, project_id: e.target.value})}>
                     <option value="">اختر المشروع...</option>
@@ -503,13 +503,13 @@ export default function FinancePage() {
                   <label className="form-label">رقم الفاتورة</label>
                   <input className="form-control" value={expenseForm.invoice_number} onChange={e => setExpenseForm({...expenseForm, invoice_number: e.target.value})} placeholder="INV-xxx" />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-3">
                   <label className="form-label">المورد/الجهة المستلمة</label>
                   <input className="form-control" value={expenseForm.supplier} onChange={e => setExpenseForm({...expenseForm, supplier: e.target.value})} placeholder="شركة التوريد..." />
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label required">الوصف والتفاصيل</label>
-                  <textarea className="form-control" required value={expenseForm.description} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} placeholder="شراء مواسير حديد 2 بوصة، مصنعيات لحام موقع العليا..." />
+                  <textarea className="form-control" required value={expenseForm.description} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} placeholder="شراء مواسير حديد 2 بوصة، مصنعيات لحام موقع العليا..." rows={2} />
                 </div>
               </div>
               <div className="modal-footer">

@@ -404,21 +404,21 @@ export default function ProcurementPage() {
       {/* ======================== MODAL: ADD REQUEST ======================== */}
       {showRequestModal && (
         <div className="modal-overlay" onClick={() => setShowRequestModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📋 إنشاء طلب مواد للموقع</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowRequestModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateRequest}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">المشروع / الموقع المستلم</label>
                   <select className="form-control" required value={requestForm.project_id} onChange={e => setRequestForm({...requestForm, project_id: e.target.value})}>
                     <option value="">اختر المشروع...</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label required">المخزن المرتبط بالمشروع</label>
                   <select className="form-control" required value={requestForm.warehouse_id} onChange={e => setRequestForm({...requestForm, warehouse_id: e.target.value})}>
                     <option value="">اختر المخزن...</option>
@@ -429,7 +429,7 @@ export default function ProcurementPage() {
                   <label className="form-label required">تاريخ التوريد المطلوب</label>
                   <input className="form-control" type="date" required value={requestForm.required_date} onChange={e => setRequestForm({...requestForm, required_date: e.target.value})} />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-2">
                   <label className="form-label">الأولوية</label>
                   <select className="form-control" value={requestForm.priority} onChange={e => setRequestForm({...requestForm, priority: e.target.value})}>
                     <option value="normal">عادي</option>
@@ -437,9 +437,9 @@ export default function ProcurementPage() {
                     <option value="urgent">عاجل جداً 🚨</option>
                   </select>
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label">ملاحظات وكميات المواد المطلوبة بالتفصيل</label>
-                  <textarea className="form-control" value={requestForm.notes} onChange={e => setRequestForm({...requestForm, notes: e.target.value})} placeholder="الرجاء شراء مواسير حريق 4 بوصة عدد 50 حبة مع 100 رشاش رأس معلق K5.6..." />
+                  <textarea className="form-control" value={requestForm.notes} onChange={e => setRequestForm({...requestForm, notes: e.target.value})} placeholder="الرجاء شراء مواسير حريق 4 بوصة عدد 50 حبة مع 100 رشاش رأس معلق K5.6..." rows={2} />
                 </div>
               </div>
               <div className="modal-footer">
@@ -454,13 +454,13 @@ export default function ProcurementPage() {
       {/* ======================== MODAL: ADD SUBMITTAL ======================== */}
       {showSubmittalModal && (
         <div className="modal-overlay" onClick={() => setShowSubmittalModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📜 تقديم اعتماد مادة للاستشاري</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowSubmittalModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateSubmittal}>
-              <div className="form-grid form-grid-2">
+              <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">المشروع</label>
                   <select className="form-control" required value={submittalForm.project_id} onChange={e => setSubmittalForm({...submittalForm, project_id: e.target.value})}>
@@ -472,7 +472,11 @@ export default function ProcurementPage() {
                   <label className="form-label required">رقم الاعتماد الفريد</label>
                   <input className="form-control" required value={submittalForm.submittal_number} onChange={e => setSubmittalForm({...submittalForm, submittal_number: e.target.value})} placeholder="SUB-ELR-xxx" />
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group">
+                  <label className="form-label required">اسم استشاري المشروع</label>
+                  <input className="form-control" required value={submittalForm.consultant_name} onChange={e => setSubmittalForm({...submittalForm, consultant_name: e.target.value})} placeholder="مكتب دار الهندسة..." />
+                </div>
+                <div className="form-group col-span-3">
                   <label className="form-label required">وصف المادة / تفاصيل العينة</label>
                   <input className="form-control" required value={submittalForm.item_description} onChange={e => setSubmittalForm({...submittalForm, item_description: e.target.value})} placeholder="مضخة حريق كهربائية مع لوحة التحكم..." />
                 </div>
@@ -488,10 +492,6 @@ export default function ProcurementPage() {
                   <label className="form-label">بلد المنشأ</label>
                   <input className="form-control" value={submittalForm.origin} onChange={e => setSubmittalForm({...submittalForm, origin: e.target.value})} placeholder="الولايات المتحدة / إيطاليا" />
                 </div>
-                <div className="form-group">
-                  <label className="form-label required">اسم استشاري المشروع المشرف</label>
-                  <input className="form-control" required value={submittalForm.consultant_name} onChange={e => setSubmittalForm({...submittalForm, consultant_name: e.target.value})} placeholder="مكتب دار الهندسة..." />
-                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowSubmittalModal(false)}>إلغاء</button>
@@ -505,21 +505,21 @@ export default function ProcurementPage() {
       {/* ======================== MODAL: ADD INVENTORY ======================== */}
       {showInventoryModal && (
         <div className="modal-overlay" onClick={() => setShowInventoryModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📦 جرد مادة بمخزن الموقع</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowInventoryModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreateInventory}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label required">المستودع / مخزن الموقع المستهدف</label>
                   <select className="form-control" required value={inventoryForm.warehouse_id} onChange={e => setInventoryForm({...inventoryForm, warehouse_id: e.target.value})}>
                     <option value="">اختر المخزن...</option>
                     {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </select>
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label required">وصف المادة / الصنف</label>
                   <input className="form-control" required value={inventoryForm.description} onChange={e => setInventoryForm({...inventoryForm, description: e.target.value})} placeholder="مواسير حديد 2 بوصة Sch40..." />
                 </div>
@@ -535,7 +535,7 @@ export default function ProcurementPage() {
                   <label className="form-label required">الحد الأدنى لإعادة الطلب</label>
                   <input className="form-control" type="number" required value={inventoryForm.min_quantity} onChange={e => setInventoryForm({...inventoryForm, min_quantity: e.target.value})} placeholder="10" />
                 </div>
-                <div className="form-group">
+                <div className="form-group col-span-3">
                   <label className="form-label">تكلفة وحدة المادة (ج.م)</label>
                   <input className="form-control" type="number" value={inventoryForm.unit_cost} onChange={e => setInventoryForm({...inventoryForm, unit_cost: e.target.value})} placeholder="0.00" />
                 </div>

@@ -143,14 +143,14 @@ export default function EstimationPage() {
       {/* ======================== MODAL: ADD ESTIMATION ======================== */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📐 إنشاء عرض سعر جديد لمناقصة</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreate}>
-              <div className="form-grid form-grid-2">
-                <div className="form-group col-span-2">
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-3">
                   <label className="form-label">المشروع المرتبط (إن وجد)</label>
                   <select className="form-control" value={form.project_id} onChange={e => setForm({...form, project_id: e.target.value})}>
                     <option value="">اختر المشروع...</option>

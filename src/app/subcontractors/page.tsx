@@ -285,13 +285,13 @@ export default function SubcontractorsPage() {
       {/* ======================== ADD CONTRACTOR MODAL ======================== */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">🏢 إضافة مقاول باطن جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
             </div>
-            <div className="form-grid form-grid-2">
-              <div className="form-group">
+            <div className="form-grid form-grid-3">
+              <div className="form-group col-span-3">
                 <label className="form-label required">اسم المقاول</label>
                 <input className="form-control" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="شركة النجوم للتركيبات" />
               </div>
@@ -309,7 +309,7 @@ export default function SubcontractorsPage() {
                 <label className="form-label">رقم الهاتف</label>
                 <input className="form-control" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="05xxxxxxxx" />
               </div>
-              <div className="form-group">
+              <div className="form-group col-span-2">
                 <label className="form-label">البريد الإلكتروني</label>
                 <input className="form-control" type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="info@company.com" />
               </div>
@@ -323,9 +323,9 @@ export default function SubcontractorsPage() {
                   <option value="5">⭐⭐⭐⭐⭐ 5 - ممتاز</option>
                 </select>
               </div>
-              <div className="form-group col-span-2">
+              <div className="form-group col-span-3">
                 <label className="form-label">ملاحظات</label>
-                <textarea className="form-control" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="أي ملاحظات إضافية..." />
+                <textarea className="form-control" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="أي ملاحظات إضافية..." rows={2} />
               </div>
             </div>
             <div className="modal-footer">
@@ -339,12 +339,12 @@ export default function SubcontractorsPage() {
       {/* ======================== ADD IPC MODAL ======================== */}
       {showIpcModal && (
         <div className="modal-overlay" onClick={() => setShowIpcModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">📄 إصدار مستخلص مقاول باطن</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowIpcModal(false)}>✕</button>
             </div>
-            <div className="form-grid form-grid-2">
+            <div className="form-grid form-grid-3">
               <div className="form-group">
                 <label className="form-label required">رقم المستخلص</label>
                 <input className="form-control" value={ipcForm.ipc_number} onChange={e => setIpcForm({...ipcForm, ipc_number: e.target.value})} placeholder="IPC-001" />
@@ -369,9 +369,9 @@ export default function SubcontractorsPage() {
                 <label className="form-label">مدفوعات سابقة (ج.م)</label>
                 <input className="form-control" type="number" value={ipcForm.previous_payments} onChange={e => setIpcForm({...ipcForm, previous_payments: e.target.value})} placeholder="0.00" />
               </div>
-              <div className="form-group col-span-2">
+              <div className="form-group col-span-3">
                 <label className="form-label">ملاحظات</label>
-                <textarea className="form-control" value={ipcForm.notes} onChange={e => setIpcForm({...ipcForm, notes: e.target.value})} placeholder="ملاحظات المستخلص..." />
+                <textarea className="form-control" value={ipcForm.notes} onChange={e => setIpcForm({...ipcForm, notes: e.target.value})} placeholder="ملاحظات المستخلص..." rows={2} />
               </div>
             </div>
             {ipcForm.items_total && (

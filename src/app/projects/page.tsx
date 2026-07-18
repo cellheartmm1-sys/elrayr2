@@ -271,13 +271,13 @@ export default function ProjectsPage() {
       {/* Add Project Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">🏗️ إضافة مشروع جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
             </div>
             <form onSubmit={handleCreate}>
-              <div className="form-grid form-grid-2">
+              <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">اسم المشروع</label>
                   <input
@@ -367,13 +367,14 @@ export default function ProjectsPage() {
                     <option value="tender">مناقصة</option>
                   </select>
                 </div>
-                <div className="form-group col-span-2">
+                <div className="form-group col-span-3">
                   <label className="form-label">الوصف / نطاق العمل</label>
                   <textarea
                     className="form-control"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     placeholder="تركيب شبكات حريق، مضخات، رشاشات..."
+                    rows={2}
                   />
                 </div>
               </div>
