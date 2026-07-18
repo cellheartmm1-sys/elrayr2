@@ -78,13 +78,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Logo */}
-      <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="sidebar-logo-icon">🔥</div>
-          <div className="sidebar-logo-text">
-            <div className="sidebar-logo-title">الرايق ERP</div>
-            <div className="sidebar-logo-subtitle">المقاولات الكهروميكانيكية</div>
-          </div>
+      <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '80%' }}>
+          <img src="/logo.jpg" alt="Alrayq Logo" style={{ width: '100%', maxHeight: '42px', objectFit: 'contain', borderRadius: '4px' }} />
         </div>
         {onClose && (
           <button 

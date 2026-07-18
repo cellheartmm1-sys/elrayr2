@@ -5,57 +5,57 @@
    ============================================================ */
 
 :root {
-  /* Brand Colors */
-  --brand-primary: #1e40af;
-  --brand-primary-light: #3b82f6;
-  --brand-primary-dark: #1e3a8a;
-  --brand-accent: #f59e0b;
-  --brand-accent-light: #fcd34d;
+  /* Brand Colors (Redesigned matching Alrayq Gold & White Logo) */
+  --brand-primary: #c59b27;
+  --brand-primary-light: #e5b83b;
+  --brand-primary-dark: #a17e1b;
+  --brand-accent: #ffffff;
+  --brand-accent-light: #f8fafc;
 
-  /* Dark Theme */
-  --bg-base: #0a0f1e;
-  --bg-surface: #0f1629;
-  --bg-card: #141c32;
-  --bg-card-hover: #1a2440;
-  --bg-sidebar: #0c1220;
-  --bg-header: rgba(10, 15, 30, 0.95);
-  --bg-input: rgba(255,255,255,0.05);
-  --bg-input-focus: rgba(59, 130, 246, 0.1);
+  /* Dark Theme (Redesigned matching Logo Dark/Black Background) */
+  --bg-base: #06070a;
+  --bg-surface: #0a0b10;
+  --bg-card: #0f1118;
+  --bg-card-hover: #161922;
+  --bg-sidebar: #08090d;
+  --bg-header: rgba(6, 7, 10, 0.95);
+  --bg-input: rgba(255,255,255,0.04);
+  --bg-input-focus: rgba(197, 155, 39, 0.1);
 
   /* Text Colors */
-  --text-primary: #f1f5f9;
+  --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #475569;
-  --text-accent: #60a5fa;
+  --text-accent: #e5b83b;
 
   /* Status Colors */
   --status-success: #10b981;
-  --status-warning: #f59e0b;
+  --status-warning: #c59b27;
   --status-danger: #ef4444;
-  --status-info: #3b82f6;
+  --status-info: #e5b83b;
   --status-purple: #8b5cf6;
 
   /* Borders */
-  --border-subtle: rgba(255,255,255,0.06);
-  --border-normal: rgba(255,255,255,0.1);
-  --border-focus: rgba(59, 130, 246, 0.6);
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-normal: rgba(255,255,255,0.08);
+  --border-focus: rgba(197, 155, 39, 0.6);
 
   /* Gradients */
-  --grad-primary: linear-gradient(135deg, #1e40af, #3b82f6);
-  --grad-accent: linear-gradient(135deg, #f59e0b, #fbbf24);
+  --grad-primary: linear-gradient(135deg, #a17e1b, #e5b83b);
+  --grad-accent: linear-gradient(135deg, #c59b27, #f8fafc);
   --grad-success: linear-gradient(135deg, #059669, #10b981);
   --grad-danger: linear-gradient(135deg, #dc2626, #ef4444);
-  --grad-card: linear-gradient(145deg, rgba(20, 28, 50, 0.9), rgba(9, 14, 28, 0.8));
-  --grad-sidebar: linear-gradient(180deg, #0c1220 0%, #0a0f1e 100%);
+  --grad-card: linear-gradient(145deg, rgba(15, 17, 24, 0.95), rgba(6, 7, 10, 0.9));
+  --grad-sidebar: linear-gradient(180deg, #08090d 0%, #06070a 100%);
 
   /* Glow Effects */
-  --glow-primary: 0 0 20px rgba(59, 130, 246, 0.3);
-  --glow-accent: 0 0 20px rgba(245, 158, 11, 0.3);
+  --glow-primary: 0 0 20px rgba(197, 155, 39, 0.3);
+  --glow-accent: 0 0 20px rgba(197, 155, 39, 0.2);
 
   /* Shadows */
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-dropdown: 0 8px 32px rgba(0,0,0,0.5);
-  --shadow-modal: 0 20px 60px rgba(0,0,0,0.6);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.5);
+  --shadow-dropdown: 0 8px 32px rgba(0,0,0,0.6);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.7);
 
   /* Spacing */
   --sidebar-width: 260px;
@@ -76,13 +76,13 @@
 }
 
 /* ============================================================
-   LIGHT THEME DESIGN SYSTEM
+   LIGHT THEME DESIGN SYSTEM (Gold accents adapted for Light)
    ============================================================ */
 html[data-theme="light"] {
   /* Brand Colors Override */
-  --brand-primary: #2563eb;
-  --brand-primary-light: #3b82f6;
-  --brand-primary-dark: #1d4ed8;
+  --brand-primary: #c59b27;
+  --brand-primary-light: #e5b83b;
+  --brand-primary-dark: #a17e1b;
 
   /* Background Colors */
   --bg-base: #f8fafc;
@@ -92,27 +92,27 @@ html[data-theme="light"] {
   --bg-sidebar: #ffffff;
   --bg-header: rgba(255, 255, 255, 0.9);
   --bg-input: #f8fafc;
-  --bg-input-focus: rgba(37, 99, 235, 0.05);
+  --bg-input-focus: rgba(197, 155, 39, 0.05);
 
   /* Text Colors */
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --text-accent: #2563eb;
+  --text-accent: #a17e1b;
 
   /* Borders */
   --border-subtle: rgba(0, 0, 0, 0.05);
   --border-normal: rgba(0, 0, 0, 0.08);
-  --border-focus: rgba(37, 99, 235, 0.4);
+  --border-focus: rgba(197, 155, 39, 0.4);
 
   /* Gradients Override */
-  --grad-primary: linear-gradient(135deg, #2563eb, #3b82f6);
+  --grad-primary: linear-gradient(135deg, #a17e1b, #e5b83b);
   --grad-card: linear-gradient(145deg, #ffffff, #f8fafc);
   --grad-sidebar: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
 
   /* Glow Effects Override */
-  --glow-primary: 0 0 20px rgba(37, 99, 235, 0.15);
-  --glow-accent: 0 0 20px rgba(245, 158, 11, 0.15);
+  --glow-primary: 0 0 20px rgba(197, 155, 39, 0.15);
+  --glow-accent: 0 0 20px rgba(197, 155, 39, 0.15);
 
   /* Shadows Override */
   --shadow-card: 0 4px 20px rgba(15, 23, 42, 0.04);
