@@ -98,6 +98,17 @@ export default function MaintenancePage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as TabType;
+      const validTabs: TabType[] = ['contracts', 'visits', 'tickets'];
+      if (tab && validTabs.includes(tab)) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'contracts') fetchContracts();
     if (activeTab === 'visits') fetchVisits();
     if (activeTab === 'tickets') fetchTickets();

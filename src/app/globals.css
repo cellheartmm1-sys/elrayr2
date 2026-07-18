@@ -607,6 +607,26 @@ body {
 .stat-change.positive { color: var(--status-success); }
 .stat-change.negative { color: var(--status-danger); }
 
+.stat-card-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--brand-primary-light);
+  text-decoration: none;
+  margin-top: 0.75rem;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+  cursor: pointer;
+  border-top: 1px solid var(--border-subtle);
+  width: 100%;
+  padding-top: 0.5rem;
+}
+
+.stat-card-link:hover {
+  color: var(--text-primary);
+  transform: translateX(-2px);
+}
+
 /* ============================================================
    TABLES
    ============================================================ */

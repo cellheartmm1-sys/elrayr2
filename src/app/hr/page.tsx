@@ -156,6 +156,17 @@ export default function HRPage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as TabType;
+      const validTabs: TabType[] = ['employees', 'payroll', 'attendance', 'overtime', 'assets', 'documents'];
+      if (tab && validTabs.includes(tab)) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'employees') fetchEmployees();
     if (activeTab === 'payroll') fetchPayroll();
     if (activeTab === 'attendance') fetchAttendance();

@@ -186,6 +186,7 @@ export default function DashboardPage() {
               <div className="stat-value">{activeProjects?.count || 0}</div>
               <div className="stat-label">مشاريع نشطة</div>
               <div className="stat-change positive">▲ {completedProjects?.count || 0} مكتمل</div>
+              <a href="/projects" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card accent">
@@ -193,6 +194,7 @@ export default function DashboardPage() {
               <div className="stat-value">{formatCurrency(totalContractValue)}</div>
               <div className="stat-label">إجمالي قيمة العقود (ج.م)</div>
               <div className="stat-change positive">▲ إيرادات {formatCurrency(data?.stats?.yearlyRevenue?.total || 0)} هذا العام</div>
+              <a href="/finance?tab=ipc" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card success">
@@ -200,6 +202,7 @@ export default function DashboardPage() {
               <div className="stat-value">{data?.stats?.employees?.active || 0}</div>
               <div className="stat-label">موظف نشط</div>
               <div className="stat-change positive">من إجمالي {data?.stats?.employees?.total || 0} موظف</div>
+              <a href="/hr?tab=employees" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card danger">
@@ -207,6 +210,7 @@ export default function DashboardPage() {
               <div className="stat-value">{data?.stats?.faultTickets?.open_tickets || 0}</div>
               <div className="stat-label">بلاغات أعطال مفتوحة</div>
               <div className="stat-change negative">من {data?.stats?.faultTickets?.total_tickets || 0} إجمالي</div>
+              <a href="/maintenance?tab=tickets" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card purple">
@@ -214,6 +218,7 @@ export default function DashboardPage() {
               <div className="stat-value">{data?.stats?.expiringDocs?.expiring || 0}</div>
               <div className="stat-label">وثائق تنتهي خلال 30 يوم</div>
               <div className="stat-change negative">تحتاج تجديد</div>
+              <a href="/hr?tab=documents" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card accent">
@@ -221,6 +226,7 @@ export default function DashboardPage() {
               <div className="stat-value">{data?.stats?.pendingOvertime?.pending || 0}</div>
               <div className="stat-label">طلبات عمل إضافي معلقة</div>
               <div className="stat-change">بانتظار الاعتماد</div>
+              <a href="/hr?tab=overtime" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card success">
@@ -228,6 +234,7 @@ export default function DashboardPage() {
               <div className="stat-value">{data?.stats?.maintenance?.active || 0}</div>
               <div className="stat-label">عقود صيانة نشطة</div>
               <div className="stat-change positive">من {data?.stats?.maintenance?.total || 0} إجمالي</div>
+              <a href="/maintenance?tab=contracts" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
             <div className="stat-card">
@@ -235,6 +242,7 @@ export default function DashboardPage() {
               <div className="stat-value">{formatCurrency(data?.stats?.monthlyExpenses?.total || 0)}</div>
               <div className="stat-label">مصروفات هذا الشهر (ج.م)</div>
               <div className="stat-change">إجمالي المصروفات</div>
+              <a href="/finance?tab=expenses" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
           </div>
 

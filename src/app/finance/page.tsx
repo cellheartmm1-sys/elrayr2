@@ -132,6 +132,17 @@ export default function FinancePage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as TabType;
+      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow'];
+      if (tab && validTabs.includes(tab)) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'ipc') fetchIPCs();
     if (activeTab === 'expenses') fetchExpenses();
     if (activeTab === 'cashflow') fetchCashflow();
