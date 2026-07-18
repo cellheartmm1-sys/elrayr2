@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 type TabType = 'contracts' | 'visits' | 'tickets';
 
@@ -39,11 +40,13 @@ const ticketUrgencyBadge: Record<string, string> = { emergency: 'badge-danger', 
 const ticketStatusLabels: Record<string, string> = { open: 'مفتوح', assigned: 'مُسنَد للفني', in_progress: 'جاري العمل', resolved: 'تم الحل', closed: 'مغلق' };
 const ticketStatusBadge: Record<string, string> = { open: 'badge-danger', assigned: 'badge-warning', in_progress: 'badge-purple', resolved: 'badge-success', closed: 'badge-muted' };
 
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
-
 export default function MaintenancePage() {
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contracts');
   const [contracts, setContracts] = useState<MaintenanceContract[]>([]);
   const [visits, setVisits] = useState<MaintenanceVisit[]>([]);
@@ -436,7 +439,7 @@ export default function MaintenancePage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">القيمة السنوية للعام (ج.م)</label>
+                   <label className="form-label required">القيمة السنوية للعام ({currencySymbol})</label>
                   <input className="form-control" type="number" required value={contractForm.annual_value} onChange={e => setContractForm({...contractForm, annual_value: e.target.value})} placeholder="0.00" />
                 </div>
                 <div className="form-group">

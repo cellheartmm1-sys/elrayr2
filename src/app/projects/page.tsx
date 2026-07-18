@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 interface Project {
   id: string;
@@ -33,11 +34,15 @@ const statusBadge: Record<string, string> = {
   tender: 'badge-purple'
 };
 
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
+
 
 export default function ProjectsPage() {
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -331,7 +336,7 @@ export default function ProjectsPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">قيمة العقد (ج.م)</label>
+                  <label className="form-label">قيمة العقد ({currencySymbol})</label>
                   <input
                     className="form-control"
                     type="number"

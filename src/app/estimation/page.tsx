@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 interface Estimation {
   id: string; project_name: string; tender_name: string; tender_number: string;
@@ -15,10 +16,6 @@ const statusLabels: Record<string, string> = {
 const statusBadge: Record<string, string> = {
   draft: 'badge-muted', submitted: 'badge-warning', won: 'badge-success', lost: 'badge-danger', cancelled: 'badge-muted'
 };
-
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
 
 export default function EstimationPage() {
   const [estimations, setEstimations] = useState<Estimation[]>([]);

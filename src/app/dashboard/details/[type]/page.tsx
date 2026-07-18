@@ -12,6 +12,14 @@ interface DetailPageProps {
   params: Promise<PageParams>;
 }
 
+function formatDynamic(val: any) {
+  let symbol = 'ج.م';
+  if (typeof window !== 'undefined') {
+    symbol = localStorage.getItem('system_currency_symbol') || 'ج.م';
+  }
+  return Number(val).toLocaleString('ar-EG') + ' ' + symbol;
+}
+
 // Configuration map for each metric details page
 const METRIC_CONFIGS: Record<string, {
   title: string;
@@ -30,7 +38,7 @@ const METRIC_CONFIGS: Record<string, {
     formatters: {
       start_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
       end_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
-      contract_value: (val) => Number(val).toLocaleString('ar-EG') + ' ج.م'
+      contract_value: formatDynamic
     }
   },
   contracts: {
@@ -40,7 +48,7 @@ const METRIC_CONFIGS: Record<string, {
     headers: ['اسم المشروع', 'كود المشروع', 'العميل', 'قيمة العقد', 'الحالة'],
     fields: ['name', 'code', 'client_name', 'contract_value', 'status'],
     formatters: {
-      contract_value: (val) => Number(val).toLocaleString('ar-EG') + ' ج.م',
+      contract_value: formatDynamic,
       status: (val) => {
         const labels: Record<string, string> = { active: 'نشط', completed: 'مكتمل', suspended: 'متوقف', tender: 'مناقصة' };
         const badges: Record<string, string> = { active: 'badge-success', completed: 'badge-primary', suspended: 'badge-warning', tender: 'badge-purple' };
@@ -113,7 +121,7 @@ const METRIC_CONFIGS: Record<string, {
     headers: ['رقم العقد', 'اسم العميل', 'قيمة العقد', 'تاريخ البدء', 'تاريخ الانتهاء'],
     fields: ['contract_number', 'client_name', 'contract_value', 'start_date', 'end_date'],
     formatters: {
-      contract_value: (val) => Number(val).toLocaleString('ar-EG') + ' ج.م',
+      contract_value: formatDynamic,
       start_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
       end_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-'
     }
@@ -126,7 +134,7 @@ const METRIC_CONFIGS: Record<string, {
     fields: ['expense_date', 'item_name', 'amount', 'project_name'],
     formatters: {
       expense_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
-      amount: (val) => Number(val).toLocaleString('ar-EG') + ' ج.م',
+      amount: formatDynamic,
       project_name: (val) => val || 'مصاريف عمومية وإدارية'
     }
   }

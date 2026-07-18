@@ -60,6 +60,9 @@ export default function SettingsPage() {
     default_vat: '15',
     default_retention: '10'
   });
+  const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; name_ar: string; symbol: string; is_default: boolean }>>([]);
+  const [currencyLoading, setCurrencyLoading] = useState(false);
+  const [newCurrency, setNewCurrency] = useState({ code: '', name_ar: '', symbol: '' });
 
   // Database Management State
   const [dbTables, setDbTables] = useState<Array<{ name: string; label: string; rowCount: number }>>([]);
@@ -116,10 +119,100 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchCurrencies = async () => {
+    setCurrencyLoading(true);
+    try {
+      const res = await fetch('/api/settings/currencies');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCurrencies(data);
+        const def = data.find(c => c.is_default);
+        if (def) {
+          setDefaults(d => ({ ...d, currency: def.code }));
+          localStorage.setItem('system_currency_symbol', def.symbol);
+          localStorage.setItem('system_currency_code', def.code);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCurrencyLoading(false);
+    }
+  };
+
+  const handleAddCurrency = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCurrency.code || !newCurrency.name_ar || !newCurrency.symbol) return;
+    try {
+      const res = await fetch('/api/settings/currencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', ...newCurrency })
+      });
+      if (res.ok) {
+        setNewCurrency({ code: '', name_ar: '', symbol: '' });
+        fetchCurrencies();
+        alert('✅ تم إضافة العملة بنجاح!');
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الإضافة: ${err.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteCurrency = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه العملة؟')) return;
+    try {
+      const res = await fetch('/api/settings/currencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id })
+      });
+      if (res.ok) {
+        fetchCurrencies();
+        alert('✅ تم حذف العملة بنجاح!');
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSetActiveCurrency = async (id: string) => {
+    try {
+      const res = await fetch('/api/settings/currencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_default', id })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const activeCurr = result.data;
+        if (activeCurr) {
+          localStorage.setItem('system_currency_symbol', activeCurr.symbol);
+          localStorage.setItem('system_currency_code', activeCurr.code);
+        }
+        fetchCurrencies();
+        alert('✅ تم تعيين العملة الافتراضية للنظام بنجاح!');
+        window.location.reload();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل التعيين: ${err.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'company') fetchCompanyInfo();
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'database') fetchDbInfo();
+    if (activeTab === 'defaults') fetchCurrencies();
   }, [activeTab]);
 
   // Save Company Info
@@ -476,52 +569,153 @@ export default function SettingsPage() {
 
       {/* ======================== TAB: DEFAULTS ======================== */}
       {activeTab === 'defaults' && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">⚙️ الإعدادات العامة وتفاصيل الضرائب والعملة</div>
-            <div className="card-subtitle">تعديل العملة الافتراضية للنظام والنسب المئوية للضرائب المطبقة في الفواتير</div>
-          </div>
-          <form onSubmit={handleSaveDefaults}>
-            <div className="form-grid form-grid-2">
-              <div className="form-group">
-                <label className="form-label required">العملة الافتراضية للحسابات</label>
-                <select 
-                  className="form-control" 
-                  value={defaults.currency} 
-                  onChange={e => setDefaults({...defaults, currency: e.target.value})}
-                >
-                  <option value="EGP">الجنيه المصري (ج.م) 🇪🇬</option>
-                  <option value="SAR">الريال السعودي (ر.س) 🇸🇦</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label required">النسبة الافتراضية لضريبة القيمة المضافة (VAT) %</label>
-                <input 
-                  className="form-control" 
-                  type="number" 
-                  value={defaults.default_vat} 
-                  onChange={e => setDefaults({...defaults, default_vat: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label required">النسبة الافتراضية لاستقطاع الضمان المالي للمستخلصات %</label>
-                <input 
-                  className="form-control" 
-                  type="number" 
-                  value={defaults.default_retention} 
-                  onChange={e => setDefaults({...defaults, default_retention: e.target.value})}
-                />
-              </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* General Defaults Card */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">⚙️ الإعدادات الافتراضية للضرائب والاستقطاع</div>
+              <div className="card-subtitle">تعديل النسب المئوية الافتراضية المطبقة عند إنشاء الفواتير والمستخلصات</div>
             </div>
-            
-            <div className="alert alert-info" style={{ marginTop: '1.25rem' }}>
-              💡 <strong>ملاحظة:</strong> العملة المحددة حالياً هي <strong>الجنيه المصري (ج.م)</strong>. تم تعديل كافة التقارير المالية ومستخلصات مقاولي الباطن والعملاء وعقود الصيانة لتظهر بالجنيه المصري.
+            <form onSubmit={handleSaveDefaults}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">النسبة الافتراضية لضريبة القيمة المضافة (VAT) %</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    value={defaults.default_vat} 
+                    onChange={e => setDefaults({...defaults, default_vat: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">النسبة الافتراضية لاستقطاع الضمان المالي للمستخلصات %</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    value={defaults.default_retention} 
+                    onChange={e => setDefaults({...defaults, default_retention: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                <button type="submit" className="btn btn-primary">💾 حفظ نسب الضرائب والاستقطاع</button>
+              </div>
+            </form>
+          </div>
+
+          {/* Currencies Manager Card */}
+          <div className="card" style={{ border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+            <div className="card-header">
+              <div className="card-title">💱 إدارة عملات النظام (Currencies Manager)</div>
+              <div className="card-subtitle">التحكم في العملات المتاحة بالنظام، إضافتها، حذفها، وتحديد العملة الافتراضية النشطة لجميع المعاملات</div>
             </div>
 
-            <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-              <button type="submit" className="btn btn-primary">💾 حفظ الإعدادات الافتراضية</button>
+            <div className="dashboard-grid-2-1" style={{ marginTop: '1rem', gap: '1.5rem' }}>
+              {/* Left Column: Currencies Table */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>📋 العملات الحالية بالنظام</div>
+                
+                {currencyLoading ? (
+                  <div className="empty-state"><div className="loading-spinner" /></div>
+                ) : (
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>رمز الكود</th>
+                          <th>اسم العملة</th>
+                          <th>الرمز (Symbol)</th>
+                          <th style={{ textAlign: 'center' }}>الافتراضية</th>
+                          <th style={{ textAlign: 'center' }}>إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currencies.map(curr => (
+                          <tr key={curr.id} style={curr.is_default ? { background: 'rgba(16, 185, 129, 0.05)' } : {}}>
+                            <td style={{ fontWeight: 'bold', color: 'var(--text-accent)' }}>{curr.code}</td>
+                            <td style={{ fontWeight: 600 }}>{curr.name_ar}</td>
+                            <td style={{ fontSize: '1.1rem', color: 'var(--text-primary)' }}>{curr.symbol}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              {curr.is_default ? (
+                                <span className="badge badge-success">✓ العملة النشطة</span>
+                              ) : (
+                                <span className="badge badge-muted">-</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                                {!curr.is_default && (
+                                  <>
+                                    <button 
+                                      className="btn btn-outline btn-sm"
+                                      onClick={() => handleSetActiveCurrency(curr.id)}
+                                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                                    >
+                                      ⭐ تعيين كنشطة
+                                    </button>
+                                    <button 
+                                      className="btn btn-ghost btn-sm text-danger"
+                                      onClick={() => handleDeleteCurrency(curr.id)}
+                                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                                    >
+                                      🗑️ حذف
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Add Currency Form */}
+              <div className="card" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-subtle)', height: 'fit-content' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '1rem' }}>➕ إضافة عملة جديدة</div>
+                
+                <form onSubmit={handleAddCurrency} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label required">كود العملة (مثال: USD, EGP, SAR)</label>
+                    <input 
+                      className="form-control" 
+                      required
+                      placeholder="EGP" 
+                      value={newCurrency.code}
+                      onChange={e => setNewCurrency({ ...newCurrency, code: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label required">اسم العملة بالعربية (مثال: جنيه مصري)</label>
+                    <input 
+                      className="form-control" 
+                      required
+                      placeholder="جنيه مصري" 
+                      value={newCurrency.name_ar}
+                      onChange={e => setNewCurrency({ ...newCurrency, name_ar: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label required">رمز العملة (مثال: ج.م, ر.س, $)</label>
+                    <input 
+                      className="form-control" 
+                      required
+                      placeholder="ج.م" 
+                      value={newCurrency.symbol}
+                      onChange={e => setNewCurrency({ ...newCurrency, symbol: e.target.value })}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-success" style={{ marginTop: '0.5rem' }}>
+                    ➕ إضافة العملة للنظام
+                  </button>
+                </form>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
       )}
 

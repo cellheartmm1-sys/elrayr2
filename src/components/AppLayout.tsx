@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
@@ -13,6 +13,18 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title, subtitle, icon }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings/active-currency')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.symbol) {
+          localStorage.setItem('system_currency_symbol', data.symbol);
+          localStorage.setItem('system_currency_code', data.code);
+        }
+      })
+      .catch(err => console.error('Failed to fetch active currency:', err));
+  }, []);
 
   return (
     <div className="layout-wrapper">

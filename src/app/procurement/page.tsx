@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 type TabType = 'requests' | 'submittals' | 'inventory';
 
@@ -47,6 +48,13 @@ function formatNumber(val: string | number) {
 
 export default function ProcurementPage() {
   const [activeTab, setActiveTab] = useState<TabType>('requests');
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [submittals, setSubmittals] = useState<MaterialSubmittal[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -457,7 +465,7 @@ export default function ProcurementPage() {
                             {formatNumber(i.current_quantity)}
                           </td>
                           <td>{formatNumber(i.min_quantity)}</td>
-                          <td>{formatNumber(i.unit_cost)} ج.م</td>
+                          <td>{formatCurrency(i.unit_cost)}</td>
                           <td>
                             <span className={`badge ${isLow ? 'badge-danger' : 'badge-success'}`}>
                               {isLow ? 'مخزون منخفض ⚠️' : 'كافٍ'}
@@ -695,7 +703,7 @@ export default function ProcurementPage() {
                   <input className="form-control" type="number" required value={inventoryForm.min_quantity} onChange={e => setInventoryForm({...inventoryForm, min_quantity: e.target.value})} placeholder="10" />
                 </div>
                 <div className="form-group col-span-3">
-                  <label className="form-label">تكلفة وحدة المادة (ج.م)</label>
+                  <label className="form-label">تكلفة وحدة المادة ({currencySymbol})</label>
                   <input className="form-control" type="number" value={inventoryForm.unit_cost} onChange={e => setInventoryForm({...inventoryForm, unit_cost: e.target.value})} placeholder="0.00" />
                 </div>
               </div>

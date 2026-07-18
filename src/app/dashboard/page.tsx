@@ -92,8 +92,12 @@ function formatCurrency(val: string | number) {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
     fetch('/api/dashboard')
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
@@ -108,7 +112,7 @@ export default function DashboardPage() {
     labels: data?.expensesTrend.map(e => e.month) || [],
     datasets: [
       {
-        label: 'المصروفات الشهرية (ج.م)',
+        label: `المصروفات الشهرية (${currencySymbol})`,
         data: data?.expensesTrend.map(e => Number(e.total)) || [],
         fill: true,
         borderColor: '#3b82f6',
@@ -192,7 +196,7 @@ export default function DashboardPage() {
             <div className="stat-card accent">
               <div className="stat-card-icon">💰</div>
               <div className="stat-value">{formatCurrency(totalContractValue)}</div>
-              <div className="stat-label">إجمالي قيمة العقود (ج.م)</div>
+              <div className="stat-label">إجمالي قيمة العقود ({currencySymbol})</div>
               <div className="stat-change positive">▲ إيرادات {formatCurrency(data?.stats?.yearlyRevenue?.total || 0)} هذا العام</div>
               <a href="/dashboard/details/contracts" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
@@ -240,7 +244,7 @@ export default function DashboardPage() {
             <div className="stat-card">
               <div className="stat-card-icon">📊</div>
               <div className="stat-value">{formatCurrency(data?.stats?.monthlyExpenses?.total || 0)}</div>
-              <div className="stat-label">مصروفات هذا الشهر (ج.م)</div>
+              <div className="stat-label">مصروفات هذا الشهر ({currencySymbol})</div>
               <div className="stat-change">إجمالي المصروفات</div>
               <a href="/dashboard/details/expenses" className="stat-card-link">عرض التفاصيل ←</a>
             </div>

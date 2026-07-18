@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 interface PageParams {
   id: string;
@@ -98,10 +99,6 @@ const ipcStatusBadge: Record<string, string> = {
 const phaseTypeLabels: Record<string, string> = {
   networks: 'شبكات حريق', risers: 'صواعد وهوابط', fixtures: 'تركيبات نهائية', testing: 'اختبارات وضغط', commissioning: 'تشغيل وتسليم', other: 'أعمال أخرى'
 };
-
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
 
 export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const router = useRouter();

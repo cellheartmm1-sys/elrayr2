@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 type TabType = 'contractors' | 'contracts' | 'ipc';
 
@@ -39,11 +40,13 @@ const ipcStatusBadge: Record<string, string> = {
   draft: 'badge-muted', submitted: 'badge-warning', approved: 'badge-success', paid: 'badge-primary', rejected: 'badge-danger'
 };
 
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ج.م';
-}
-
 export default function SubcontractorsPage() {
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contractors');
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [ipcs, setIpcs] = useState<SubcontractorIPC[]>([]);
@@ -305,12 +308,12 @@ export default function SubcontractorsPage() {
             <div className="stat-card warning">
               <div className="stat-card-icon">⏳</div>
               <div className="stat-value">{formatCurrency(totalPending)}</div>
-              <div className="stat-label">مبالغ معلقة (ج.م)</div>
+              <div className="stat-label">مبالغ معلقة ({currencySymbol})</div>
             </div>
             <div className="stat-card success">
               <div className="stat-card-icon">💸</div>
               <div className="stat-value">{formatCurrency(totalPaid)}</div>
-              <div className="stat-label">مبالغ مدفوعة (ج.م)</div>
+              <div className="stat-label">مبالغ مدفوعة ({currencySymbol})</div>
             </div>
           </div>
 
@@ -494,15 +497,15 @@ export default function SubcontractorsPage() {
                 <input className="form-control" type="date" value={ipcForm.period_to} onChange={e => setIpcForm({...ipcForm, period_to: e.target.value})} />
               </div>
               <div className="form-group">
-                <label className="form-label required">إجمالي الأعمال (ج.م)</label>
+                <label className="form-label required">إجمالي الأعمال ({currencySymbol})</label>
                 <input className="form-control" type="number" value={ipcForm.items_total} onChange={e => setIpcForm({...ipcForm, items_total: e.target.value})} placeholder="0.00" />
               </div>
               <div className="form-group">
-                <label className="form-label">مبلغ الاستقطاع (ج.م)</label>
+                <label className="form-label">مبلغ الاستقطاع ({currencySymbol})</label>
                 <input className="form-control" type="number" value={ipcForm.retention_amount} onChange={e => setIpcForm({...ipcForm, retention_amount: e.target.value})} placeholder="0.00" />
               </div>
               <div className="form-group">
-                <label className="form-label">مدفوعات سابقة (ج.م)</label>
+                <label className="form-label">مدفوعات سابقة ({currencySymbol})</label>
                 <input className="form-control" type="number" value={ipcForm.previous_payments} onChange={e => setIpcForm({...ipcForm, previous_payments: e.target.value})} placeholder="0.00" />
               </div>
               {editingIpc && (
@@ -714,7 +717,7 @@ export default function SubcontractorsPage() {
                 <thead>
                   <tr>
                     <th>الوصف</th>
-                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة (ج.م)</th>
+                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
                   </tr>
                 </thead>
                 <tbody>

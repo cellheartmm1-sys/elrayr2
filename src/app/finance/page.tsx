@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -79,11 +80,13 @@ const categoryLabels: Record<string, string> = {
   equipment: 'إيجار/شراء معدات', transport: 'نقليات ومحروقات', overhead: 'مصاريف عمومية وإدارية', other: 'أخرى'
 };
 
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
-
 export default function FinancePage() {
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<TabType>('ipc');
   const [ipcs, setIpcs] = useState<IPC[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -348,7 +351,7 @@ export default function FinancePage() {
     labels: cashflow.map(c => c.month),
     datasets: [
       {
-        label: 'الإيرادات المحصلة (ج.م)',
+        label: `الإيرادات المحصلة (${currencySymbol})`,
         data: cashflow.map(c => c.income),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.05)',
@@ -356,7 +359,7 @@ export default function FinancePage() {
         tension: 0.3,
       },
       {
-        label: 'إجمالي المصروفات (ج.م)',
+        label: `إجمالي المصروفات (${currencySymbol})`,
         data: cashflow.map(c => c.expenses),
         borderColor: '#ef4444',
         backgroundColor: 'rgba(239, 68, 68, 0.05)',
@@ -775,7 +778,7 @@ export default function FinancePage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">المبلغ الإجمالي (ج.م)</label>
+                  <label className="form-label required">المبلغ الإجمالي ({currencySymbol})</label>
                   <input
                     className="form-control"
                     type="number"
@@ -858,7 +861,7 @@ export default function FinancePage() {
                   <input className="form-control" type="date" value={ipcForm.period_to} onChange={e => setIpcForm({...ipcForm, period_to: e.target.value})} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">إجمالي قيمة الأعمال (ج.م)</label>
+                  <label className="form-label required">إجمالي قيمة الأعمال ({currencySymbol})</label>
                   <input className="form-control" type="number" required value={ipcForm.items_total} onChange={e => setIpcForm({...ipcForm, items_total: e.target.value})} placeholder="0.00" />
                 </div>
                 <div className="form-group">
@@ -870,7 +873,7 @@ export default function FinancePage() {
                   <input className="form-control" type="number" value={ipcForm.retention_percentage} onChange={e => setIpcForm({...ipcForm, retention_percentage: e.target.value})} placeholder="10" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">الدفعات السابقة (ج.م)</label>
+                  <label className="form-label">الدفعات السابقة ({currencySymbol})</label>
                   <input className="form-control" type="number" value={ipcForm.previous_payments} onChange={e => setIpcForm({...ipcForm, previous_payments: e.target.value})} placeholder="0.00" />
                 </div>
                 {editingIpc && (
@@ -938,7 +941,7 @@ export default function FinancePage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">المبلغ المالي (ج.م)</label>
+                  <label className="form-label required">المبلغ المالي ({currencySymbol})</label>
                   <input className="form-control" type="number" required value={expenseForm.amount} onChange={e => setExpenseForm({...expenseForm, amount: e.target.value})} placeholder="0.00" />
                 </div>
                 <div className="form-group">
@@ -1140,7 +1143,7 @@ export default function FinancePage() {
                 <thead>
                   <tr>
                     <th>الوصف</th>
-                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة (ج.م)</th>
+                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 type TabType = 'laborers' | 'daily_attendance';
 
@@ -22,11 +23,13 @@ const skillLabels: Record<string, string> = {
   technician: 'فني اختبار شبكات', other: 'مهنة أخرى'
 };
 
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
-
 export default function LaborPage() {
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<TabType>('laborers');
   const [laborers, setLaborers] = useState<Laborer[]>([]);
   const [attendance, setAttendance] = useState<LaborAttendance[]>([]);
@@ -357,7 +360,7 @@ export default function LaborPage() {
                   <input className="form-control" value={laborerForm.phone} onChange={e => setLaborerForm({...laborerForm, phone: e.target.value})} placeholder="05xxxxxxxx" />
                 </div>
                 <div className="form-group col-span-2">
-                  <label className="form-label required">أجر اليومية المتفق عليه (ج.م)</label>
+                  <label className="form-label required">أجر اليومية المتفق عليه ({currencySymbol})</label>
                   <input className="form-control" type="number" required value={laborerForm.daily_rate} onChange={e => setLaborerForm({...laborerForm, daily_rate: e.target.value})} placeholder="150" />
                 </div>
               </div>
@@ -406,11 +409,11 @@ export default function LaborPage() {
                   <input className="form-control" type="number" value={attForm.overtime_hours} onChange={e => setAttForm({...attForm, overtime_hours: e.target.value})} placeholder="0" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">الأجر اليومي (ج.م)</label>
+                  <label className="form-label required">الأجر اليومي ({currencySymbol})</label>
                   <input className="form-control" type="number" required value={attForm.daily_rate} onChange={e => setAttForm({...attForm, daily_rate: e.target.value})} />
                 </div>
                 <div className="form-group col-span-3">
-                  <label className="form-label">أجر الساعة الإضافية (ج.م)</label>
+                  <label className="form-label">أجر الساعة الإضافية ({currencySymbol})</label>
                   <input className="form-control" type="number" value={attForm.overtime_rate} onChange={e => setAttForm({...attForm, overtime_rate: e.target.value})} placeholder="25" />
                 </div>
               </div>

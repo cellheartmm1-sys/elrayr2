@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
 
 type TabType = 'employees' | 'payroll' | 'attendance' | 'overtime' | 'assets' | 'documents' | 'loans';
 
@@ -47,11 +48,13 @@ const docLabels: Record<string, string> = {
   vehicle_license: 'رخصة معدة/سيارة', health_card: 'بطاقة صحية', contract: 'عقد العمل'
 };
 
-function formatCurrency(val: string | number) {
-  return Number(val).toLocaleString('ar-EG') + ' ج.م';
-}
-
 export default function HRPage() {
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<TabType>('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payroll, setPayroll] = useState<PayrollItem[]>([]);
@@ -849,7 +852,7 @@ export default function HRPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">قيمة السلفة (ج.م)</label>
+                  <label className="form-label required">قيمة السلفة ({currencySymbol})</label>
                   <input
                     className="form-control"
                     type="number"
@@ -860,7 +863,7 @@ export default function HRPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">قسط الاستقطاع الشهري (ج.م)</label>
+                  <label className="form-label required">قسط الاستقطاع الشهري ({currencySymbol})</label>
                   <input
                     className="form-control"
                     type="number"
