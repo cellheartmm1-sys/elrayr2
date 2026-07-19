@@ -1201,13 +1201,74 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       {/* ======================== MODAL: PRINT PROGRESS REPORT ======================== */}
       {showPrintProgressModal && (
-        <div className="modal-overlay" onClick={() => setShowPrintProgressModal(false)}>
-          <div className="modal modal-xl" onClick={e => e.stopPropagation()} style={{ background: '#fff', color: '#000', direction: 'rtl', padding: '2rem' }}>
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid #ccc', paddingBottom: '1rem' }}>
-              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1a202c' }}>🖨️ معاينة طباعة تقرير الإنجاز والتنفيذ</div>
+        <div className="modal-overlay print-modal-overlay" onClick={() => setShowPrintProgressModal(false)} style={{ zIndex: 9999 }}>
+          <div
+            className="modal modal-xl print-modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              color: '#000',
+              direction: 'rtl',
+              padding: '1.5rem 2rem 2rem 2rem',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              maxWidth: '900px',
+              width: '95%',
+              borderRadius: '12px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              margin: 'auto'
+            }}
+          >
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                html, body {
+                  background: #fff !important;
+                  color: #000 !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+                body * {
+                  visibility: hidden !important;
+                }
+                #printable-progress-report, #printable-progress-report * {
+                  visibility: visible !important;
+                }
+                #printable-progress-report {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+                  box-shadow: none !important;
+                  background: #fff !important;
+                  color: #000 !important;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            ` }} />
+            <div
+              className="no-print"
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                background: '#fff',
+                paddingTop: '0.5rem',
+                paddingBottom: '1rem',
+                marginBottom: '1.5rem',
+                borderBottom: '2px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1e293b' }}>🖨️ معاينة طباعة تقرير الإنجاز والتنفيذ</div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
-                <button className="btn btn-outline" onClick={() => setShowPrintProgressModal(false)}>إغلاق</button>
+                <button className="btn btn-primary" onClick={() => window.print()} style={{ fontWeight: 700 }}>🖨️ طباعة التقرير الآن</button>
+                <button className="btn btn-outline" onClick={() => setShowPrintProgressModal(false)}>إغلاق المعاينة</button>
               </div>
             </div>
 
@@ -1313,13 +1374,74 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       {/* ======================== MODAL: PRINT FINANCIAL & PROFIT REPORT ======================== */}
       {showPrintReportModal && (
-        <div className="modal-overlay" onClick={() => setShowPrintReportModal(false)}>
-          <div className="modal modal-xl" onClick={e => e.stopPropagation()} style={{ background: '#fff', color: '#000', direction: 'rtl', padding: '2rem' }}>
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid #ccc', paddingBottom: '1rem' }}>
-              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1a202c' }}>🖨️ معاينة طباعة تقرير الأرباح والإنجاز المالي</div>
+        <div className="modal-overlay print-modal-overlay" onClick={() => setShowPrintReportModal(false)} style={{ zIndex: 9999 }}>
+          <div
+            className="modal modal-xl print-modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              color: '#000',
+              direction: 'rtl',
+              padding: '1.5rem 2rem 2rem 2rem',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              maxWidth: '900px',
+              width: '95%',
+              borderRadius: '12px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              margin: 'auto'
+            }}
+          >
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                html, body {
+                  background: #fff !important;
+                  color: #000 !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+                body * {
+                  visibility: hidden !important;
+                }
+                #printable-financial-report, #printable-financial-report * {
+                  visibility: visible !important;
+                }
+                #printable-financial-report {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+                  box-shadow: none !important;
+                  background: #fff !important;
+                  color: #000 !important;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            ` }} />
+            <div
+              className="no-print"
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                background: '#fff',
+                paddingTop: '0.5rem',
+                paddingBottom: '1rem',
+                marginBottom: '1.5rem',
+                borderBottom: '2px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1e293b' }}>🖨️ معاينة طباعة تقرير الأرباح والإنجاز المالي</div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
-                <button className="btn btn-outline" onClick={() => setShowPrintReportModal(false)}>إغلاق</button>
+                <button className="btn btn-primary" onClick={() => window.print()} style={{ fontWeight: 700 }}>🖨️ طباعة التقرير الآن</button>
+                <button className="btn btn-outline" onClick={() => setShowPrintReportModal(false)}>إغلاق المعاينة</button>
               </div>
             </div>
 
