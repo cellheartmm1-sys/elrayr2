@@ -82,11 +82,14 @@ const categoryLabels: Record<string, string> = {
 
 export default function FinancePage() {
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== 'undefined') {
       setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
     }
   }, []);
+
   const [activeTab, setActiveTab] = useState<TabType>('ipc');
   const [ipcs, setIpcs] = useState<IPC[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -453,20 +456,21 @@ export default function FinancePage() {
           <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
             <div className="stat-card accent">
               <div className="stat-card-icon">📄</div>
-              <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCurrency(totalInvoiced)}</div>
+              <div className="stat-value" style={{ fontSize: '1.4rem' }} suppressHydrationWarning>{formatCurrency(totalInvoiced)}</div>
               <div className="stat-label">إجمالي المرفوع للعملاء</div>
             </div>
             <div className="stat-card success">
               <div className="stat-card-icon">💸</div>
-              <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCurrency(totalCollected)}</div>
+              <div className="stat-value" style={{ fontSize: '1.4rem' }} suppressHydrationWarning>{formatCurrency(totalCollected)}</div>
               <div className="stat-label">المبالغ المحصلة فعلياً</div>
             </div>
             <div className="stat-card danger">
               <div className="stat-card-icon">⏳</div>
-              <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCurrency(totalUncollected)}</div>
+              <div className="stat-value" style={{ fontSize: '1.4rem' }} suppressHydrationWarning>{formatCurrency(totalUncollected)}</div>
               <div className="stat-label">مستحقات معلقة تحت التحصيل</div>
             </div>
           </div>
+
 
           <div className="filter-bar">
             <select className="form-control" style={{ width: 'auto' }} value={projectFilter} onChange={e => setProjectFilter(e.target.value)}>
@@ -572,7 +576,8 @@ export default function FinancePage() {
           <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
             <div className="stat-card danger">
               <div className="stat-card-icon">💸</div>
-              <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCurrency(totalExpensesSum)}</div>
+              <div className="stat-value" style={{ fontSize: '1.4rem' }} suppressHydrationWarning>{formatCurrency(totalExpensesSum)}</div>
+
               <div className="stat-label">إجمالي المصروفات المدرجة</div>
             </div>
           </div>
