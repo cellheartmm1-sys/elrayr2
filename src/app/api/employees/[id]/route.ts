@@ -47,6 +47,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       emergency_phone, status, notes
     } = body;
 
+    const sanitizeEmpty = (val: any, fallback: any = null) => {
+      if (val === null || val === undefined || (typeof val === 'string' && val.trim() === '')) {
+        return fallback;
+      }
+      return val;
+    };
+
     const result = await query(`
       UPDATE employees SET
         full_name = $1, full_name_en = $2, nationality = $3, id_number = $4, iqama_number = $5, iqama_expiry = $6,
@@ -56,11 +63,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         emergency_contact = $24, emergency_phone = $25, status = $26, notes = $27, updated_at = NOW()
       WHERE id = $28 RETURNING *
     `, [
-      full_name, full_name_en, nationality, id_number, iqama_number, iqama_expiry,
-      passport_number, passport_expiry, date_of_birth, hire_date, job_title,
-      department_id, project_id || null, employment_type, base_salary, housing_allowance, transport_allowance,
-      other_allowances, bank_account, bank_name, iban, phone, email, emergency_contact,
-      emergency_phone, status, notes, id
+      full_name, 
+      sanitizeEmpty(full_name_en), 
+      sanitizeEmpty(nationality), 
+      sanitizeEmpty(id_number), 
+      sanitizeEmpty(iqama_number), 
+      sanitizeEmpty(iqama_expiry),
+      sanitizeEmpty(passport_number), 
+      sanitizeEmpty(passport_expiry), 
+      sanitizeEmpty(date_of_birth), 
+      sanitizeEmpty(hire_date), 
+      sanitizeEmpty(job_title),
+      sanitizeEmpty(department_id), 
+      sanitizeEmpty(project_id), 
+      sanitizeEmpty(employment_type), 
+      Number(sanitizeEmpty(base_salary, 0)), 
+      Number(sanitizeEmpty(housing_allowance, 0)), 
+      Number(sanitizeEmpty(transport_allowance, 0)),
+      Number(sanitizeEmpty(other_allowances, 0)), 
+      sanitizeEmpty(bank_account), 
+      sanitizeEmpty(bank_name), 
+      sanitizeEmpty(iban), 
+      sanitizeEmpty(phone), 
+      sanitizeEmpty(email), 
+      sanitizeEmpty(emergency_contact),
+      sanitizeEmpty(emergency_phone), 
+      status, 
+      sanitizeEmpty(notes), 
+      id
     ]);
 
     if (!result.rows[0]) {

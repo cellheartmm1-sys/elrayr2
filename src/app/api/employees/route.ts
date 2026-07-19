@@ -147,6 +147,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const sanitizeEmpty = (val: any, fallback: any = null) => {
+      if (val === null || val === undefined || (typeof val === 'string' && val.trim() === '')) {
+        return fallback;
+      }
+      return val;
+    };
+
     // Check duplicate employee_number
     const existing = await query(
       'SELECT id FROM employees WHERE employee_number = $1',
@@ -170,13 +177,31 @@ export async function POST(request: NextRequest) {
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
         RETURNING *`,
       [
-        employee_number, full_name, full_name_en ?? null, nationality ?? null,
-        id_number ?? null, iqama_number ?? null, iqama_expiry ?? null,
-        passport_number ?? null, passport_expiry ?? null,
-        hire_date ?? null, job_title ?? null, department_id ?? null, project_id || null,
-        base_salary ?? 0, housing_allowance ?? 0, transport_allowance ?? 0, other_allowances ?? 0,
-        bank_account ?? null, bank_name ?? null, iban ?? null, phone ?? null, email ?? null,
-        status, employment_type ?? null, notes ?? null,
+        employee_number, 
+        full_name, 
+        sanitizeEmpty(full_name_en), 
+        sanitizeEmpty(nationality),
+        sanitizeEmpty(id_number), 
+        sanitizeEmpty(iqama_number), 
+        sanitizeEmpty(iqama_expiry),
+        sanitizeEmpty(passport_number), 
+        sanitizeEmpty(passport_expiry),
+        sanitizeEmpty(hire_date), 
+        sanitizeEmpty(job_title), 
+        sanitizeEmpty(department_id), 
+        sanitizeEmpty(project_id),
+        Number(sanitizeEmpty(base_salary, 0)), 
+        Number(sanitizeEmpty(housing_allowance, 0)), 
+        Number(sanitizeEmpty(transport_allowance, 0)), 
+        Number(sanitizeEmpty(other_allowances, 0)),
+        sanitizeEmpty(bank_account), 
+        sanitizeEmpty(bank_name), 
+        sanitizeEmpty(iban), 
+        sanitizeEmpty(phone), 
+        sanitizeEmpty(email),
+        status, 
+        sanitizeEmpty(employment_type), 
+        sanitizeEmpty(notes),
       ]
     );
 
@@ -196,9 +221,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: newEmployee }, { status: 201 });
   } catch (error) {
-    console.error('[POST /api/employees]', error);
+    const err = error as Error;
+    console.error('[POST /api/employees]', err);
     return NextResponse.json(
-      { error: 'Failed to create employee' },
+      { error: err.message },
       { status: 500 }
     );
   }
