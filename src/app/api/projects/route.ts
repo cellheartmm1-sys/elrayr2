@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     SELECT p.*,
       u1.full_name as manager_name,
       u2.full_name as engineer_name,
-      COALESCE(AVG(pp.actual_percentage), 0) as actual_progress,
-      COALESCE(AVG(pp.planned_percentage), 0) as planned_progress,
+      COALESCE(SUM(ph.actual_progress * ph.weight_percentage) / NULLIF(SUM(ph.weight_percentage), 0), AVG(ph.actual_progress), 0) as actual_progress,
+      COALESCE(SUM(ph.planned_progress * ph.weight_percentage) / NULLIF(SUM(ph.weight_percentage), 0), AVG(ph.planned_progress), 0) as planned_progress,
       COALESCE(SUM(pe.amount), 0) as total_expenses,
       COUNT(DISTINCT ph.id) as phases_count
     FROM projects p

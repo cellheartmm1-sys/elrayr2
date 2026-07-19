@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS project_phases (
   actual_end DATE,
   planned_progress NUMERIC(5,2) DEFAULT 0,
   actual_progress NUMERIC(5,2) DEFAULT 0,
+  weight_percentage NUMERIC(5,2) DEFAULT 0,
   order_index INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -522,6 +523,7 @@ CREATE TABLE IF NOT EXISTS employees (
   emergency_phone TEXT,
   status TEXT DEFAULT 'active' CHECK (status IN ('active','inactive','on_leave','terminated')),
   user_id UUID REFERENCES users(id),
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
   photo_url TEXT,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

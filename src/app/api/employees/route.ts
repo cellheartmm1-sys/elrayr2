@@ -3,6 +3,11 @@ import { NextResponse, NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
+    // Run schema migration to ensure project_id column exists
+    await query(`
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+    `);
+
     const { searchParams } = request.nextUrl;
     const search = searchParams.get('search') ?? '';
     const status = searchParams.get('status') ?? '';
@@ -59,6 +64,8 @@ export async function GET(request: NextRequest) {
           e.job_title,
           e.department_id,
           d.name AS department_name,
+          e.project_id,
+          p.name AS project_name,
           e.base_salary,
           e.housing_allowance,
           e.transport_allowance,
@@ -72,9 +79,10 @@ export async function GET(request: NextRequest) {
           e.updated_at
         FROM employees e
         LEFT JOIN departments d ON d.id = e.department_id
-        ${where}
+        LEFT JOIN projects p ON p.id = e.project_id
+        \${where}
         ORDER BY e.full_name ASC
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        LIMIT \${paramIndex} OFFSET \${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
@@ -98,6 +106,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Run schema migration to ensure project_id column exists
+    await query(`
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+    `);
+
     const body = await request.json();
     const {
       employee_number,
@@ -112,6 +125,7 @@ export async function POST(request: NextRequest) {
       hire_date,
       job_title,
       department_id,
+      project_id,
       base_salary,
       housing_allowance,
       transport_allowance,
@@ -149,17 +163,17 @@ export async function POST(request: NextRequest) {
       `INSERT INTO employees (
           employee_number, full_name, full_name_en, nationality,
           id_number, iqama_number, iqama_expiry, passport_number, passport_expiry,
-          hire_date, job_title, department_id,
+          hire_date, job_title, department_id, project_id,
           base_salary, housing_allowance, transport_allowance, other_allowances,
           bank_account, bank_name, iban, phone, email,
           status, employment_type, notes
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
         RETURNING *`,
       [
         employee_number, full_name, full_name_en ?? null, nationality ?? null,
         id_number ?? null, iqama_number ?? null, iqama_expiry ?? null,
         passport_number ?? null, passport_expiry ?? null,
-        hire_date ?? null, job_title ?? null, department_id ?? null,
+        hire_date ?? null, job_title ?? null, department_id ?? null, project_id || null,
         base_salary ?? 0, housing_allowance ?? 0, transport_allowance ?? 0, other_allowances ?? 0,
         bank_account ?? null, bank_name ?? null, iban ?? null, phone ?? null, email ?? null,
         status, employment_type ?? null, notes ?? null,

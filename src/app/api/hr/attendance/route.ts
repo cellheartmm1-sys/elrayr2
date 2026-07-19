@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
           e.employee_number,
           e.full_name AS employee_name,
           e.job_title,
+          e.base_salary,
           a.project_id,
           p.name AS project_name,
           a.attendance_date,

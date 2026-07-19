@@ -9,6 +9,7 @@ type TabType = 'laborers' | 'daily_attendance';
 interface Laborer {
   id: string; name: string; nationality: string; skill: string;
   id_number: string; phone: string; daily_rate: string; is_active: boolean;
+  project_id?: string; project_name?: string;
 }
 
 interface LaborAttendance {
@@ -45,7 +46,7 @@ export default function LaborPage() {
   // Forms
   const [laborerForm, setLaborerForm] = useState({
     name: '', nationality: 'مقيم', skill: 'installer', id_number: '',
-    phone: '', daily_rate: '150', notes: ''
+    phone: '', daily_rate: '150', notes: '', project_id: ''
   });
 
   const [attForm, setAttForm] = useState({
@@ -60,7 +61,7 @@ export default function LaborPage() {
       const data = await res.json();
       // API returns {data: [...], pagination: {}} - handle both formats
       const list = Array.isArray(data) ? data : (data?.data ?? []);
-      setLaborers(list.map((e: { id: string; full_name: string; nationality: string; job_title: string; id_number: string; phone: string; base_salary: string; status: string }) => ({
+      setLaborers(list.map((e: any) => ({
         id: e.id,
         name: e.full_name,
         nationality: e.nationality,
@@ -68,7 +69,9 @@ export default function LaborPage() {
         id_number: e.id_number,
         phone: e.phone,
         daily_rate: e.base_salary,
-        is_active: e.status === 'active'
+        is_active: e.status === 'active',
+        project_id: e.project_id,
+        project_name: e.project_name
       })));
     } finally { setLoading(false); }
   }, []);
@@ -126,13 +129,14 @@ export default function LaborPage() {
           id_number: laborerForm.id_number,
           phone: laborerForm.phone,
           base_salary: Number(laborerForm.daily_rate),
+          project_id: laborerForm.project_id || null,
           employment_type: 'daily',
           status: 'active'
         })
       });
       if (res.ok) {
         setShowLaborerModal(false);
-        setLaborerForm({ name: '', nationality: 'مقيم', skill: 'installer', id_number: '', phone: '', daily_rate: '150', notes: '' });
+        setLaborerForm({ name: '', nationality: 'مقيم', skill: 'installer', id_number: '', phone: '', daily_rate: '150', notes: '', project_id: '' });
         fetchLaborers();
       } else {
         const errData = await res.json();
@@ -218,6 +222,7 @@ export default function LaborPage() {
                       <th>الجنسية</th>
                       <th>المهارة / التخصص</th>
                       <th>رقم الإقامة / الهوية</th>
+                      <th>الموقع الملتزم به</th>
                       <th>جوال الاتصال</th>
                       <th>الأجر اليومي المعتاد</th>
                       <th>الحالة</th>
@@ -230,6 +235,7 @@ export default function LaborPage() {
                         <td>{l.nationality}</td>
                         <td><span className="badge badge-primary">{skillLabels[l.skill] || l.skill}</span></td>
                         <td>{l.id_number || '-'}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>{l.project_name || 'بالمكتب الرئيسي'}</td>
                         <td style={{ direction: 'ltr', textAlign: 'right' }}>{l.phone || '-'}</td>
                         <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{formatCurrency(l.daily_rate)}</td>
                         <td>
@@ -363,6 +369,13 @@ export default function LaborPage() {
                   <label className="form-label required">أجر اليومية المتفق عليه ({currencySymbol})</label>
                   <input className="form-control" type="number" required value={laborerForm.daily_rate} onChange={e => setLaborerForm({...laborerForm, daily_rate: e.target.value})} placeholder="150" />
                 </div>
+                <div className="form-group col-span-3">
+                  <label className="form-label">الموقع / المشروع الملتزم به افتراضياً</label>
+                  <select className="form-control" value={laborerForm.project_id} onChange={e => setLaborerForm({...laborerForm, project_id: e.target.value})}>
+                    <option value="">بالمكتب الرئيسي (غير مرتبط بمشروع)</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowLaborerModal(false)}>إلغاء</button>
@@ -387,7 +400,12 @@ export default function LaborPage() {
                   <label className="form-label required">العامل</label>
                   <select className="form-control" required value={attForm.worker_id} onChange={e => {
                     const worker = laborers.find(l => l.id === e.target.value);
-                    setAttForm({...attForm, worker_id: e.target.value, daily_rate: worker ? worker.daily_rate : '150'});
+                    setAttForm({
+                      ...attForm, 
+                      worker_id: e.target.value, 
+                      daily_rate: worker ? worker.daily_rate : '150',
+                      project_id: worker?.project_id || ''
+                    });
                   }}>
                     <option value="">اختر العامل...</option>
                     {laborers.map(l => <option key={l.id} value={l.id}>{l.name} ({skillLabels[l.skill] || l.skill})</option>)}

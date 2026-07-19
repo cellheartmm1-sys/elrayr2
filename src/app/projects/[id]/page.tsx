@@ -40,6 +40,7 @@ interface ProjectDetails {
     actual_end: string;
     planned_progress: string;
     actual_progress: string;
+    weight_percentage?: string | number;
   }>;
   progress: Array<{
     id: string;
@@ -84,9 +85,20 @@ interface ProjectDetails {
     file_url: string;
     uploaded_at: string;
   }>;
+  laborAttendance: Array<{
+    id: string;
+    employee_id: string;
+    employee_name: string;
+    attendance_date: string;
+    attendance_type: string;
+    hours_worked: number;
+    overtime_hours: number;
+    base_salary: string;
+    notes?: string;
+  }>;
 }
 
-type TabType = 'overview' | 'phases' | 'progress' | 'financials' | 'documents';
+type TabType = 'overview' | 'phases' | 'progress' | 'financials' | 'documents' | 'reports';
 
 const statusLabels: Record<string, string> = {
   active: 'نشط', completed: 'مكتمل', suspended: 'متوقف', tender: 'مناقصة'
@@ -116,6 +128,106 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [uploading, setUploading] = useState(false);
+
+  // Phase editing states
+  const [showPhaseModal, setShowPhaseModal] = useState(false);
+  const [editingPhase, setEditingPhase] = useState<any | null>(null);
+  const [savingPhase, setSavingPhase] = useState(false);
+  const [phaseForm, setPhaseForm] = useState({
+    phase_name: '',
+    phase_type: 'networks',
+    description: '',
+    planned_start: '',
+    planned_end: '',
+    actual_start: '',
+    actual_end: '',
+    planned_progress: '0',
+    actual_progress: '0',
+    weight_percentage: '10'
+  });
+
+  const handleOpenCreatePhase = () => {
+    setEditingPhase(null);
+    setPhaseForm({
+      phase_name: '',
+      phase_type: 'networks',
+      description: '',
+      planned_start: '',
+      planned_end: '',
+      actual_start: '',
+      actual_end: '',
+      planned_progress: '0',
+      actual_progress: '0',
+      weight_percentage: '10'
+    });
+    setShowPhaseModal(true);
+  };
+
+  const handleOpenEditPhase = (phase: any) => {
+    setEditingPhase(phase);
+    setPhaseForm({
+      phase_name: phase.phase_name || '',
+      phase_type: phase.phase_type || 'networks',
+      description: phase.description || '',
+      planned_start: phase.planned_start ? phase.planned_start.split('T')[0] : '',
+      planned_end: phase.planned_end ? phase.planned_end.split('T')[0] : '',
+      actual_start: phase.actual_start ? phase.actual_start.split('T')[0] : '',
+      actual_end: phase.actual_end ? phase.actual_end.split('T')[0] : '',
+      planned_progress: String(phase.planned_progress ?? '0'),
+      actual_progress: String(phase.actual_progress ?? '0'),
+      weight_percentage: String(phase.weight_percentage ?? '10')
+    });
+    setShowPhaseModal(true);
+  };
+
+  const handleSavePhase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPhase(true);
+    try {
+      const url = '/api/projects/phases';
+      const method = editingPhase ? 'PUT' : 'POST';
+      const body = {
+        ...phaseForm,
+        id: editingPhase?.id,
+        project_id: id,
+        planned_progress: Number(phaseForm.planned_progress) || 0,
+        actual_progress: Number(phaseForm.actual_progress) || 0,
+        weight_percentage: Number(phaseForm.weight_percentage) || 0
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setShowPhaseModal(false);
+        fetchDetails();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حفظ المرحلة: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ في الاتصال بالخادم: ${err.message}`);
+    } finally {
+      setSavingPhase(false);
+    }
+  };
+
+  const handleDeletePhase = async (phaseId: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذه المرحلة نهائياً؟')) return;
+    try {
+      const res = await fetch(`/api/projects/phases?id=${phaseId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchDetails();
+      } else {
+        alert('❌ فشل حذف المرحلة.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchDetails = useCallback(async () => {
     try {
@@ -161,8 +273,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     );
   }
 
-  const { project, phases, progress, expenses, ipcs, subIpcs, debts = [], documents = [] } = details;
+  const { project, phases, progress, expenses, ipcs, subIpcs, debts = [], documents = [], laborAttendance = [] } = details;
   const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.total || 0), 0);
+  
+  // Calculate dynamic average/weighted progress
+  const totalWeight = phases.reduce((acc, p) => acc + Number(p.weight_percentage || 0), 0);
+  const actualProgress = totalWeight > 0 
+    ? (phases.reduce((acc, p) => acc + (Number(p.actual_progress || 0) * Number(p.weight_percentage || 0)), 0) / totalWeight)
+    : (phases.length > 0 ? (phases.reduce((acc, p) => acc + Number(p.actual_progress || 0), 0) / phases.length) : 0);
+
+  const plannedProgress = totalWeight > 0 
+    ? (phases.reduce((acc, p) => acc + (Number(p.planned_progress || 0) * Number(p.weight_percentage || 0)), 0) / totalWeight)
+    : (phases.length > 0 ? (phases.reduce((acc, p) => acc + Number(p.planned_progress || 0), 0) / phases.length) : 0);
+
+  // Financial calculations
+  const earnedValue = Number(project.contract_value || 0) * (actualProgress / 100);
+  const totalInvoiced = ipcs.filter(i => i.status === 'paid' || i.status === 'client_approved' || i.status === 'pending_payment').reduce((acc, i) => acc + Number(i.net_payable || 0), 0);
+  const totalCollected = ipcs.filter(i => i.status === 'paid').reduce((acc, i) => acc + Number(i.net_payable || 0), 0);
+  const totalSubcontractorIpc = subIpcs.filter(s => s.status === 'paid' || s.status === 'approved' || s.status === 'submitted').reduce((acc, s) => acc + Number(s.net_payable || 0), 0);
+  const totalDailyLaborCost = laborAttendance.reduce((acc, a) => {
+    const rate = Number(a.base_salary || 150);
+    const overtime = Number(a.overtime_hours || 0) * 25;
+    return acc + (a.attendance_type === 'present' ? (rate + overtime) : 0);
+  }, 0);
+  const netProjectProfit = totalInvoiced - (totalExpenses + totalSubcontractorIpc + totalDailyLaborCost);
 
   return (
     <AppLayout title={project.name} subtitle={`ملف المشروع الكود: ${project.code}`} icon="🏗️">
@@ -195,10 +329,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* Tabs */}
       <div className="tabs">
         <button className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>📊 نظرة عامة</button>
-        <button className={`tab-btn ${activeTab === 'phases' ? 'active' : ''}`} onClick={() => setActiveTab('phases')}>📈 مراحل العمل</button>
+        <button className={`tab-btn ${activeTab === 'phases' ? 'active' : ''}`} onClick={() => setActiveTab('phases')}>📈 مراحل العمل ({phases.length})</button>
         <button className={`tab-btn ${activeTab === 'progress' ? 'active' : ''}`} onClick={() => setActiveTab('progress')}>📋 تقارير الإنجاز</button>
         <button className={`tab-btn ${activeTab === 'financials' ? 'active' : ''}`} onClick={() => setActiveTab('financials')}>💰 الحسابات والمصروفات</button>
         <button className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>📁 المرفقات والمخططات ({documents.length})</button>
+        <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>📊 تقارير الأرباح والإنجاز</button>
       </div>
 
       {/* ======================== TAB: OVERVIEW ======================== */}
@@ -208,23 +343,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <div className="stat-grid">
             <div className="stat-card accent">
               <div className="stat-card-icon">💰</div>
-              <div className="stat-value" style={{ fontSize: '1.3rem' }}>{formatCurrency(project.contract_value)}</div>
+              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(project.contract_value)}</div>
               <div className="stat-label">القيمة التعاقدية للمشروع</div>
+            </div>
+            <div className="stat-card warning">
+              <div className="stat-card-icon">📈</div>
+              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{actualProgress.toFixed(1)}%</div>
+              <div className="stat-label">نسبة الإنجاز الإجمالية (الفنية)</div>
+            </div>
+            <div className="stat-card success">
+              <div className="stat-card-icon">💼</div>
+              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(earnedValue)}</div>
+              <div className="stat-label">قيمة الأعمال المنجزة (Earned Value)</div>
             </div>
             <div className="stat-card danger">
               <div className="stat-card-icon">📊</div>
-              <div className="stat-value" style={{ fontSize: '1.3rem' }}>{formatCurrency(totalExpenses)}</div>
-              <div className="stat-label">إجمالي المصروفات المنفقة</div>
-            </div>
-            <div className="stat-card success">
-              <div className="stat-card-icon">👷</div>
-              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{project.engineer_name || 'غير محدد'}</div>
-              <div className="stat-label">المهندس المشرف بالموقع</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-icon">👨‍💼</div>
-              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{project.manager_name || 'غير محدد'}</div>
-              <div className="stat-label">مدير المشروع (PM)</div>
+              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</div>
+              <div className="stat-label">إجمالي التكاليف (مصاريف + مقاولين + عمال)</div>
             </div>
           </div>
 
@@ -270,14 +405,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* ======================== TAB: PHASES ======================== */}
       {activeTab === 'phases' && (
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">📈 مراحل تنفيذ الأعمال وجدول التقدم الفني</div>
-            <div className="card-subtitle">تتبع نسب إنجاز أعمال الشبكات والتركيبات وتفاصيل تواريخ التنفيذ</div>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div className="card-title">📈 مراحل تنفيذ الأعمال وجدول التقدم الفني</div>
+              <div className="card-subtitle">تتبع نسب إنجاز أعمال الشبكات والتركيبات وتفاصيل تواريخ التنفيذ والوزن المالي لكل مرحلة</div>
+            </div>
+            <button className="btn btn-primary" onClick={handleOpenCreatePhase}>
+              ➕ إضافة مرحلة عمل جديدة
+            </button>
           </div>
           {phases.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">📈</div>
-              <div className="empty-state-title">لا توجد مراحل مسجلة لهذا المشروع</div>
+              <div className="empty-state-title">لا توجد مراحل عمل مسجلة لهذا المشروع</div>
+              <button className="btn btn-primary" onClick={handleOpenCreatePhase} style={{ marginTop: '1rem' }}>إضافة أول مرحلة عمل</button>
             </div>
           ) : (
             <div className="table-wrapper">
@@ -287,9 +428,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     <th>المرحلة</th>
                     <th>نوع الأعمال</th>
                     <th>مخطط البدء/الانتهاء</th>
+                    <th>الوزن النسبي/المالي</th>
                     <th>النسبة المخططة</th>
                     <th>النسبة الفعلية الحالية</th>
                     <th>الحالة والتقدم</th>
+                    <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -307,8 +450,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <div>من: {phase.planned_start ? new Date(phase.planned_start).toLocaleDateString('ar-EG') : '-'}</div>
                           <div>إلى: {phase.planned_end ? new Date(phase.planned_end).toLocaleDateString('ar-EG') : '-'}</div>
                         </td>
+                        <td style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>
+                          {Number(phase.weight_percentage || 0).toFixed(0)}%
+                        </td>
                         <td style={{ fontWeight: 'bold' }}>{Number(phase.planned_progress).toFixed(0)}%</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--brand-primary-light)' }}>
+                        <td style={{ fontWeight: 'bold', color: 'var(--status-success)' }}>
                           {actualProgressNum.toFixed(0)}%
                         </td>
                         <td>
@@ -322,6 +468,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             <span style={{ fontSize: '0.72rem' }}>
                               {actualProgressNum >= 100 ? 'مكتملة' : 'جاري العمل'}
                             </span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditPhase(phase)} title="تعديل المرحلة">✏️</button>
+                            <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeletePhase(phase.id)} title="حذف المرحلة">🗑️</button>
                           </div>
                         </td>
                       </tr>
@@ -726,6 +878,301 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================== TAB: REPORTS ======================== */}
+      {activeTab === 'reports' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {/* Project Net Profitability Summary Card */}
+          <div className="card" style={{ background: 'linear-gradient(135deg, rgba(23,43,77,0.4) 0%, rgba(9,30,66,0.6) 100%)', border: '1px solid var(--brand-primary-light)' }}>
+            <div className="card-header">
+              <div className="card-title" style={{ color: 'var(--brand-primary-light)' }}>📊 التقرير المالي والأرباح التقديرية للمشروع</div>
+              <div className="card-subtitle">الربحية الصافية والتدفق المالي المحتسب بناءً على الفواتير، المصاريف، مقاولي الباطن وعمال اليومية</div>
+            </div>
+            <div className="card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>💰 القيمة التعاقدية الكلية:</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--text-primary)' }}>{formatCurrency(project.contract_value)}</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>📥 إجمالي المستخلصات المعتمدة:</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--status-warning)' }}>{formatCurrency(totalInvoiced)}</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>💵 إجمالي التحصيل المالي (العميل):</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--status-success)' }}>{formatCurrency(totalCollected)}</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>💸 صافي ربحية المشروع الحالية:</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem', color: netProjectProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                    {formatCurrency(netProjectProfit)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Cost Breakdown Progress Indicators */}
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>🔍 تفصيل التكاليف والمصروفات:</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                  <div style={{ background: 'rgba(255,0,0,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>⚙️ المصروفات النثرية والمشتريات:</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: '0.2rem', color: 'var(--text-primary)' }}>{formatCurrency(totalExpenses)}</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,165,0,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,165,0,0.1)' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>🤝 مستخلصات مقاولي الباطن:</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: '0.2rem', color: 'var(--text-primary)' }}>{formatCurrency(totalSubcontractorIpc)}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,191,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(0,191,255,0.1)' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>👷 تكاليف أجور عمال اليوميات بالموقع:</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: '0.2rem', color: 'var(--text-primary)' }}>{formatCurrency(totalDailyLaborCost)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Phase-wise Progress & Value Earned Card */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">📈 التحليل والتقدم المالي والزمني لمراحل العمل</div>
+              <div className="card-subtitle">مقارنة نسبة التقدم الهندسي الفعلي للأعمال مع الأوزان المالية لكل مرحلة من المراحل المحددة</div>
+            </div>
+            <div className="card-body">
+              {phases.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">📈</div>
+                  <div className="empty-state-title">لا توجد مراحل عمل مسجلة لحساب نسب الإنجاز المالي.</div>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>المرحلة</th>
+                        <th>الوزن النسبي للمرحلة</th>
+                        <th>قيمة المرحلة المالية من العقد</th>
+                        <th>نسبة الإنجاز الفني</th>
+                        <th>الأعمال المنجزة المستحقة (Earned Value)</th>
+                        <th>تاريخ البدء/الانتهاء المخطط</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {phases.map(phase => {
+                        const phaseWeightNum = Number(phase.weight_percentage || 0);
+                        const phaseProgressNum = Number(phase.actual_progress || 0);
+                        const phaseVal = Number(project.contract_value || 0) * (phaseWeightNum / 100);
+                        const phaseEarnedVal = phaseVal * (phaseProgressNum / 100);
+                        return (
+                          <tr key={phase.id}>
+                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{phase.phase_name}</td>
+                            <td style={{ fontWeight: 700 }}>{phaseWeightNum.toFixed(1)}%</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{formatCurrency(phaseVal)}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: 700, color: 'var(--status-success)' }}>{phaseProgressNum.toFixed(0)}%</span>
+                                <div className="progress-bar" style={{ width: '60px', height: '4px' }}>
+                                  <div className="progress-fill success" style={{ width: `${phaseProgressNum}%` }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{formatCurrency(phaseEarnedVal)}</td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                              من: {phase.planned_start ? new Date(phase.planned_start).toLocaleDateString('ar-EG') : '-'}
+                              <br />
+                              إلى: {phase.planned_end ? new Date(phase.planned_end).toLocaleDateString('ar-EG') : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr style={{ fontWeight: 'bold', background: 'rgba(255,255,255,0.04)' }}>
+                        <td>المجموع الكلي للمشروع</td>
+                        <td>{totalWeight.toFixed(1)}%</td>
+                        <td>{formatCurrency(Number(project.contract_value))}</td>
+                        <td>{actualProgress.toFixed(1)}%</td>
+                        <td style={{ color: 'var(--status-success)' }}>{formatCurrency(earnedValue)}</td>
+                        <td>-</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Daily Labor Attendance Logs for this Project */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">👷 سجل حضور وتكاليف عمال اليومية المسجلين بالموقع</div>
+              <div className="card-subtitle">العمال الذين تم إدراج حضورهم لهذا المشروع وتفاصيل أجورهم المباشرة والإضافي</div>
+            </div>
+            <div className="card-body">
+              {laborAttendance.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">👷</div>
+                  <div className="empty-state-title">لم يتم تسجيل حضور أي عامل يومية في هذا الموقع بعد</div>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>اسم العامل اليومية</th>
+                        <th>التاريخ</th>
+                        <th>حالة الحضور</th>
+                        <th>ساعات العمل الإضافي</th>
+                        <th>الأجر اليومي المعتاد</th>
+                        <th>التكلفة المستحقة المسجلة</th>
+                        <th>ملاحظات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {laborAttendance.map((att) => {
+                        const rate = Number(att.base_salary || 150);
+                        const overtime = Number(att.overtime_hours || 0) * 25;
+                        const total = att.attendance_type === 'present' ? (rate + overtime) : 0;
+                        return (
+                          <tr key={att.id}>
+                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{att.employee_name}</td>
+                            <td>{new Date(att.attendance_date).toLocaleDateString('ar-EG')}</td>
+                            <td>
+                              <span className={`badge ${att.attendance_type === 'present' ? 'badge-success' : 'badge-danger'}`}>
+                                {att.attendance_type === 'present' ? 'حاضر' : 'غائب'}
+                              </span>
+                            </td>
+                            <td style={{ color: 'var(--status-purple)', fontWeight: 600 }}>{att.overtime_hours} ساعة</td>
+                            <td>{formatCurrency(rate)}</td>
+                            <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{formatCurrency(total)}</td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{att.notes || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: ADD / EDIT PROJECT PHASE ======================== */}
+      {showPhaseModal && (
+        <div className="modal-overlay" onClick={() => setShowPhaseModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{editingPhase ? '📐 تعديل مرحلة عمل المشروع' : '➕ إضافة مرحلة عمل جديدة للمشروع'}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowPhaseModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSavePhase}>
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-2">
+                  <label className="form-label required">اسم المرحلة</label>
+                  <input 
+                    className="form-control" 
+                    required 
+                    value={phaseForm.phase_name} 
+                    onChange={e => setPhaseForm({...phaseForm, phase_name: e.target.value})} 
+                    placeholder="تركيب شبكة الإطفاء بالدور الأرضي..." 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">نوع المرحلة</label>
+                  <select 
+                    className="form-control" 
+                    required 
+                    value={phaseForm.phase_type} 
+                    onChange={e => setPhaseForm({...phaseForm, phase_type: e.target.value})}
+                  >
+                    {Object.entries(phaseTypeLabels).map(([k,v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">الوزن النسبي/المالي (%)</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    required 
+                    value={phaseForm.weight_percentage} 
+                    onChange={e => setPhaseForm({...phaseForm, weight_percentage: e.target.value})} 
+                    placeholder="10" 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">التقدم المخطط (%)</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    required 
+                    value={phaseForm.planned_progress} 
+                    onChange={e => setPhaseForm({...phaseForm, planned_progress: e.target.value})} 
+                    placeholder="0" 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">التقدم الفني الفعلي الحالي (%)</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    required 
+                    value={phaseForm.actual_progress} 
+                    onChange={e => setPhaseForm({...phaseForm, actual_progress: e.target.value})} 
+                    placeholder="0" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">تاريخ البدء المخطط</label>
+                  <input 
+                    className="form-control" 
+                    type="date" 
+                    value={phaseForm.planned_start} 
+                    onChange={e => setPhaseForm({...phaseForm, planned_start: e.target.value})} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ التسليم المخطط</label>
+                  <input 
+                    className="form-control" 
+                    type="date" 
+                    value={phaseForm.planned_end} 
+                    onChange={e => setPhaseForm({...phaseForm, planned_end: e.target.value})} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ البدء الفعلي</label>
+                  <input 
+                    className="form-control" 
+                    type="date" 
+                    value={phaseForm.actual_start} 
+                    onChange={e => setPhaseForm({...phaseForm, actual_start: e.target.value})} 
+                  />
+                </div>
+
+                <div className="form-group col-span-3">
+                  <label className="form-label">الوصف التفصيلي للمرحلة ونطاق العمل</label>
+                  <textarea 
+                    className="form-control" 
+                    value={phaseForm.description} 
+                    onChange={e => setPhaseForm({...phaseForm, description: e.target.value})} 
+                    placeholder="مواصفات الأنابيب المستخدمة، أقطارها، تفاصيل الاختبار والضغط..." 
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowPhaseModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary" disabled={savingPhase}>
+                  {savingPhase ? 'جاري الحفظ...' : '💾 حفظ مرحلة العمل'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

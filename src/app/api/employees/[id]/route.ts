@@ -42,7 +42,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const {
       full_name, full_name_en, nationality, id_number, iqama_number, iqama_expiry,
       passport_number, passport_expiry, date_of_birth, hire_date, job_title,
-      department_id, employment_type, base_salary, housing_allowance, transport_allowance,
+      department_id, project_id, employment_type, base_salary, housing_allowance, transport_allowance,
       other_allowances, bank_account, bank_name, iban, phone, email, emergency_contact,
       emergency_phone, status, notes
     } = body;
@@ -51,14 +51,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       UPDATE employees SET
         full_name = $1, full_name_en = $2, nationality = $3, id_number = $4, iqama_number = $5, iqama_expiry = $6,
         passport_number = $7, passport_expiry = $8, date_of_birth = $9, hire_date = $10, job_title = $11,
-        department_id = $12, employment_type = $13, base_salary = $14, housing_allowance = $15, transport_allowance = $16,
-        other_allowances = $17, bank_account = $18, bank_name = $19, iban = $20, phone = $21, email = $22,
-        emergency_contact = $23, emergency_phone = $24, status = $25, notes = $26, updated_at = NOW()
-      WHERE id = $27 RETURNING *
+        department_id = $12, project_id = $13, employment_type = $14, base_salary = $15, housing_allowance = $16, transport_allowance = $17,
+        other_allowances = $18, bank_account = $19, bank_name = $20, iban = $21, phone = $22, email = $23,
+        emergency_contact = $24, emergency_phone = $25, status = $26, notes = $27, updated_at = NOW()
+      WHERE id = $28 RETURNING *
     `, [
       full_name, full_name_en, nationality, id_number, iqama_number, iqama_expiry,
       passport_number, passport_expiry, date_of_birth, hire_date, job_title,
-      department_id, employment_type, base_salary, housing_allowance, transport_allowance,
+      department_id, project_id || null, employment_type, base_salary, housing_allowance, transport_allowance,
       other_allowances, bank_account, bank_name, iban, phone, email, emergency_contact,
       emergency_phone, status, notes, id
     ]);

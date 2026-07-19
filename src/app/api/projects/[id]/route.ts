@@ -5,7 +5,12 @@ import { createApprovalRequest } from '@/lib/approvals';
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const [project, phases, progress, expenses, ipcs, subIpcs, documents] = await Promise.all([
+  // Ensure weight_percentage column exists
+  await query(`
+    ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0;
+  `);
+
+  const [project, phases, progress, expenses, ipcs, subIpcs, documents, laborAttendance] = await Promise.all([
     query(`
       SELECT p.*, u1.full_name as manager_name, u2.full_name as engineer_name
       FROM projects p
@@ -26,6 +31,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ORDER BY si.ipc_date DESC
     `, [id]),
     query(`SELECT * FROM project_documents WHERE project_id = $1 ORDER BY uploaded_at DESC`, [id]),
+    query(`
+      SELECT a.*, e.base_salary, e.full_name as employee_name
+      FROM attendance_records a
+      JOIN employees e ON e.id = a.employee_id
+      WHERE a.project_id = $1
+    `, [id]),
   ]);
 
   if (!project.rows[0]) {
@@ -40,6 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ipcs: ipcs.rows,
     subIpcs: subIpcs.rows,
     documents: documents.rows,
+    laborAttendance: laborAttendance.rows,
   });
 }
 
