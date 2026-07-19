@@ -1484,14 +1484,38 @@ export default function LandingPage() {
 
         <div className="footer-bottom">
           <div>{content.footer?.copyright || `جميع الحقوق محفوظة © ${new Date().getFullYear()} مؤسسة الرايق للمقاولات الكهروميكانيكية.`}</div>
-          <div>موقع مؤسسة الرايق الرسمي</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <span>موقع مؤسسة الرايق الرسمي</span>
+            <button
+              onClick={() => setIsPasswordModalOpen(true)}
+              style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#f59e0b',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={e => {
+                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.2)';
+                e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+              }}
+              onMouseOut={e => {
+                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+              }}
+            >
+              ⚙️ لوحة تحكم الواجهة
+            </button>
+          </div>
         </div>
       </footer>
-
-      {/* Floating Action Button for Landing Page Dashboard */}
-      <button className="landing-admin-fab" onClick={() => setIsPasswordModalOpen(true)}>
-        ⚙️ لوحة تحكم الواجهة
-      </button>
 
       {/* Password Modal */}
       {isPasswordModalOpen && (
