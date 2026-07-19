@@ -91,20 +91,37 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!employee_id || !attendance_date) {
-      return NextResponse.json({ error: 'employee_id and attendance_date are required' }, { status: 400 });
+      return NextResponse.json({ error: 'بيانات الموظف وتاريخ اليومية مطلوبة' }, { status: 400 });
     }
 
     const resolvedType = attendance_type ?? status ?? 'present';
-    const resolvedCheckIn = check_in_time ?? check_in ?? null;
-    const resolvedCheckOut = check_out_time ?? check_out ?? null;
 
-    // Prevent duplicate
-    const existing = await query(
-      `SELECT id FROM attendance_records WHERE employee_id = $1 AND attendance_date = $2 AND (project_id = $3 OR ($3::uuid IS NULL AND project_id IS NULL))`,
-      [employee_id, attendance_date, project_id ?? null]
-    );
+    // Prevent duplicate recording for same employee on same date and project
+    let existing;
+    if (project_id) {
+      existing = await query(
+        `SELECT id FROM attendance_records WHERE employee_id = $1 AND attendance_date = $2 AND project_id = $3`,
+        [employee_id, attendance_date, project_id]
+      );
+    } else {
+      existing = await query(
+        `SELECT id FROM attendance_records WHERE employee_id = $1 AND attendance_date = $2 AND project_id IS NULL`,
+        [employee_id, attendance_date]
+      );
+    }
+
     if (existing.rows.length > 0) {
-      return NextResponse.json({ error: 'Attendance already recorded for this employee on this date' }, { status: 409 });
+      return NextResponse.json({ error: 'تم تسجيل حضور هذا العامل لهذا اليوم مسبقاً' }, { status: 400 });
+    }
+
+    let resolvedCheckIn = check_in_time ?? check_in ?? null;
+    let resolvedCheckOut = check_out_time ?? check_out ?? null;
+
+    if (typeof resolvedCheckIn === 'string' && resolvedCheckIn.includes('T')) {
+      resolvedCheckIn = resolvedCheckIn.split('T')[1]?.replace('Z', '') || null;
+    }
+    if (typeof resolvedCheckOut === 'string' && resolvedCheckOut.includes('T')) {
+      resolvedCheckOut = resolvedCheckOut.split('T')[1]?.replace('Z', '') || null;
     }
 
     const result = await query(
@@ -112,15 +129,21 @@ export async function POST(request: NextRequest) {
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
         RETURNING *`,
       [
-        employee_id, project_id ?? null, attendance_date,
-        resolvedType, resolvedCheckIn, resolvedCheckOut,
-        hours_worked ?? null, overtime_hours ?? null, notes ?? null,
+        employee_id,
+        project_id ?? null,
+        attendance_date,
+        resolvedType,
+        resolvedCheckIn,
+        resolvedCheckOut,
+        hours_worked ? Number(hours_worked) : null,
+        overtime_hours ? Number(overtime_hours) : 0,
+        notes ?? null,
       ]
     );
 
     return NextResponse.json({ data: result.rows[0] }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[POST /api/hr/attendance]', error);
-    return NextResponse.json({ error: 'Failed to record attendance' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'فشل تسجيل حضور اليومية' }, { status: 500 });
   }
 }

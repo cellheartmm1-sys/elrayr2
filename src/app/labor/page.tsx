@@ -159,9 +159,10 @@ export default function LaborPage() {
           project_id: attForm.project_id || null,
           attendance_date: attForm.attendance_date,
           status: attForm.is_present ? 'present' : 'absent',
-          hours_worked: attForm.is_present ? 8 : 0,
-          check_in: attForm.is_present ? `${attForm.attendance_date}T08:00:00Z` : null,
-          check_out: attForm.is_present ? `${attForm.attendance_date}T17:00:00Z` : null,
+          hours_worked: attForm.is_present ? Number(attForm.hours_worked) || 8 : 0,
+          overtime_hours: Number(attForm.overtime_hours) || 0,
+          check_in: attForm.is_present ? '08:00:00' : null,
+          check_out: attForm.is_present ? '17:00:00' : null,
           notes: attForm.notes || ''
         })
       });
