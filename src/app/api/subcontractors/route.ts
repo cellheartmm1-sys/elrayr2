@@ -1,9 +1,6 @@
 import { query } from '@/lib/db';
 import { NextResponse, NextRequest } from 'next/server';
-
-// Actual schema: id, name, specialty, contact_person, phone, email,
-//                cr_number, is_active (BOOLEAN), rating, notes, created_at
-// NO: address, vat_number, status (has is_active), updated_at
+import { createApprovalRequest } from '@/lib/approvals';
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,12 +63,35 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, contact_person, phone, email, specialty, cr_number, rating, notes } = body;
 
-    if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
+    if (!name) return NextResponse.json({ error: 'اسم المقاول مطلوب' }, { status: 400 });
+
+    const userRole = request.headers.get('x-user-role') || 'admin';
+    const rawUserName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    let userName = 'مستخدم النظام';
+    try { userName = decodeURIComponent(rawUserName); } catch {}
+    const requireApproval = request.headers.get('x-require-approval') === 'true' || userRole === 'secondary';
+
+    if (requireApproval) {
+      const approval = await createApprovalRequest(
+        userName,
+        userRole,
+        'subcontractors',
+        'CREATE',
+        'subcontractor',
+        `إضافة مقاول جديد: ${name}`,
+        body
+      );
+      return NextResponse.json({
+        pending_approval: true,
+        message: 'تم إرسال طلب إضافة المقاول إلى مدير النظام للموافقة عليه أولاً.',
+        data: approval
+      }, { status: 202 });
+    }
 
     if (cr_number) {
       const existing = await query('SELECT id FROM subcontractors WHERE cr_number = $1', [cr_number]);
       if (existing.rows.length > 0) {
-        return NextResponse.json({ error: 'CR number already registered' }, { status: 409 });
+        return NextResponse.json({ error: 'رقم السجل التجاري مسجل مسبقاً' }, { status: 409 });
       }
     }
 
@@ -79,12 +99,105 @@ export async function POST(request: NextRequest) {
       `INSERT INTO subcontractors (name, contact_person, phone, email, specialty, cr_number, is_active, rating, notes)
         VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
         RETURNING *`,
-      [name, contact_person ?? null, phone ?? null, email ?? null, specialty ?? null, cr_number ?? null, rating ?? null, notes ?? null]
+      [name, contact_person ?? null, phone ?? null, email ?? null, specialty ?? null, cr_number ?? null, Number(rating) || 4, notes ?? null]
     );
 
     return NextResponse.json({ data: result.rows[0] }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/subcontractors]', error);
-    return NextResponse.json({ error: 'Failed to create subcontractor' }, { status: 500 });
+    return NextResponse.json({ error: 'فشل إضافة المقاول' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, name, contact_person, phone, email, specialty, cr_number, rating, notes } = body;
+
+    if (!id || !name) return NextResponse.json({ error: 'بيانات المقاول غير مكتملة' }, { status: 400 });
+
+    const userRole = request.headers.get('x-user-role') || 'admin';
+    const rawUserName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    let userName = 'مستخدم النظام';
+    try { userName = decodeURIComponent(rawUserName); } catch {}
+    const requireApproval = request.headers.get('x-require-approval') === 'true' || userRole === 'secondary';
+
+    if (requireApproval) {
+      const approval = await createApprovalRequest(
+        userName,
+        userRole,
+        'subcontractors',
+        'UPDATE',
+        'subcontractor',
+        `تعديل بيانات المقاول: ${name}`,
+        body
+      );
+      return NextResponse.json({
+        pending_approval: true,
+        message: 'تم إرسال طلب تعديل المقاول إلى مدير النظام للموافقة عليه أولاً.',
+        data: approval
+      }, { status: 202 });
+    }
+
+    const result = await query(
+      `UPDATE subcontractors 
+       SET name=$1, contact_person=$2, phone=$3, email=$4, specialty=$5, cr_number=$6, rating=$7, notes=$8
+       WHERE id=$9 RETURNING *`,
+      [name, contact_person ?? null, phone ?? null, email ?? null, specialty ?? null, cr_number ?? null, Number(rating) || 4, notes ?? null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'المقاول غير موجود' }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error) {
+    console.error('[PUT /api/subcontractors]', error);
+    return NextResponse.json({ error: 'فشل تعديل بيانات المقاول' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'معرف المقاول مطلوب' }, { status: 400 });
+
+    const userRole = request.headers.get('x-user-role') || 'admin';
+    const rawUserName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    let userName = 'مستخدم النظام';
+    try { userName = decodeURIComponent(rawUserName); } catch {}
+    const requireApproval = request.headers.get('x-require-approval') === 'true' || userRole === 'secondary';
+
+    const subRes = await query('SELECT id, name FROM subcontractors WHERE id = $1', [id]);
+    const sub = subRes.rows[0];
+
+    if (!sub) return NextResponse.json({ error: 'المقاول غير موجود' }, { status: 404 });
+
+    if (requireApproval) {
+      const approval = await createApprovalRequest(
+        userName,
+        userRole,
+        'subcontractors',
+        'DELETE',
+        'subcontractor',
+        `طلب حذف مقاول: ${sub.name}`,
+        { id, name: sub.name }
+      );
+      return NextResponse.json({
+        pending_approval: true,
+        message: 'تم إرسال طلب حذف المقاول إلى مدير النظام للموافقة عليه أولاً.',
+        data: approval
+      }, { status: 202 });
+    }
+
+    // Soft delete subcontractor or cascade update
+    await query('UPDATE subcontractors SET is_active = FALSE WHERE id = $1', [id]);
+
+    return NextResponse.json({ success: true, message: 'تم حذف المقاول بنجاح' });
+  } catch (error) {
+    console.error('[DELETE /api/subcontractors]', error);
+    return NextResponse.json({ error: 'فشل حذف المقاول' }, { status: 500 });
   }
 }

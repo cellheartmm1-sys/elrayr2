@@ -59,6 +59,7 @@ export default function SubcontractorsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   
   // Edit & Print States
+  const [editingContractor, setEditingContractor] = useState<Subcontractor | null>(null);
   const [editingIpc, setEditingIpc] = useState<SubcontractorIPC | null>(null);
   const [printIpc, setPrintIpc] = useState<SubcontractorIPC | null>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -121,26 +122,95 @@ export default function SubcontractorsPage() {
     }
   }, [activeTab, fetchSubcontractors, fetchIPCs, fetchProjects]);
 
-  const handleCreate = async () => {
+  const handleOpenCreateContractor = () => {
+    setEditingContractor(null);
+    setForm({ name: '', specialty: 'installation', contact_person: '', phone: '', email: '', rating: '4', notes: '' });
+    setShowModal(true);
+  };
+
+  const handleOpenEditContractor = (sub: Subcontractor) => {
+    setEditingContractor(sub);
+    setForm({
+      name: sub.name,
+      specialty: sub.specialty || 'installation',
+      contact_person: sub.contact_person || '',
+      phone: sub.phone || '',
+      email: (sub as any).email || '',
+      rating: String(sub.rating || '4'),
+      notes: sub.notes || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSaveContractor = async () => {
     try {
+      const userRole = localStorage.getItem('user_role') || 'admin';
+      const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
+      const isEdit = !!editingContractor;
+      const method = isEdit ? 'PUT' : 'POST';
+
       const res = await fetch('/api/subcontractors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole,
+          'x-user-name': encodeURIComponent(userName)
+        },
+        body: JSON.stringify({
+          id: editingContractor?.id,
+          ...form
+        }),
       });
+      const data = await res.json();
       if (res.ok) {
         setShowModal(false);
+        setEditingContractor(null);
         setForm({ name: '', specialty: 'installation', contact_person: '', phone: '', email: '', rating: '4', notes: '' });
+        if (data.pending_approval) {
+          alert(`⏳ ${data.message}`);
+        } else {
+          alert(isEdit ? '✅ تم تعديل بيانات المقاول بنجاح!' : '✅ تم إضافة المقاول بنجاح!');
+        }
         fetchSubcontractors();
       } else {
-        const errData = await res.json();
-        alert(`حدث خطأ: ${errData.error || 'فشلت عملية الإضافة'}`);
+        alert(`❌ حدث خطأ: ${data.error || 'فشلت عملية الحفظ'}`);
       }
     } catch (e) {
       console.error(e);
-      alert('حدث خطأ في الاتصال بالخادم.');
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
   };
+
+  const handleDeleteContractor = async (sub: Subcontractor) => {
+    if (!confirm(`هل أنت متأكد من حذف المقاول "${sub.name}"؟`)) return;
+    try {
+      const userRole = localStorage.getItem('user_role') || 'admin';
+      const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
+
+      const res = await fetch(`/api/subcontractors?id=${sub.id}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': userRole,
+          'x-user-name': encodeURIComponent(userName)
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.pending_approval) {
+          alert(`⏳ ${data.message}`);
+        } else {
+          alert('✅ تم حذف المقاول بنجاح!');
+        }
+        fetchSubcontractors();
+      } else {
+        alert(`❌ فشل الحذف: ${data.error || 'حدث خطأ أثناء التنفيذ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
 
   const handleCreateIPC = async () => {
     try {
@@ -207,7 +277,7 @@ export default function SubcontractorsPage() {
               <div className="page-description">مقاولو الباطن المسجلون في النظام</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ إضافة مقاول</button>
+              <button className="btn btn-primary" onClick={handleOpenCreateContractor}>+ إضافة مقاول</button>
             </div>
           </div>
 
@@ -249,7 +319,7 @@ export default function SubcontractorsPage() {
                 <div className="empty-state">
                   <div className="empty-state-icon">🏢</div>
                   <div className="empty-state-title">لا يوجد مقاولون مسجلون</div>
-                  <button className="btn btn-primary" onClick={() => setShowModal(true)}>إضافة أول مقاول</button>
+                  <button className="btn btn-primary" onClick={handleOpenCreateContractor}>إضافة أول مقاول</button>
                 </div>
               ) : (
                 <table className="data-table">
@@ -261,6 +331,7 @@ export default function SubcontractorsPage() {
                       <th>الهاتف</th>
                       <th>التقييم</th>
                       <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -276,6 +347,22 @@ export default function SubcontractorsPage() {
                             {s.is_active ? 'نشط' : 'غير نشط'}
                           </span>
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleOpenEditContractor(s)}
+                            >
+                              ✏️ تعديل
+                            </button>
+                            <button
+                              className="btn btn-outline btn-sm text-danger"
+                              onClick={() => handleDeleteContractor(s)}
+                            >
+                              🗑️ حذف
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -283,6 +370,7 @@ export default function SubcontractorsPage() {
               )}
             </div>
           </div>
+
         </>
       )}
 
@@ -404,8 +492,8 @@ export default function SubcontractorsPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">🏢 إضافة مقاول باطن جديد</div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
+              <div className="modal-title">{editingContractor ? '✏️ تعديل بيانات المقاول' : '🏢 إضافة مقاول باطن جديد'}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => { setShowModal(false); setEditingContractor(null); }}>✕</button>
             </div>
             <div className="form-grid form-grid-3">
               <div className="form-group col-span-3">
@@ -446,9 +534,10 @@ export default function SubcontractorsPage() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowModal(false)}>إلغاء</button>
-              <button className="btn btn-primary" onClick={handleCreate}>💾 حفظ المقاول</button>
+              <button className="btn btn-outline" onClick={() => { setShowModal(false); setEditingContractor(null); }}>إلغاء</button>
+              <button className="btn btn-primary" onClick={handleSaveContractor}>💾 {editingContractor ? 'حفظ التعديلات' : 'حفظ المقاول'}</button>
             </div>
+
           </div>
         </div>
       )}
