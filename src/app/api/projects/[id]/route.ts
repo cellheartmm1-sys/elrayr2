@@ -59,13 +59,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   try {
     const body = await request.json();
-    const { name, client_name, client_contact, location, start_date, end_date, contract_value, status, description } = body;
+    const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description } = body;
 
     const result = await query(
-      `UPDATE projects SET name=$1, client_name=$2, client_contact=$3, location=$4, start_date=$5, end_date=$6, 
-       contract_value=$7, status=$8, description=$9, updated_at=NOW()
-       WHERE id=$10 RETURNING *`,
-      [name, client_name, client_contact, location, start_date, end_date, contract_value, status, description, id]
+      `UPDATE projects SET name=$1, code=COALESCE($2, code), client_name=$3, client_contact=$4, location=$5, start_date=$6, end_date=$7, 
+       contract_value=$8, status=$9, description=$10, updated_at=NOW()
+       WHERE id=$11 RETURNING *`,
+      [name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description, id]
     );
 
     return NextResponse.json(result.rows[0]);

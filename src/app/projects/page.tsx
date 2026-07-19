@@ -9,11 +9,13 @@ interface Project {
   name: string;
   code: string;
   client_name: string;
-  location: string;
-  start_date: string;
-  end_date: string;
+  client_contact?: string;
+  location?: string;
+  start_date?: string;
+  end_date?: string;
   contract_value: string;
   status: string;
+  description?: string;
   actual_progress: string;
   planned_progress: string;
   total_expenses: string;
@@ -34,8 +36,6 @@ const statusBadge: Record<string, string> = {
   tender: 'badge-purple'
 };
 
-
-
 export default function ProjectsPage() {
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
   useEffect(() => {
@@ -48,6 +48,7 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ key: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -121,14 +122,84 @@ export default function ProjectsPage() {
     fetchProjects();
   }, [fetchProjects]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleOpenCreate = () => {
+    setEditingProject(null);
+    setForm({
+      name: '',
+      code: '',
+      client_name: '',
+      client_contact: '',
+      location: '',
+      start_date: '',
+      end_date: '',
+      contract_value: '',
+      status: 'active',
+      description: ''
+    });
+    setUploadedFiles([]);
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (project: Project) => {
+    setEditingProject(project);
+    setForm({
+      name: project.name || '',
+      code: project.code || '',
+      client_name: project.client_name || '',
+      client_contact: project.client_contact || '',
+      location: project.location || '',
+      start_date: project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '',
+      end_date: project.end_date ? new Date(project.end_date).toISOString().split('T')[0] : '',
+      contract_value: project.contract_value || '',
+      status: project.status || 'active',
+      description: project.description || ''
+    });
+    setUploadedFiles([]);
+    setShowModal(true);
+  };
+
+  const handleQuickStatusChange = async (project: Project, newStatus: string) => {
+    try {
+      const userRole = localStorage.getItem('user_role') || 'admin';
+      const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
+
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole,
+          'x-user-name': encodeURIComponent(userName)
+        },
+        body: JSON.stringify({
+          ...project,
+          status: newStatus
+        })
+      });
+
+      if (res.ok) {
+        alert('✅ تم تحديث حالة المشروع بنجاح!');
+        fetchProjects();
+      } else {
+        const data = await res.json();
+        alert(`❌ فشل تغيير الحالة: ${data.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ أثناء تغيير حالة المشروع.');
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const userRole = localStorage.getItem('user_role') || 'admin';
       const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
 
-      const res = await fetch('/api/projects', {
-        method: 'POST',
+      const url = editingProject ? `/api/projects/${editingProject.id}` : '/api/projects';
+      const method = editingProject ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'x-user-role': userRole,
@@ -144,26 +215,14 @@ export default function ProjectsPage() {
       if (res.ok) {
         setShowModal(false);
         setUploadedFiles([]);
-        setForm({
-          name: '',
-          code: '',
-          client_name: '',
-          client_contact: '',
-          location: '',
-          start_date: '',
-          end_date: '',
-          contract_value: '',
-          status: 'active',
-          description: ''
-        });
         if (data.pending_approval) {
           alert(`⏳ ${data.message}`);
         } else {
-          alert('✅ تم إضافة المشروع بنجاح!');
+          alert(editingProject ? '✅ تم تعديل بيانات المشروع بنجاح!' : '✅ تم إضافة المشروع بنجاح!');
         }
         fetchProjects();
       } else {
-        alert(`❌ حدث خطأ أثناء إضافة المشروع: ${data.error || 'فشلت العملية'}`);
+        alert(`❌ حدث خطأ أثناء الحفظ: ${data.error || 'فشلت العملية'}`);
       }
     } catch (err) {
       console.error(err);
@@ -172,7 +231,7 @@ export default function ProjectsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المشروع؟')) return;
+    if (!confirm('هل أنت متأكد من حذف هذا المشروع؟ ستقوم العملية بحذف كافة بياناته المرتبطة.')) return;
     try {
       const userRole = localStorage.getItem('user_role') || 'admin';
       const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
@@ -201,8 +260,6 @@ export default function ProjectsPage() {
     }
   };
 
-
-
   // KPI calculations
   const totalContractVal = projects.reduce((acc, p) => acc + Number(p.contract_value || 0), 0);
   const activeCount = projects.filter(p => p.status === 'active').length;
@@ -213,10 +270,10 @@ export default function ProjectsPage() {
       <div className="page-header">
         <div className="page-header-left">
           <div className="page-title">🏗️ قائمة المشاريع والمواقع</div>
-          <div className="page-description">متابعة نسب إنجاز الأعمال والشبكات والصواعد والتركيبات</div>
+          <div className="page-description">متابعة نسب إنجاز الأعمال والشبكات والصواعد والتركيبات وتغيير الحالات وتحديث البيانات</div>
         </div>
         <div className="page-header-actions">
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+          <button className="btn btn-primary" onClick={handleOpenCreate}>
             + إضافة مشروع جديد
           </button>
         </div>
@@ -279,7 +336,7 @@ export default function ProjectsPage() {
           <div className="empty-state">
             <div className="empty-state-icon">🏗️</div>
             <div className="empty-state-title">لا توجد مشاريع مسجلة حالياً</div>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>إضافة أول مشروع</button>
+            <button className="btn btn-primary" onClick={handleOpenCreate}>إضافة أول مشروع</button>
           </div>
         ) : (
           <div className="table-wrapper">
@@ -292,7 +349,7 @@ export default function ProjectsPage() {
                   <th>الموقع</th>
                   <th>قيمة العقد</th>
                   <th>نسبة الإنجاز الفعلي</th>
-                  <th>الحالة</th>
+                  <th style={{ textAlign: 'center' }}>تغيير حالة المشروع</th>
                   <th>تاريخ الانتهاء</th>
                   <th style={{ textAlign: 'center' }}>العمليات</th>
                 </tr>
@@ -324,19 +381,36 @@ export default function ProjectsPage() {
                         <span>{Number(project.actual_progress).toFixed(0)}%</span>
                       </div>
                     </td>
-                    <td>
-                      <span className={`badge ${statusBadge[project.status] || 'badge-muted'}`}>
-                        {statusLabels[project.status] || project.status}
-                      </span>
-                    </td>
-                    <td>{project.end_date ? new Date(project.end_date).toLocaleDateString('ar-SA') : '-'}</td>
                     <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                      <select
+                        className={`form-control form-control-sm ${statusBadge[project.status] || 'badge-muted'}`}
+                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', fontWeight: 600, cursor: 'pointer', borderRadius: '100px' }}
+                        value={project.status}
+                        onChange={(e) => handleQuickStatusChange(project, e.target.value)}
+                        title="تغيير حالة المشروع فورياً"
+                      >
+                        <option value="active">🟢 نشط</option>
+                        <option value="completed">🔵 مكتمل</option>
+                        <option value="suspended">🟡 متوقف</option>
+                        <option value="tender">🟣 مناقصة</option>
+                      </select>
+                    </td>
+                    <td>{project.end_date ? new Date(project.end_date).toLocaleDateString('ar-EG') : '-'}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handleOpenEdit(project)}
+                          title="تعديل بيانات المشروع"
+                        >
+                          ✏️ تعديل
+                        </button>
                         <button
                           className="btn btn-outline btn-sm text-danger"
                           onClick={() => handleDelete(project.id)}
+                          title="حذف المشروع"
                         >
-                          حذف
+                          🗑️ حذف
                         </button>
                       </div>
                     </td>
@@ -348,15 +422,15 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {/* Add Project Modal */}
+      {/* Add / Edit Project Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal modal-xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">🏗️ إضافة مشروع جديد</div>
+              <div className="modal-title">{editingProject ? '✏️ تعديل بيانات المشروع' : '🏗️ إضافة مشروع جديد'}</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleCreate}>
+            <form onSubmit={handleSave}>
               <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">اسم المشروع</label>
@@ -503,7 +577,7 @@ export default function ProjectsPage() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>إلغاء</button>
-                <button type="submit" className="btn btn-primary">💾 حفظ المشروع</button>
+                <button type="submit" className="btn btn-primary">{editingProject ? '💾 حفظ التعديلات' : '💾 حفظ المشروع'}</button>
               </div>
             </form>
           </div>
