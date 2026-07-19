@@ -5,8 +5,26 @@ import { NextResponse, NextRequest } from 'next/server';
 // Columns: employee_id, project_id, attendance_date, attendance_type,
 //          check_in_time, check_out_time, hours_worked, overtime_hours, notes, created_at
 
+async function ensureAttendanceSchema() {
+  try {
+    await query(`
+      ALTER TABLE attendance_records 
+        ADD COLUMN IF NOT EXISTS hours_worked NUMERIC DEFAULT 8,
+        ADD COLUMN IF NOT EXISTS overtime_hours NUMERIC DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS check_in_time VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS check_out_time VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS attendance_type VARCHAR(50) DEFAULT 'present',
+        ADD COLUMN IF NOT EXISTS notes TEXT,
+        ADD COLUMN IF NOT EXISTS project_id UUID;
+    `);
+  } catch (err) {
+    console.error('Failed to auto-alter attendance_records schema:', err);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureAttendanceSchema();
     const { searchParams } = request.nextUrl;
     const projectId = searchParams.get('project_id') ?? '';
     const employeeId = searchParams.get('employee_id') ?? '';
@@ -74,6 +92,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureAttendanceSchema();
     const body = await request.json();
     const {
       employee_id,

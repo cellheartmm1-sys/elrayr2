@@ -5,8 +5,32 @@ import { NextResponse, NextRequest } from 'next/server';
 //                purchase_date, purchase_cost, assigned_to (REFERENCES employees),
 //                project_id, assignment_date, expected_return_date, condition, status, notes, created_at
 
+async function ensureAssetsSchema() {
+  try {
+    await query(`
+      ALTER TABLE personal_assets 
+        ADD COLUMN IF NOT EXISTS asset_code VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS asset_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS asset_type VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS brand VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS model VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS purchase_date DATE,
+        ADD COLUMN IF NOT EXISTS purchase_cost NUMERIC,
+        ADD COLUMN IF NOT EXISTS condition VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'available',
+        ADD COLUMN IF NOT EXISTS assigned_to UUID,
+        ADD COLUMN IF NOT EXISTS assignment_date DATE,
+        ADD COLUMN IF NOT EXISTS notes TEXT;
+    `);
+  } catch (err) {
+    console.error('Failed to auto-alter personal_assets schema:', err);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureAssetsSchema();
     const { searchParams } = request.nextUrl;
     const status = searchParams.get('status') ?? '';
     const employeeId = searchParams.get('employee_id') ?? '';
@@ -77,6 +101,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureAssetsSchema();
     const body = await request.json();
     const {
       asset_code,
