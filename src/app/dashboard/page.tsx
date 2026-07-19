@@ -89,10 +89,57 @@ function formatCurrency(val: string | number) {
   return n.toFixed(0);
 }
 
+interface ContactRequest {
+  id: string;
+  name: string;
+  company?: string;
+  phone: string;
+  email?: string;
+  message?: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
+  const [requestFilter, setRequestFilter] = useState('all');
+
+  const fetchContactRequests = async () => {
+    try {
+      const res = await fetch('/api/contact-requests');
+      const d = await res.json();
+      if (Array.isArray(d)) setContactRequests(d);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    try {
+      const res = await fetch('/api/contact-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) fetchContactRequests();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteContactRequest = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف طلب الاستفسار هذا؟')) return;
+    try {
+      const res = await fetch(`/api/contact-requests?id=${id}`, { method: 'DELETE' });
+      if (res.ok) fetchContactRequests();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -102,7 +149,10 @@ export default function DashboardPage() {
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
+
+    fetchContactRequests();
   }, []);
+
 
   const activeProjects = data?.stats?.projects?.find(p => p.status === 'active');
   const completedProjects = data?.stats?.projects?.find(p => p.status === 'completed');
@@ -243,12 +293,122 @@ export default function DashboardPage() {
 
             <div className="stat-card">
               <div className="stat-card-icon">📊</div>
-              <div className="stat-value">{formatCurrency(data?.stats?.monthlyExpenses?.total || 0)}</div>
+              <div className="stat-value" suppressHydrationWarning>{formatCurrency(data?.stats?.monthlyExpenses?.total || 0)}</div>
               <div className="stat-label">مصروفات هذا الشهر ({currencySymbol})</div>
               <div className="stat-change">إجمالي المصروفات</div>
               <a href="/dashboard/details/expenses" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
           </div>
+
+          {/* ======================== SECTION: CONTACT & PARTNERSHIP INQUIRIES ======================== */}
+          <div className="card" style={{ marginBottom: '1.25rem', border: '1px solid rgba(245, 158, 11, 0.3)', background: 'var(--card-bg)' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📩</span>
+                  <span>طلبات التواصل والشراكة الاستراتيجية ("هل لديك مشروع عملاق وترغب في التعاون؟")</span>
+                </div>
+                <div className="card-subtitle">إدارة وتتبع استفسارات ومناقصات المشاريع الكبرى الواردة من الصفحة الرئيسية للموقع</div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <select
+                  className="form-control form-control-sm"
+                  style={{ width: 'auto' }}
+                  value={requestFilter}
+                  onChange={e => setRequestFilter(e.target.value)}
+                >
+                  <option value="all">كافة الطلبات ({contactRequests.length})</option>
+                  <option value="pending">⏳ بانتظار التواصل ({contactRequests.filter(r => r.status === 'pending').length})</option>
+                  <option value="contacted">🟢 تم التواصل ({contactRequests.filter(r => r.status === 'contacted').length})</option>
+                  <option value="archived">⚪ مؤرشفة ({contactRequests.filter(r => r.status === 'archived').length})</option>
+                </select>
+                <button className="btn btn-outline btn-sm" onClick={fetchContactRequests}>🔄 تحديث</button>
+              </div>
+            </div>
+
+            {contactRequests.length === 0 ? (
+              <div className="empty-state" style={{ padding: '2rem' }}>
+                <div className="empty-state-icon">📥</div>
+                <div className="empty-state-title">لا توجد طلبات شراكة جديدة حالياً</div>
+                <div className="empty-state-description">الطلبات المرسلة من فورمة "هل لديك مشروع عملاق وترغب في التعاون؟" ستظهر هنا فور إرسالها.</div>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>تاريخ الإرسال</th>
+                      <th>الاسم / الممثل</th>
+                      <th>اسم الشركة / المالك</th>
+                      <th>الجوال والبريد</th>
+                      <th>تفاصيل المشروع والرسالة</th>
+                      <th>الحالة والاتصال</th>
+                      <th>العمليات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contactRequests
+                      .filter(r => requestFilter === 'all' || r.status === requestFilter)
+                      .map((req) => (
+                        <tr key={req.id}>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {req.created_at ? new Date(req.created_at).toLocaleString('ar-EG') : '-'}
+                          </td>
+                          <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{req.name}</td>
+                          <td>{req.company || <span className="text-muted">-</span>}</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <a href={`tel:${req.phone}`} style={{ color: 'var(--accent-color)', textDecoration: 'none', fontWeight: 600 }}>
+                                📞 {req.phone}
+                              </a>
+                              {req.email && (
+                                <a href={`mailto:${req.email}`} style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textDecoration: 'none' }}>
+                                  ✉️ {req.email}
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ maxWidth: '280px', fontSize: '0.85rem' }}>
+                            {req.message ? (
+                              <div style={{ whiteSpace: 'pre-wrap', maxHeight: '80px', overflowY: 'auto', background: 'rgba(255,255,255,0.02)', padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                                {req.message}
+                              </div>
+                            ) : (
+                              <span className="text-muted">بدون رسالة</span>
+                            )}
+                          </td>
+                          <td>
+                            <select
+                              className="form-control form-control-sm"
+                              value={req.status || 'pending'}
+                              onChange={e => handleUpdateStatus(req.id, e.target.value)}
+                              style={{
+                                fontWeight: 700,
+                                color: req.status === 'contacted' ? '#10b981' : req.status === 'pending' ? '#f59e0b' : '#94a3b8'
+                              }}
+                            >
+                              <option value="pending">⏳ بانتظار التواصل</option>
+                              <option value="contacted">🟢 تم التواصل</option>
+                              <option value="archived">⚪ أرشفة</option>
+                            </select>
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-outline btn-sm btn-danger-text"
+                              onClick={() => handleDeleteContactRequest(req.id)}
+                              title="حذف الطلب"
+                            >
+                              🗑️ حذف
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
 
           {/* Charts Row 1 */}
           <div className="dashboard-grid-2-1" style={{ marginBottom: '1.25rem' }}>

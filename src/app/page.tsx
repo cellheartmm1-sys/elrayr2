@@ -52,15 +52,25 @@ export default function LandingPage() {
     return () => clearInterval(timer);
   }, [slides.length]);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.name || !contactForm.phone) return;
-    setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setContactForm({ name: '', company: '', phone: '', email: '', message: '' });
-    }, 5000);
+    try {
+      await fetch('/api/contact-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm)
+      });
+      setFormSubmitted(true);
+      setTimeout(() => {
+        setFormSubmitted(false);
+        setContactForm({ name: '', company: '', phone: '', email: '', message: '' });
+      }, 5000);
+    } catch (err) {
+      console.error(err);
+    }
   };
+
 
   return (
     <div className="landing-container">
