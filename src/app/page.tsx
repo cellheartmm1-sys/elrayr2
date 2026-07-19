@@ -114,6 +114,13 @@ const DEFAULT_LANDING_CONTENT = {
   footer: {
     copyright: "جميع الحقوق محفوظة © ٢٠٢٦ مؤسسة الرايق للمقاولات الكهروميكانيكية",
     about_text: "مؤسسة الرايق للمقاولات الكهروميكانيكية والأنظمة الشاملة، الرائد الهندسي المعتمد لحلول شبكات مكافحة الحريق، أنظمة التكييف المركزي HVAC، والصرف والشبكات الكهربائية."
+  },
+  contact: {
+    title: "هل لديك مشروع عملاق وترغب في التعاون؟",
+    desc: "يسعدنا استقبال استفساراتكم والمنافسة على المناقصات الكبرى للمشاريع الكهروميكانيكية، شبكات الإطفاء، والتكييف المركزي في المملكة ومصر.",
+    address: "القاهرة، مصر / الرياض، المملكة العربية السعودية",
+    phone: "+20-100-000-0000 | +966-50-000-0000",
+    email: "info@alrayeq.com | tenders@alrayeq.com"
   }
 };
 
@@ -132,7 +139,11 @@ export default function LandingPage() {
   const [contactForm, setContactForm] = useState({ name: '', company: '', phone: '', email: '', message: '' });
 
   const openEditor = () => {
-    setEditContent(JSON.parse(JSON.stringify(landingContent || DEFAULT_LANDING_CONTENT)));
+    const rawContent = JSON.parse(JSON.stringify(landingContent || DEFAULT_LANDING_CONTENT));
+    if (!rawContent.contact) {
+      rawContent.contact = { ...(DEFAULT_LANDING_CONTENT.contact || {}) };
+    }
+    setEditContent(rawContent);
     setIsEditorOpen(true);
   };
 
@@ -1341,9 +1352,11 @@ export default function LandingPage() {
         <div className="contact-card">
           <div>
             <div className="section-subtitle">تواصل وشراكة استراتيجية</div>
-            <h2 className="section-title" style={{ textAlign: 'right' }}>هل لديك مشروع عملاق وترغب في التعاون؟</h2>
+            <h2 className="section-title" style={{ textAlign: 'right' }}>
+              {content.contact?.title || DEFAULT_LANDING_CONTENT.contact.title}
+            </h2>
             <p className="section-description" style={{ textAlign: 'right' }}>
-              يسعدنا استقبال استفساراتكم والمنافسة على المناقصات الكبرى للمشاريع الكهروميكانيكية، شبكات الإطفاء، والتكييف المركزي في المملكة ومصر.
+              {content.contact?.desc || DEFAULT_LANDING_CONTENT.contact.desc}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '2rem' }}>
@@ -1351,21 +1364,27 @@ export default function LandingPage() {
                 <span style={{ fontSize: '1.5rem', color: '#f59e0b' }}>📍</span>
                 <div>
                   <div style={{ fontWeight: 700, color: '#fff' }}>المقر الرئيسي:</div>
-                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>القاهرة، مصر / الرياض، المملكة العربية السعودية</div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                    {content.contact?.address || DEFAULT_LANDING_CONTENT.contact.address}
+                  </div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span style={{ fontSize: '1.5rem', color: '#f59e0b' }}>📞</span>
                 <div>
                   <div style={{ fontWeight: 700, color: '#fff' }}>الهاتف والتواصل:</div>
-                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>+20-100-000-0000 | +966-50-000-0000</div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                    {content.contact?.phone || DEFAULT_LANDING_CONTENT.contact.phone}
+                  </div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span style={{ fontSize: '1.5rem', color: '#f59e0b' }}>✉️</span>
                 <div>
                   <div style={{ fontWeight: 700, color: '#fff' }}>البريد الإلكتروني التجاري:</div>
-                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>info@alrayeq.com | tenders@alrayeq.com</div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                    {content.contact?.email || DEFAULT_LANDING_CONTENT.contact.email}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2045,7 +2064,73 @@ export default function LandingPage() {
               {activeEditorTab === 'footer' && (
                 <div className="editor-section-card">
                   <div className="editor-section-title">بيانات التواصل وحقوق الفوتر</div>
+                  
                   <div className="form-group">
+                    <label>عنوان قسم التواصل ("هل لديك مشروع عملاق وترغب في التعاون؟")</label>
+                    <input
+                      type="text"
+                      className="editor-input"
+                      value={editContent.contact?.title || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        contact: { ...editContent.contact, title: e.target.value }
+                      })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>وصف قسم التواصل</label>
+                    <textarea
+                      rows={3}
+                      className="editor-input"
+                      value={editContent.contact?.desc || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        contact: { ...editContent.contact, desc: e.target.value }
+                      })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>📍 المقر الرئيسي</label>
+                    <input
+                      type="text"
+                      className="editor-input"
+                      value={editContent.contact?.address || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        contact: { ...editContent.contact, address: e.target.value }
+                      })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>📞 الهاتف والتواصل</label>
+                    <input
+                      type="text"
+                      className="editor-input"
+                      value={editContent.contact?.phone || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        contact: { ...editContent.contact, phone: e.target.value }
+                      })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>✉️ البريد الإلكتروني التجاري</label>
+                    <input
+                      type="text"
+                      className="editor-input"
+                      value={editContent.contact?.email || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        contact: { ...editContent.contact, email: e.target.value }
+                      })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', marginTop: '1rem' }}>
                     <label>نص حقوق الملكية (Copyright)</label>
                     <input
                       type="text"
