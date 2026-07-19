@@ -1345,6 +1345,26 @@ textarea.form-control {
     width: 100% !important;
     justify-content: center !important;
   }
+
+  /* Ensure long forms scroll smoothly inside modals on mobile devices */
+  .modal-overlay {
+    align-items: flex-start !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 1.5rem 1rem !important;
+  }
+
+  .modal {
+    margin: 1.5rem auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Support smooth native touch inertia scrolling for wide tables */
+  .table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @media (max-width: 480px) {
