@@ -48,6 +48,21 @@ export default function MaintenancePage() {
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contracts');
+
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab && ['contracts', 'visits', 'tickets'].includes(tab)) {
+          setActiveTab(tab as TabType);
+        }
+      }
+    };
+    syncTab();
+    const interval = setInterval(syncTab, 200);
+    return () => clearInterval(interval);
+  }, []);
   const [contracts, setContracts] = useState<MaintenanceContract[]>([]);
   const [visits, setVisits] = useState<MaintenanceVisit[]>([]);
   const [tickets, setTickets] = useState<FaultTicket[]>([]);

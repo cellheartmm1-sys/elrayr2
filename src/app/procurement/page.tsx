@@ -48,6 +48,21 @@ function formatNumber(val: string | number) {
 
 export default function ProcurementPage() {
   const [activeTab, setActiveTab] = useState<TabType>('requests');
+
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab && ['requests', 'submittals', 'inventory', 'warehouses'].includes(tab)) {
+          setActiveTab(tab as TabType);
+        }
+      }
+    };
+    syncTab();
+    const interval = setInterval(syncTab, 200);
+    return () => clearInterval(interval);
+  }, []);
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
 
   useEffect(() => {

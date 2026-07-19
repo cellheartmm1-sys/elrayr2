@@ -48,6 +48,21 @@ export default function SubcontractorsPage() {
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contractors');
+
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab && ['contractors', 'contracts', 'ipc'].includes(tab)) {
+          setActiveTab(tab as TabType);
+        }
+      }
+    };
+    syncTab();
+    const interval = setInterval(syncTab, 200);
+    return () => clearInterval(interval);
+  }, []);
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [ipcs, setIpcs] = useState<SubcontractorIPC[]>([]);
   const [projects, setProjects] = useState<any[]>([]);

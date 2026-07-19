@@ -91,6 +91,21 @@ export default function FinancePage() {
   }, []);
 
   const [activeTab, setActiveTab] = useState<TabType>('ipc');
+
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab && ['ipc', 'expenses', 'cashflow', 'debts', 'reports'].includes(tab)) {
+          setActiveTab(tab as TabType);
+        }
+      }
+    };
+    syncTab();
+    const interval = setInterval(syncTab, 200);
+    return () => clearInterval(interval);
+  }, []);
   const [ipcs, setIpcs] = useState<IPC[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cashflow, setCashflow] = useState<CashFlowItem[]>([]);

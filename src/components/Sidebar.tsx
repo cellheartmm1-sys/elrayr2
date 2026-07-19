@@ -139,10 +139,22 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [currentUrl, setCurrentUrl] = useState('');
+
+  useEffect(() => {
+    const updateUrl = () => {
+      if (typeof window !== 'undefined') {
+        setCurrentUrl(window.location.pathname + window.location.search);
+      }
+    };
+    updateUrl();
+    const timer = setInterval(updateUrl, 250);
+    return () => clearInterval(timer);
+  }, []);
+
   const [role, setRole] = useState('admin');
   const [allowedHrefs, setAllowedHrefs] = useState<string[]>(rolePermissions['admin']);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
-  const [currentUrl, setCurrentUrl] = useState('');
 
   useEffect(() => {
     const storedRole = localStorage.getItem('user_role') || 'admin';
@@ -154,12 +166,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       fetchDynamicPermissions(storedRole);
     }
   }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setCurrentUrl(window.location.pathname + window.location.search);
-    }
-  }, [pathname]);
 
   // Expand matching menu section automatically when navigating
   useEffect(() => {
@@ -204,7 +210,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (onClose) {
       onClose();
     }
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname, currentUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -282,6 +288,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             <Link
                               key={sub.href}
                               href={sub.href}
+                              onClick={() => {
+                                if (onClose) onClose();
+                              }}
                               className={`nav-sub-item ${isSubActive ? 'active' : ''}`}
                             >
                               <span style={{ fontSize: '0.85rem' }}>{sub.icon}</span>

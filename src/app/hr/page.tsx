@@ -57,6 +57,21 @@ export default function HRPage() {
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('employees');
+
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab && ['employees', 'payroll', 'attendance', 'overtime', 'assets', 'documents', 'loans'].includes(tab)) {
+          setActiveTab(tab as TabType);
+        }
+      }
+    };
+    syncTab();
+    const interval = setInterval(syncTab, 200);
+    return () => clearInterval(interval);
+  }, []);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payroll, setPayroll] = useState<PayrollItem[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
