@@ -42,7 +42,6 @@ const navItems: NavSection[] = [
         module: 'projects',
         subItems: [
           { href: '/projects', label: 'قائمة المشاريع الفعالة', icon: '📊' },
-          { href: '/proposals', label: 'العروض الفنية والمالية', icon: '📑' },
           { href: '/estimation', label: 'الهندسة والتقدير والتثمين', icon: '📐' },
         ],
       },
@@ -122,9 +121,9 @@ const navItems: NavSection[] = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  admin: ['/dashboard', '/dashboard#contact-requests', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
-  secondary: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
-  manager: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  admin: ['/dashboard', '/dashboard#contact-requests', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  secondary: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  manager: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   engineer: ['/dashboard', '/projects', '/procurement', '/labor'],
   supervisor: ['/dashboard', '/projects', '/labor'],
   store_keeper: ['/dashboard', '/procurement'],
@@ -190,9 +189,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             .filter((p: any) => p.can_view)
             .map((p: any) => `/${p.module}`);
           allowed.push('/dashboard');
-          if (currentRole === 'secondary') {
-            allowed.push('/proposals');
-          }
           setAllowedHrefs(allowed);
           return;
         }
