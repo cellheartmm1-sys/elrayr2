@@ -3,55 +3,71 @@ import { query } from '@/lib/db';
 import { createApprovalRequest } from '@/lib/approvals';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status');
-  const search = searchParams.get('search');
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
 
-  // Ensure project_documents table exists
-  await query(`
-    CREATE TABLE IF NOT EXISTS project_documents (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      document_name TEXT NOT NULL,
-      file_url TEXT NOT NULL,
-      uploaded_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
+    // Ensure project_documents table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS project_documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        document_name TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
 
-  let sql = `
-    SELECT p.*,
-      u1.full_name as manager_name,
-      u2.full_name as engineer_name,
-      COALESCE(SUM(ph.actual_progress * ph.weight_percentage) / NULLIF(SUM(ph.weight_percentage), 0), AVG(ph.actual_progress), 0) as actual_progress,
-      COALESCE(SUM(ph.planned_progress * ph.weight_percentage) / NULLIF(SUM(ph.weight_percentage), 0), AVG(ph.planned_progress), 0) as planned_progress,
-      COALESCE(SUM(pe.amount), 0) as total_expenses,
-      COUNT(DISTINCT ph.id) as phases_count
-    FROM projects p
-    LEFT JOIN users u1 ON u1.id = p.project_manager_id
-    LEFT JOIN users u2 ON u2.id = p.site_engineer_id
-    LEFT JOIN project_progress pp ON pp.project_id = p.id
-    LEFT JOIN project_expenses pe ON pe.project_id = p.id
-    LEFT JOIN project_phases ph ON ph.project_id = p.id
-    WHERE 1=1
-  `;
-  const params: unknown[] = [];
-  let paramIdx = 1;
+    // Ensure project_phases table has weight_percentage column
+    await query(`
+      ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0;
+    `);
 
-  if (status && status !== 'all') {
-    sql += ` AND p.status = $${paramIdx++}`;
-    params.push(status);
+    let sql = `
+      SELECT p.*,
+        u1.full_name as manager_name,
+        u2.full_name as engineer_name,
+        COALESCE(
+          (SELECT SUM(ph.actual_progress * ph.weight_percentage) / NULLIF(SUM(ph.weight_percentage), 0) FROM project_phases ph WHERE ph.project_id = p.id),
+          (SELECT AVG(ph.actual_progress) FROM project_phases ph WHERE ph.project_id = p.id),
+          0
+        ) as actual_progress,
+        COALESCE(
+          (SELECT SUM(ph.planned_progress * ph.weight_percentage) / NULLIF(SUM(ph.weight_percentage), 0) FROM project_phases ph WHERE ph.project_id = p.id),
+          (SELECT AVG(ph.planned_progress) FROM project_phases ph WHERE ph.project_id = p.id),
+          0
+        ) as planned_progress,
+        COALESCE((SELECT SUM(pe.amount) FROM project_expenses pe WHERE pe.project_id = p.id), 0) as total_expenses,
+        (SELECT COUNT(ph.id) FROM project_phases ph WHERE ph.project_id = p.id) as phases_count
+      FROM projects p
+      LEFT JOIN users u1 ON u1.id = p.project_manager_id
+      LEFT JOIN users u2 ON u2.id = p.site_engineer_id
+      WHERE 1=1
+    `;
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (status && status !== 'all') {
+      sql += ` AND p.status = $${paramIdx++}`;
+      params.push(status);
+    }
+
+    if (search) {
+      sql += ` AND (p.name ILIKE $${paramIdx} OR p.code ILIKE $${paramIdx} OR p.client_name ILIKE $${paramIdx})`;
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    sql += ` ORDER BY p.created_at DESC`;
+
+    const result = await query(sql, params);
+    return NextResponse.json(result.rows);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('[GET /api/projects]', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-
-  if (search) {
-    sql += ` AND (p.name ILIKE $${paramIdx} OR p.code ILIKE $${paramIdx} OR p.client_name ILIKE $${paramIdx})`;
-    params.push(`%${search}%`);
-    paramIdx++;
-  }
-
-  sql += ` GROUP BY p.id, u1.full_name, u2.full_name ORDER BY p.created_at DESC`;
-
-  const result = await query(sql, params);
-  return NextResponse.json(result.rows);
 }
 
 export async function POST(request: NextRequest) {
