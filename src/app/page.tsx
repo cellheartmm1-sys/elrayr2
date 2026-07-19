@@ -5,8 +5,6 @@ import Link from 'next/link';
 
 export default function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [activeTab, setActiveTab] = useState<'projects' | 'finance' | 'procurement' | 'hr' | 'subcontractors' | 'security'>('projects');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', company: '', phone: '', email: '', message: '' });
 
@@ -14,32 +12,32 @@ export default function LandingPage() {
     {
       title: "الرايق للمقاولات الكهروميكانيكية والأنظمة الشاملة",
       subtitle: "الرائد الإقليمي في تنفيذ المشاريع الكبرى، شبكات مكافحة الحريق، والتكييف المركزي وفق أعلى المعايير العالمية",
-      badge: "🌐 المؤسسة الأولى في حلول الهندسة المتقدمة ERP",
+      badge: "🌐 ريادة هندسية وتميز في التنفيذ",
       image: "/mep_hero_building.jpg",
-      primaryCta: "🔐 تسجيل الدخول للنظام",
-      primaryHref: "/login",
-      secondaryCta: "📊 الاستكشاف والدخول السريع",
-      secondaryHref: "/dashboard"
-    },
-    {
-      title: "نظام إدارة الموارد الرقمية الموحد (Enterprise ERP)",
-      subtitle: "منظومة متكاملة لربط المشتريات، المستخلصات، كشوف الأجور، والمخازن في مركز قيادة رقمي واحد",
-      badge: "⚡ إدارة وتتبع التكاليف بنسبة دقة ٩٩.٩٪",
-      image: "/erp_command_center.jpg",
-      primaryCta: "📊 الدخول للنظام المالي والمشاريع",
-      primaryHref: "/finance",
-      secondaryCta: "🧯 استعراض تخصصات المقاولات",
+      primaryCta: "📞 تواصل معنا",
+      primaryHref: "#contact",
+      secondaryCta: "📐 استعراض قطاعات الأعمال",
       secondaryHref: "#services"
     },
     {
-      title: "أمان سيبراني ونظام موافقات مزدوج مشدود",
-      subtitle: "صلاحيات دقيقة للخدمات والمدراء مع طلبات اعتماد لحظية وحفظ تلقائي سحابي في Cloudflare R2",
-      badge: "🛡️ حماية متقدمة ونسخ احتياطي تلقائي كل ٨ ساعات",
+      title: "أنظمة التكييف المركزي ومكافحة الحريق المتطورة",
+      subtitle: "تصميم وتوريد وتركيب غرف مضخات الحريق، أنظمة الإنذار المبكر، ومحطات الشيلر والمبردات المركزية للمشاريع العملاقة",
+      badge: "🧯 معتمدون من الدفاع المدني والجهات الرسمية",
+      image: "/erp_command_center.jpg",
+      primaryCta: "📐 اطلب استشارة هندسية",
+      primaryHref: "#contact",
+      secondaryCta: "🏗️ تخصصاتنا الكهروميكانيكية",
+      secondaryHref: "#services"
+    },
+    {
+      title: "الالتزام بالدقة والجودة والسلامة المهنية",
+      subtitle: "نعمل وفق معايير الجودة العالمية وأكواد البناء المحلية لنضمن الكفاءة التشغيلية والسلامة المطلقة للمباني والمنشآت",
+      badge: "⚡ جودة وأمان وامتثال لأكواد البناء",
       image: "/logo.jpg",
       isLogoSlide: true,
-      primaryCta: "🔐 تجربة النظام وتسجيل الدخول",
-      primaryHref: "/login",
-      secondaryCta: "🏢 ملف المؤسسة والاعتمادات",
+      primaryCta: "📞 اتصل بنا اليوم",
+      primaryHref: "#contact",
+      secondaryCta: "🏢 عن مؤسسة الرايق",
       secondaryHref: "#about"
     }
   ];
@@ -874,7 +872,7 @@ export default function LandingPage() {
           <img src="/logo.jpg" alt="Al-Rayeq Logo" className="nav-logo" />
           <div className="nav-title-box">
             <span className="nav-title">الرايق للمقاولات</span>
-            <span className="nav-subtitle">AL-RAYEQ ELECTROMECHANICAL ERP</span>
+            <span className="nav-subtitle">المقاولات الكهروميكانيكية الحديثة</span>
           </div>
         </Link>
 
@@ -882,13 +880,13 @@ export default function LandingPage() {
           <li><a href="#hero" className="nav-link">الرئيسية</a></li>
           <li><a href="#about" className="nav-link">عن المؤسسة</a></li>
           <li><a href="#services" className="nav-link">قطاعات الأعمال</a></li>
-          <li><a href="#modules" className="nav-link">النظام الرقمي ERP</a></li>
+          <li><a href="#features" className="nav-link">مميزاتنا</a></li>
           <li><a href="#contact" className="nav-link">تواصل معنا</a></li>
         </ul>
 
         <div className="nav-actions">
           <Link href="/login" className="btn-nav-login">
-            🔐 تسجيل الدخول للنظام
+            💼 بوابة الموظفين
           </Link>
         </div>
 
@@ -966,7 +964,55 @@ export default function LandingPage() {
           <div className="stat-card">
             <div className="stat-icon">🛡️</div>
             <div className="stat-number">١٠٠٪</div>
-            <div className="stat-label">أتمتة وحفظ سحابي بأعلى الأمان</div>
+            <div className="stat-label">الالتزام بأكواد السلامة والدفاع المدني</div>
+          </div>
+        </div>
+      </section>
+
+      {/* About the Company Section */}
+      <section id="about" className="section" style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--glass-border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' }}>
+          <div>
+            <div className="section-subtitle">من نحن</div>
+            <h2 className="section-title" style={{ textAlign: 'right', marginBottom: '1.5rem' }}>مؤسسة الرايق للمقاولات الكهروميكانيكية</h2>
+            <p style={{ color: '#cbd5e1', lineHeight: '1.8', marginBottom: '1.2rem', fontSize: '1.05rem' }}>
+              تأسست مؤسسة الرايق لتكون شريكاً استراتيجياً في نهضة البناء والتشييد، متخصصة في تقديم الحلول الهندسية المتكاملة للأنظمة الكهروميكانيكية (MEP). نحن فخورون بتنفيذ أضخم المشاريع من شبكات إطفاء الحريق المعتمدة، وأنظمة التكييف المركزي، وتغذية المياه، والقوى الكهربائية.
+            </p>
+            <p style={{ color: '#cbd5e1', lineHeight: '1.8', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
+              تضم المؤسسة نخبة من أكفأ المهندسين والكوادر الفنية المتخصصة، ونعتمد على أحدث التقنيات الهندسية ومطابقة الأكواد العالمية والمحلية مثل كود البناء السعودي والمصري والـ NFPA، لنضمن لعملائنا أعلى درجات الأمان والجودة والكفاءة التشغيلية.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '1rem', borderRadius: '12px' }}>
+                <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🎯</span>
+                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>رؤيتنا</strong>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.6' }}>أن نكون الوجهة الأولى والموثوقة هندسياً لتنفيذ وتأهيل البنية التحتية الكهروميكانيكية إقليمياً.</p>
+              </div>
+              <div style={{ background: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', padding: '1rem', borderRadius: '12px' }}>
+                <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>💎</span>
+                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>قيمنا</strong>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.6' }}>الالتزام التام بالجودة، الأمان المطلق، الابتكار المستمر، والشفافية الكاملة مع شركاء النجاح.</p>
+              </div>
+            </div>
+          </div>
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '450px',
+              height: '380px',
+              background: 'radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, rgba(0,0,0,0) 80%)',
+              position: 'absolute',
+              top: '-30px',
+              zIndex: 1
+            }} />
+            <img src="/mep_hero_building.jpg" alt="MEP Projects" style={{
+              width: '100%',
+              maxHeight: '400px',
+              objectFit: 'cover',
+              borderRadius: '24px',
+              border: '2px solid rgba(245, 158, 11, 0.25)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+              zIndex: 2
+            }} />
           </div>
         </div>
       </section>
@@ -1068,90 +1114,63 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Integrated ERP System Modules Showcase */}
-      <section id="modules" className="section">
+      {/* Company Features & Advantages Section */}
+      <section id="features" className="section">
         <div className="section-header">
-          <div className="section-subtitle">القيادة الرقمية الحية</div>
-          <h2 className="section-title">نظام الرايق ERP لإدارة المقاولات</h2>
+          <div className="section-subtitle">لماذا مؤسسة الرايق؟</div>
+          <h2 className="section-title">مميزات تجعلنا شريكك الهندسي الأول</h2>
           <p className="section-description">
-            صمم نظام الرايق خصيصاً لتلبية متطلبات المقاولات الكهروميكانيكية والتكامل التام بين الحسابات الميدانية والمكتب الرئيسي
+            نجمع بين الخبرة الطويلة، والكوادر الهندسية المحترفة، والالتزام الصارم بأعلى معايير السلامة والجودة لنحقق رؤيتك واقعاً ملموساً.
           </p>
         </div>
 
-        {/* Module Selection Tabs */}
-        <div className="modules-tabs">
-          <button className={`module-tab-btn ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
-            🏗️ إدارة المشاريع والجدولة
-          </button>
-          <button className={`module-tab-btn ${activeTab === 'finance' ? 'active' : ''}`} onClick={() => setActiveTab('finance')}>
-            💰 المالية والمستخلصات
-          </button>
-          <button className={`module-tab-btn ${activeTab === 'procurement' ? 'active' : ''}`} onClick={() => setActiveTab('procurement')}>
-            📦 المشتريات والمستودعات
-          </button>
-          <button className={`module-tab-btn ${activeTab === 'hr' ? 'active' : ''}`} onClick={() => setActiveTab('hr')}>
-            👥 الموارد البشرية والرواتب
-          </button>
-          <button className={`module-tab-btn ${activeTab === 'subcontractors' ? 'active' : ''}`} onClick={() => setActiveTab('subcontractors')}>
-            🤝 مقاولو الباطن والعمالة
-          </button>
-          <button className={`module-tab-btn ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>
-            🛡️ الأمان والنسخ السحابي
-          </button>
-        </div>
-
-        {/* Dynamic Display Card */}
-        <div className="module-display-card">
-          <div>
-            <h3 className="module-info-title">
-              {activeTab === 'projects' && 'إدارة المشاريع، المراحل وجداول BOQ'}
-              {activeTab === 'finance' && 'إدارة مستخلصات العملاء والتدفقات النقدية'}
-              {activeTab === 'procurement' && 'طلبات المشتريات والتوريد والمستودعات'}
-              {activeTab === 'hr' && 'الموارد البشرية، الأجور وحساب السلف'}
-              {activeTab === 'subcontractors' && 'عقود ومستخلصات مقاولي الباطن والعمالة'}
-              {activeTab === 'security' && 'منظومة الأمان والنسخ الاحتياطي التلقائي R2'}
-            </h3>
-            <p className="module-info-desc">
-              {activeTab === 'projects' && 'متابعة لحظية لنظاق العمل، مراحل الإنجاز، جدولة التكاليف، وحسابات القيمة المكتسبة للمشاريع الكهروميكانيكية.'}
-              {activeTab === 'finance' && 'توليد مستخلصات الملاك المعتمدة، متابعة التحصيلات، مصروفات المواقع، وتقارير التدفق المالي اليومية والشهرية.'}
-              {activeTab === 'procurement' && 'أتمتة دورة المشتريات من طلب الموقع وحتى اعتماد التوريد، الفحص، وإدارة المخزون والعهد.'}
-              {activeTab === 'hr' && 'تسجيل الحضور اليومي، أوقات الإضافي، حساب مسير الأجور والخصومات، وحفظ وثائق المستندات.'}
-              {activeTab === 'subcontractors' && 'إدارة مستخلصات مقاولي الباطن، تسوية دفعتهم، وإعادة احتساب الأجور اليومية للعمالة.'}
-              {activeTab === 'security' && 'صلاحيات مستخدمين متعددة مع نظام اعتمادات مزدوج وتخزين تلقائي سحابي في Cloudflare R2 كل ٨ ساعات.'}
+        <div className="services-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+          <div className="service-card" style={{ padding: '2rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🏆</div>
+            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>خبرة هندسية واسعة</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
+              قمنا بتنفيذ وتصميم أنظمة كهروميكانيكية معقدة للمطارات، الأبراج، المجمعات السكنية، والمصانع على مدى أكثر من 15 عاماً من التميز.
             </p>
-
-            <div className="module-list">
-              <div className="module-list-item">⚡ تحديث فوري ومباشر البيانات</div>
-              <div className="module-list-item">📊 تقارير إحصائية ورسم بياني</div>
-              <div className="module-list-item">📄 طباعة وتصدير PDF رسمية</div>
-              <div className="module-list-item">🔒 تشفير تام وصلاحيات مشدودة</div>
-            </div>
-
-            <Link href="/login" className="btn-hero-primary" style={{ display: 'inline-flex' }}>
-              🔐 تجربة هذا الموديول في النظام
-            </Link>
+          </div>
+          
+          <div className="service-card" style={{ padding: '2rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📜</div>
+            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>اعتماد رسمي وتراخيص معتمدة</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
+              مؤسستنا مصنفة ومعتمدة رسمياً لدى الهيئات الحكومية والدفاع المدني، مما يضمن سرعة استصدار تراخيص التشغيل والسلامة لمشروعك.
+            </p>
           </div>
 
-          <div className="module-preview-box">
-            <div className="preview-header">
-              <span className="dot-red" />
-              <span className="dot-yellow" />
-              <span className="dot-green" />
-              <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '0.5rem' }}>نظام الرايق ERP | شاشة التحكم الحية</span>
+          <div className="service-card" style={{ padding: '2rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⏱️</div>
+            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>الالتزام التام بالجدول الزمني</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
+              نعمل بمنهجيات التخطيط الحديثة لإدارة الجدول الزمني للمشاريع ومراقبة الإنجاز اليومي لضمان تسليم الأعمال في موعدها المحدد دون تأخير.
+            </p>
+          </div>
 
-            </div>
-            <div style={{ color: '#fff', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              <div style={{ color: '#f59e0b', fontWeight: 700, marginBottom: '0.5rem' }}>📊 حالة المنظومة الحية:</div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', marginBottom: '0.5rem' }}>
-                🟢 <strong>المشاريع القائمة:</strong> ١٢ موقع كهروميكانيكي نشط
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', marginBottom: '0.5rem' }}>
-                💰 <strong>المستخلصات المعتمدة:</strong> +٤,٨٥٠,٠٠٠ ريال محصلة
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px' }}>
-                ☁️ <strong>النسخ الاحتياطي السحابي:</strong> مفعل ومرتبط بـ Cloudflare R2
-              </div>
-            </div>
+          <div className="service-card" style={{ padding: '2rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>👷‍♂️</div>
+            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>طاقم عمل وهندسي نخبة</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
+              نمتلك فريقاً من المهندسين الاستشاريين والمشرفين والعمالة الماهرة المدربة على التعامل مع الحالات الصعبة والمواصفات الدقيقة بكفاءة عالية.
+            </p>
+          </div>
+
+          <div className="service-card" style={{ padding: '2rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🛡️</div>
+            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>معايير جودة وأمان صارمة</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
+              نطبق أعلى معايير الصحة والسلامة المهنية (OSHA) ونستخدم خامات معتمدة ومطابقة لمواصفات الجودة لضمان أطول عمر افتراضي للأنظمة.
+            </p>
+          </div>
+
+          <div className="service-card" style={{ padding: '2rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📞</div>
+            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>دعم فني وصيانة ٢٤/٧</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
+              نقدم صيانة وقائية دورية مع خط ساخن للطوارئ يعمل على مدار الساعة لحل أي أعطال طارئة وضمان عدم توقف عملياتك الحيوية.
+            </p>
           </div>
         </div>
       </section>
@@ -1283,7 +1302,7 @@ export default function LandingPage() {
           <div>
             <div className="footer-brand">مؤسسة الرايق للمقاولات</div>
             <p className="footer-text">
-              الرائد الإقليمي في تنفيذ الأنظمة الكهروميكانيكية، شبكات مكافحة الحريق، والتكييف المركزي مع إدارة رقمية متكاملة للمشاريع والموارد.
+              الرائد الإقليمي في تنفيذ الأنظمة الكهروميكانيكية، شبكات مكافحة الحريق، والتكييف المركزي مع الالتزام بأعلى معايير الأمان والسلامة الهندسية.
             </p>
             <div style={{ marginTop: '1rem', color: '#f59e0b', fontWeight: 700, fontSize: '0.9rem' }}>
               سجل تجاري: ١٠١٠١٢٣٤٥٦ | الرقم الضريبي: ٣٠٠٠١٢٣٤٥٦٠٠٠٠٣
@@ -1294,14 +1313,15 @@ export default function LandingPage() {
             <div className="footer-title">روابط سريعة</div>
             <ul className="footer-links">
               <li><a href="#hero" className="footer-link">الرئيسية</a></li>
+              <li><a href="#about" className="footer-link">عن المؤسسة</a></li>
               <li><a href="#services" className="footer-link">قطاعات الأعمال</a></li>
-              <li><a href="#modules" className="footer-link">نظام الرايق ERP</a></li>
+              <li><a href="#features" className="footer-link">مميزاتنا</a></li>
               <li><a href="#contact" className="footer-link">تواصل معنا</a></li>
             </ul>
           </div>
 
           <div>
-            <div className="footer-title">الدخول الرقمي</div>
+            <div className="footer-title">بوابة الموظفين</div>
             <ul className="footer-links">
               <li><Link href="/login" className="footer-link">🔐 تسجيل دخول النظام</Link></li>
               <li><Link href="/dashboard" className="footer-link">📊 لوحة قيادة المشاريع</Link></li>
@@ -1311,16 +1331,16 @@ export default function LandingPage() {
           </div>
 
           <div>
-            <div className="footer-title">الأمان والاعتمادات</div>
+            <div className="footer-title">معايير الامتثال والجودة</div>
             <p className="footer-text" style={{ fontSize: '0.85rem' }}>
-              نظام الرايق ERP محمي بأعلى معايير الأمن السيبراني مع دعم التخزين التلقائي السحابي لبيانات المؤسسة عبر Cloudflare R2.
+              جميع أعمالنا تنفذ طبقاً لمواصفات وتراخيص الدفاع المدني السعودي والمصري، مع الالتزام الصارم بـ معايير السلامة والأكواد العالمية والـ NFPA.
             </p>
           </div>
         </div>
 
         <div className="footer-bottom">
           <div>جميع الحقوق محفوظة © {new Date().getFullYear()} مؤسسة الرايق للمقاولات الكهروميكانيكية.</div>
-          <div>نظام الرايق Enterprise ERP v2.5</div>
+          <div>موقع مؤسسة الرايق الرسمي</div>
         </div>
       </footer>
     </div>
