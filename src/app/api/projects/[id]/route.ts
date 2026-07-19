@@ -66,8 +66,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params;
 
     const userRole = request.headers.get('x-user-role') || 'admin';
-    const userName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    const rawUserName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    let userName = 'مستخدم النظام';
+    try {
+      userName = decodeURIComponent(rawUserName);
+    } catch {
+      userName = rawUserName;
+    }
     const requireApproval = request.headers.get('x-require-approval') === 'true' || userRole === 'secondary';
+
 
     // Fetch project title for approval/alert
     const projRes = await query('SELECT id, name FROM projects WHERE id = $1', [id]);

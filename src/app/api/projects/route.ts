@@ -49,8 +49,15 @@ export async function POST(request: NextRequest) {
     const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description } = body;
 
     const userRole = request.headers.get('x-user-role') || 'admin';
-    const userName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    const rawUserName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    let userName = 'مستخدم النظام';
+    try {
+      userName = decodeURIComponent(rawUserName);
+    } catch {
+      userName = rawUserName;
+    }
     const requireApproval = request.headers.get('x-require-approval') === 'true' || userRole === 'secondary';
+
 
     if (requireApproval) {
       const approval = await createApprovalRequest(

@@ -95,7 +95,7 @@ export default function ProjectsPage() {
         headers: {
           'Content-Type': 'application/json',
           'x-user-role': userRole,
-          'x-user-name': userName
+          'x-user-name': encodeURIComponent(userName)
         },
         body: JSON.stringify({
           ...form,
@@ -142,7 +142,7 @@ export default function ProjectsPage() {
         method: 'DELETE',
         headers: {
           'x-user-role': userRole,
-          'x-user-name': userName
+          'x-user-name': encodeURIComponent(userName)
         }
       });
       const data = await res.json();
@@ -161,6 +161,7 @@ export default function ProjectsPage() {
       alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
   };
+
 
 
   // KPI calculations
