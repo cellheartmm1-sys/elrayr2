@@ -40,8 +40,9 @@ export default function ProposalsPage() {
   const [selectedProposalId, setSelectedProposalId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [currencySymbol, setCurrencySymbol] = useState('ر.س');
+  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
   const [showPrintModal, setShowPrintModal] = useState(false);
+
 
   const defaultEcosystemProposal: Proposal = {
     proposal_code: 'ERP-PROP-2026',
@@ -174,8 +175,9 @@ export default function ProposalsPage() {
     if (typeof window !== 'undefined') {
       const role = localStorage.getItem('user_role');
       setIsAdmin(role === 'admin');
-      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ر.س');
+      setCurrencySymbol('ج.م');
     }
+
     fetchProposals();
   }, []);
 
