@@ -104,69 +104,14 @@ export default function ProposalsPage() {
     financial_items: [
       {
         id: 'f1',
-        description: 'تصميم وتطوير وتدشين الموقع الإلكتروني المؤسسي (Landing Page)',
-        category: 'تطوير وتصميم',
-        unitPrice: 25000,
+        description: 'تصميم، برمجة، وتأهيل المنظومة الرقمية الشاملة (الموقع الإلكتروني Landing Page + نظام التحكم Enterprise ERP بكافة الموديولات والأمان والنسخ السحابي واستضافة سنة كاملة)',
+        category: 'برمجة وتطوير شامل',
+        unitPrice: 250000,
         quantity: 1,
-        totalPrice: 25000
-      },
-      {
-        id: 'f2',
-        description: 'برمجة وتأهيل موديول إدارة المشاريع والنسب وجداول الكميات',
-        category: 'برمجة وتأهيل',
-        unitPrice: 45000,
-        quantity: 1,
-        totalPrice: 45000
-      },
-      {
-        id: 'f3',
-        description: 'برمجة وتأهيل موديول المالية، المستخلصات، والتقارير المالية المطبوعة',
-        category: 'برمجة وتأهيل',
-        unitPrice: 60000,
-        quantity: 1,
-        totalPrice: 60000
-      },
-      {
-        id: 'f4',
-        description: 'برمجة وتأهيل موديول المشتريات والمستودعات والعهد والكميات',
-        category: 'برمجة وتأهيل',
-        unitPrice: 35000,
-        quantity: 1,
-        totalPrice: 35000
-      },
-      {
-        id: 'f5',
-        description: 'برمجة وتأهيل موديول الموارد البشرية والرواتب والعمالة اليومية',
-        category: 'برمجة وتأهيل',
-        unitPrice: 40000,
-        quantity: 1,
-        totalPrice: 40000
-      },
-      {
-        id: 'f6',
-        description: 'برمجة موديول الصيانة والتشغيل وتذاكر الأعطال للمنشآت',
-        category: 'برمجة وتأهيل',
-        unitPrice: 25000,
-        quantity: 1,
-        totalPrice: 25000
-      },
-      {
-        id: 'f7',
-        description: 'ربط السيرفرات والأمان والنسخ السحابي التلقائي Cloudflare R2',
-        category: 'أمان وتكامل',
-        unitPrice: 20000,
-        quantity: 1,
-        totalPrice: 20000
-      },
-      {
-        id: 'f8',
-        description: 'الاستضافة، الدعم الفني، والتدريب المجاني للكوادر لمدة سنة كاملة',
-        category: 'دعم واستضافة',
-        unitPrice: 15000,
-        quantity: 1,
-        totalPrice: 15000
+        totalPrice: 250000
       }
     ]
+
   };
 
   const [currentProposal, setCurrentProposal] = useState<Proposal>(defaultEcosystemProposal);
