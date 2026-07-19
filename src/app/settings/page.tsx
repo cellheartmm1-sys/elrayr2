@@ -22,7 +22,9 @@ interface CompanyProfile {
   r2_secret_access_key?: string;
   r2_backup_interval_hours?: string | number;
   r2_last_backup_at?: string;
+  r2_env_configured?: boolean;
 }
+
 
 interface User {
   id: string;
@@ -848,14 +850,33 @@ export default function SettingsPage() {
             <div className="card">
               <div className="card-header">
                 <div className="card-title">☁️ إعدادات النسخ الاحتياطي السحابي (Cloudflare R2)</div>
-                <div className="card-subtitle">تكوين إعدادات النسخ الاحتياطي التلقائي للبيانات إلى سحابة Cloudflare R2</div>
+                <div className="card-subtitle">تكوين إعدادات النسخ الاحتياطي التلقائي للبيانات إلى سحابة Cloudflare R2 (يدعم الربط المباشر بملف .env و Vercel)</div>
               </div>
+              
+              {company.r2_env_configured && (
+                <div style={{
+                  margin: '0.75rem 0',
+                  padding: '0.85rem 1rem',
+                  background: 'rgba(16,185,129,0.12)',
+                  border: '1px solid rgba(16,185,129,0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  color: '#10b981',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <span>🔒</span>
+                  <span>تم ضبط مفاتيح R2 تلقائياً عبر متغيّرات البيئة المنسقة في الفيرسل (Vercel Environment Variables / .env.local).</span>
+                </div>
+              )}
+
               <form onSubmit={handleSaveR2Settings} style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div className="form-group">
-                  <label className="form-label required">Account ID (معرف الحساب)</label>
+                  <label className="form-label">Account ID (معرف الحساب)</label>
                   <input 
                     className="form-control"
-                    required
                     value={company.r2_account_id || ''}
                     onChange={e => setCompany({ ...company, r2_account_id: e.target.value })}
                     placeholder="47aa407c8a51f1fe4fe1f387b381e424"
@@ -863,10 +884,9 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">S3 API / Endpoint</label>
+                  <label className="form-label">S3 API / Endpoint</label>
                   <input 
                     className="form-control"
-                    required
                     value={company.r2_endpoint || ''}
                     onChange={e => setCompany({ ...company, r2_endpoint: e.target.value })}
                     placeholder="https://47aa407c8a51f1fe4fe1f387b381e424.r2.cloudflarestorage.com"
@@ -874,10 +894,9 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">Bucket Name (اسم وعاء التخزين)</label>
+                  <label className="form-label">Bucket Name (اسم وعاء التخزين)</label>
                   <input 
                     className="form-control"
-                    required
                     value={company.r2_bucket_name || ''}
                     onChange={e => setCompany({ ...company, r2_bucket_name: e.target.value })}
                     placeholder="elraye2"
@@ -885,19 +904,19 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">R2 Access Key ID</label>
+                  <label className="form-label">R2 Access Key ID</label>
                   <input 
                     className="form-control"
                     type="password"
-                    required
                     value={company.r2_access_key_id || ''}
                     onChange={e => setCompany({ ...company, r2_access_key_id: e.target.value })}
-                    placeholder="أدخل Access Key ID..."
+                    placeholder={company.r2_env_configured ? 'محفوظ في متغيّرات البيئة (Environment Variables)...' : 'أدخل Access Key ID...'}
                     disabled={dbActionRunning || saving}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">R2 Secret Access Key</label>
+                  <label className="form-label">R2 Secret Access Key</label>
+
                   <input 
                     className="form-control"
                     type="password"

@@ -3,9 +3,13 @@ import { query } from '@/lib/db';
 
 export async function GET() {
   try {
+    const isR2EnvSet = !!(
+      (process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID) &&
+      (process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY)
+    );
+
     const res = await query('SELECT * FROM companies ORDER BY created_at ASC LIMIT 1');
     if (res.rows.length === 0) {
-      // Return a default mock so there's always data
       return NextResponse.json({
         name_ar: 'الرايق للمقاولات الكهروميكانيكية',
         name_en: 'Al-Rayeq Electromechanical Contracting',
@@ -13,15 +17,19 @@ export async function GET() {
         vat_number: '300012345600003',
         address: 'القاهرة، مصر / الرياض، المملكة العربية السعودية',
         phone: '+20-100-000-0000',
-        email: 'info@alrayeq.com'
+        email: 'info@alrayeq.com',
+        r2_env_configured: isR2EnvSet
       });
     }
-    return NextResponse.json(res.rows[0]);
+    const data = res.rows[0];
+    data.r2_env_configured = isR2EnvSet;
+    return NextResponse.json(data);
   } catch (error: unknown) {
     const err = error as Error;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 
 export async function POST(request: NextRequest) {
   try {

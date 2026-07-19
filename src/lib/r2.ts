@@ -2,18 +2,36 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } fr
 import { query } from './db';
 
 export async function getR2Config() {
-  const res = await query('SELECT * FROM companies LIMIT 1');
-  if (res.rows.length === 0) return null;
-  const company = res.rows[0];
-  if (!company.r2_access_key_id || !company.r2_secret_access_key) return null;
+  let company: any = {};
+  try {
+    const res = await query('SELECT * FROM companies LIMIT 1');
+    if (res.rows.length > 0) {
+      company = res.rows[0];
+    }
+  } catch (err) {
+    console.error('Failed to query company for R2 config:', err);
+  }
+
+  // Priority 1: Read from Environment Variables (.env.local / Vercel Environment Variables)
+  // Priority 2: Read from Database companies table
+  const accountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID || process.env.R2_ACCOUNT_ID || company.r2_account_id || '47aa407c8a51f1fe4fe1f387b381e424';
+  const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT || process.env.R2_ENDPOINT || company.r2_endpoint || `https://${accountId}.r2.cloudflarestorage.com`;
+  const bucketName = process.env.CLOUDFLARE_R2_BUCKET || process.env.R2_BUCKET_NAME || company.r2_bucket_name || 'elraye2';
+  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID || company.r2_access_key_id;
+  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY || company.r2_secret_access_key;
+  const backupIntervalHours = Number(process.env.CLOUDFLARE_R2_BACKUP_INTERVAL || process.env.R2_BACKUP_INTERVAL || company.r2_backup_interval_hours) || 8;
+
+  if (!accessKeyId || !secretAccessKey) return null;
+
   return {
-    accountId: company.r2_account_id || '47aa407c8a51f1fe4fe1f387b381e424',
-    endpoint: company.r2_endpoint || 'https://47aa407c8a51f1fe4fe1f387b381e424.r2.cloudflarestorage.com',
-    bucketName: company.r2_bucket_name || 'elraye2',
-    accessKeyId: company.r2_access_key_id,
-    secretAccessKey: company.r2_secret_access_key,
-    backupIntervalHours: Number(company.r2_backup_interval_hours) || 8,
-    lastBackupAt: company.r2_last_backup_at
+    accountId,
+    endpoint,
+    bucketName,
+    accessKeyId,
+    secretAccessKey,
+    backupIntervalHours,
+    lastBackupAt: company.r2_last_backup_at,
+    isEnvConfigured: !!(process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID)
   };
 }
 
@@ -85,7 +103,11 @@ export async function uploadBackupToR2(config: any) {
   }));
 
   // Update last backup timestamp in DB
-  await query('UPDATE companies SET r2_last_backup_at = NOW()');
+  try {
+    await query('UPDATE companies SET r2_last_backup_at = NOW()');
+  } catch (e) {
+    console.error('Failed to update r2_last_backup_at:', e);
+  }
 
   return { filename, timestamp: now.toISOString() };
 }
