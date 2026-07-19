@@ -40,6 +40,65 @@ export default function EstimationPage() {
   // Edit & Print States
   const [editingEstimation, setEditingEstimation] = useState<Estimation | null>(null);
   const [printingEstimation, setPrintingEstimation] = useState<Estimation | null>(null);
+  const [printingDocs, setPrintingDocs] = useState<Array<{ id: string; document_name: string; file_url: string }>>([]);
+
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ key: string; name: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/employees/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUploadedFiles(prev => [...prev, { key: data.key, name: data.filename }]);
+        } else {
+          alert(`فشل رفع الملف ${file.name}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء رفع الملفات.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveUploadedFile = (keyToRemove: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.key !== keyToRemove));
+  };
+
+  // Trigger loading documents when printingEstimation is selected
+  useEffect(() => {
+    if (!printingEstimation) {
+      setPrintingDocs([]);
+      return;
+    }
+    const loadDocs = async () => {
+      try {
+        const res = await fetch(`/api/estimation/${printingEstimation.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPrintingDocs(data.documents || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadDocs();
+  }, [printingEstimation]);
 
   // Form State
   const [form, setForm] = useState({
@@ -88,6 +147,7 @@ export default function EstimationPage() {
 
   const handleOpenCreate = () => {
     setEditingEstimation(null);
+    setUploadedFiles([]);
     setForm({
       project_id: '', tender_name: '', tender_number: '', client_name: '',
       submission_date: '', status: 'draft', overhead_percentage: '15', profit_percentage: '10',
@@ -96,8 +156,9 @@ export default function EstimationPage() {
     setShowModal(true);
   };
 
-  const handleOpenEdit = (est: Estimation) => {
+  const handleOpenEdit = async (est: Estimation) => {
     setEditingEstimation(est);
+    setUploadedFiles([]);
     setForm({
       project_id: est.project_id || '',
       tender_name: est.tender_name || '',
@@ -111,6 +172,21 @@ export default function EstimationPage() {
       total_labor_cost: String(est.total_labor_cost ?? '0')
     });
     setShowModal(true);
+
+    try {
+      const res = await fetch(`/api/estimation/${est.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.documents && Array.isArray(data.documents)) {
+          setUploadedFiles(data.documents.map((doc: any) => ({
+            key: doc.file_url,
+            name: doc.document_name
+          })));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch estimation documents', err);
+    }
   };
 
   // Calculations
@@ -139,12 +215,14 @@ export default function EstimationPage() {
           total_labor_cost: labor,
           overhead_percentage: overheadPercent,
           profit_percentage: profitPercent,
-          total_price: calculatedTotal
+          total_price: calculatedTotal,
+          uploaded_files: uploadedFiles
         })
       });
 
       if (res.ok) {
         setShowModal(false);
+        setUploadedFiles([]);
         fetchEstimations();
       } else {
         const data = await res.json();
@@ -303,6 +381,54 @@ export default function EstimationPage() {
                   <select className="form-control" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
                     {Object.entries(statusLabels).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
+                </div>
+                <div className="form-group col-span-3" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                  <label className="form-label" style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>📁 المستندات والملفات المرفقة لعرض السعر (المواصفات، الكتالوجات، الصور)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*,.pdf,.xls,.xlsx" 
+                      onChange={handleFileUpload} 
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                      id="est-file-upload-input"
+                    />
+                    <label 
+                      htmlFor="est-file-upload-input" 
+                      className="btn btn-outline" 
+                      style={{ cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      {uploading ? (
+                        <>
+                          <span className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                          جاري الرفع...
+                        </>
+                      ) : '➕ اختر ملفات للرفع'}
+                    </label>
+                  </div>
+                  
+                  {uploadedFiles.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                      {uploadedFiles.map((file) => {
+                        const url = `/api/r2-file?key=${encodeURIComponent(file.key)}`;
+                        return (
+                          <div key={file.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              📎 {file.name}
+                            </a>
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveUploadedFile(file.key)}
+                              style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontWeight: 700 }}
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -572,6 +698,29 @@ export default function EstimationPage() {
                   <li>تتم مراجعة الدفعات وطريقة التسليم والجدول الزمني للأعمال بالتوافق مع شروط المالك واستشاري المشروع.</li>
                 </ul>
               </div>
+
+              {printingDocs.length > 0 && (
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }} className="print-actions">
+                  <strong style={{ fontSize: '0.95rem' }}>📎 الملفات والمستندات المرفقة لعرض السعر:</strong>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    {printingDocs.map((doc) => {
+                      const url = `/api/r2-file?key=${encodeURIComponent(doc.file_url)}`;
+                      return (
+                        <a 
+                          key={doc.id} 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '6px', color: '#333', fontSize: '0.85rem', textDecoration: 'none' }}
+                        >
+                          <span>📄</span>
+                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{doc.document_name}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="print-footer">
                 <div className="print-signature-box">

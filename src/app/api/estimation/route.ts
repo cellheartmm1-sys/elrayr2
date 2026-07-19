@@ -6,6 +6,17 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
 
   try {
+    // Ensure estimation_documents table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS estimation_documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        estimation_id UUID NOT NULL REFERENCES estimations(id) ON DELETE CASCADE,
+        document_name TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     let sql = `
       SELECT e.*, p.name as project_name, p.code as project_code
       FROM estimations e
@@ -33,7 +44,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { project_id, tender_name, tender_number, client_name, submission_date, status, overhead_percentage, profit_percentage } = body;
+    const { 
+      project_id, 
+      tender_name, 
+      tender_number, 
+      client_name, 
+      submission_date, 
+      status, 
+      overhead_percentage, 
+      profit_percentage 
+    } = body;
+
+    // Ensure estimation_documents table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS estimation_documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        estimation_id UUID NOT NULL REFERENCES estimations(id) ON DELETE CASCADE,
+        document_name TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
 
     const result = await query(`
       INSERT INTO estimations (project_id, tender_name, tender_number, client_name, submission_date, status, overhead_percentage, profit_percentage)
@@ -45,13 +76,28 @@ export async function POST(request: NextRequest) {
       client_name, 
       submission_date || null, 
       status || 'draft', 
-      overhead_percentage === '' ? 15 : Number(overhead_percentage), 
-      profit_percentage === '' ? 10 : Number(profit_percentage)
+      overhead_percentage === '' || overhead_percentage === undefined ? 15 : Number(overhead_percentage), 
+      profit_percentage === '' || profit_percentage === undefined ? 10 : Number(profit_percentage)
     ]);
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    const newEstimation = result.rows[0];
+
+    // Store uploaded files in estimation_documents table
+    if (body.uploaded_files && Array.isArray(body.uploaded_files)) {
+      for (const file of body.uploaded_files) {
+        await query(
+          `INSERT INTO estimation_documents (
+            estimation_id, document_name, file_url
+          ) VALUES ($1, $2, $3)`,
+          [newEstimation.id, file.name, file.key]
+        );
+      }
+    }
+
+    return NextResponse.json(newEstimation, { status: 201 });
   } catch (error: unknown) {
     const err = error as Error;
+    console.error('[POST /api/estimation]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

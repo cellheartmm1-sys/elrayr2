@@ -70,6 +70,15 @@ CREATE TABLE IF NOT EXISTS project_documents (
   uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Estimation Documents (مرفقات عروض الأسعار)
+CREATE TABLE IF NOT EXISTS estimation_documents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  estimation_id UUID NOT NULL REFERENCES estimations(id) ON DELETE CASCADE,
+  document_name TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Work phases per project (شبكات، صواعد، تركيبات)
 CREATE TABLE IF NOT EXISTS project_phases (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -23,9 +23,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ORDER BY b.order_index ASC, b.created_at ASC
     `, [id]);
 
+    const documentsRes = await query(`
+      SELECT * FROM estimation_documents
+      WHERE estimation_id = $1
+      ORDER BY uploaded_at DESC
+    `, [id]);
+
     return NextResponse.json({
       estimation: estimationRes.rows[0],
       items: itemsRes.rows,
+      documents: documentsRes.rows,
     });
   } catch (error: unknown) {
     const err = error as Error;
@@ -68,6 +75,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           item.quantity || 0, item.material_unit_cost || 0, item.labor_unit_cost || 0,
           item.section || '', item.order_index || 0
         ]);
+      }
+    }
+
+    // Sync documents if provided
+    if (body.uploaded_files && Array.isArray(body.uploaded_files)) {
+      await query(`DELETE FROM estimation_documents WHERE estimation_id = $1`, [id]);
+      for (const file of body.uploaded_files) {
+        await query(
+          `INSERT INTO estimation_documents (estimation_id, document_name, file_url)
+           VALUES ($1, $2, $3)`,
+          [id, file.name, file.key]
+        );
       }
     }
 
