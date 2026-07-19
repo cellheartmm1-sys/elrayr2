@@ -70,13 +70,18 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
+                function register() {
                   navigator.serviceWorker.register('/sw.js').then(function(reg) {
                     console.log('SW registered successfully:', reg.scope);
                   }).catch(function(err) {
                     console.log('SW registration failed:', err);
                   });
-                });
+                }
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                  register();
+                } else {
+                  window.addEventListener('load', register);
+                }
               }
             `,
           }}

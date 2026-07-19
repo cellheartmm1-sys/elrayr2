@@ -2,6 +2,7 @@ const CACHE_NAME = 'alrayeq-erp-cache-v1';
 const urlsToCache = [
   '/login',
   '/logo.jpg',
+  '/logo.png',
   '/favicon.ico'
 ];
 
