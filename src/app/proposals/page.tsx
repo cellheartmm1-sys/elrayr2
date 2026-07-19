@@ -43,7 +43,6 @@ export default function ProposalsPage() {
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-
   const defaultEcosystemProposal: Proposal = {
     proposal_code: 'ERP-PROP-2026',
     title: 'عرض فني ومالي شامـل لتطوير وتسليم نظام الرايق Enterprise ERP والموقع الإلكتروني المؤسسي',
@@ -104,14 +103,69 @@ export default function ProposalsPage() {
     financial_items: [
       {
         id: 'f1',
-        description: 'تصميم، برمجة، وتأهيل المنظومة الرقمية الشاملة (الموقع الإلكتروني Landing Page + نظام التحكم Enterprise ERP بكافة الموديولات والأمان والنسخ السحابي واستضافة سنة كاملة)',
+        description: 'تصميم، تطوير، وتأهيل المنظومة الرقمية الشاملة والموقع الإلكتروني المؤسسي (Landing Page)',
         category: 'برمجة وتطوير شامل',
         unitPrice: 250000,
         quantity: 1,
         totalPrice: 250000
+      },
+      {
+        id: 'f2',
+        description: 'برمجة وتأهيل موديول إدارة المشاريع والنسب وجداول الكميات',
+        category: 'برمجة وتأهيل',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
+      },
+      {
+        id: 'f3',
+        description: 'برمجة وتأهيل موديول المالية، المستخلصات، والتقارير المالية المطبوعة',
+        category: 'برمجة وتأهيل',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
+      },
+      {
+        id: 'f4',
+        description: 'برمجة وتأهيل موديول المشتريات والمستودعات والعهد والكميات',
+        category: 'برمجة وتأهيل',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
+      },
+      {
+        id: 'f5',
+        description: 'برمجة وتأهيل موديول الموارد البشرية والرواتب والعمالة اليومية',
+        category: 'برمجة وتأهيل',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
+      },
+      {
+        id: 'f6',
+        description: 'برمجة موديول الصيانة والتشغيل وتذاكر الأعطال للمنشآت',
+        category: 'برمجة وتأهيل',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
+      },
+      {
+        id: 'f7',
+        description: 'ربط السيرفرات والأمان والنسخ السحابي التلقائي Cloudflare R2',
+        category: 'أمان وتكامل',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
+      },
+      {
+        id: 'f8',
+        description: 'الاستضافة، الدعم الفني، والتدريب المجاني للكوادر لمدة سنة كاملة',
+        category: 'دعم واستضافة',
+        unitPrice: 0,
+        quantity: 1,
+        totalPrice: 0
       }
     ]
-
   };
 
   const [currentProposal, setCurrentProposal] = useState<Proposal>(defaultEcosystemProposal);
@@ -521,14 +575,16 @@ export default function ProposalsPage() {
                           <option value="أمان وتكامل">أمان وتكامل</option>
                           <option value="دعم واستضافة">دعم واستضافة</option>
                           <option value="تدريب وتأهيل">تدريب وتأهيل</option>
+                          <option value="برمجة وتطوير شامل">برمجة وتطوير شامل</option>
                         </select>
                       </td>
                       <td>
                         <input
                           type="number"
                           className="form-control form-control-sm"
-                          value={item.unitPrice}
-                          onChange={e => handleUpdateFinItem(item.id, 'unitPrice', e.target.value)}
+                          value={item.unitPrice || ''}
+                          onChange={e => handleUpdateFinItem(item.id, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
+                          placeholder="اتركه فارغاً إن كان مشمولاً"
                         />
                       </td>
                       <td>
@@ -539,8 +595,12 @@ export default function ProposalsPage() {
                           onChange={e => handleUpdateFinItem(item.id, 'quantity', e.target.value)}
                         />
                       </td>
-                      <td style={{ textAlign: 'left', fontWeight: 700, color: '#10b981' }}>
-                        {(Number(item.totalPrice) || 0).toLocaleString('ar-EG')} {currencySymbol}
+                      <td style={{ textAlign: 'left', fontWeight: 700, color: Number(item.totalPrice) > 0 ? '#10b981' : 'var(--text-muted)' }}>
+                        {Number(item.totalPrice) > 0 ? (
+                          `${(Number(item.totalPrice) || 0).toLocaleString('ar-EG')} ${currencySymbol}`
+                        ) : (
+                          <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>مشمول ضمن العرض</span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <button
@@ -702,10 +762,16 @@ export default function ProposalsPage() {
                       <tr key={idx}>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', fontWeight: 600 }}>{item.description}</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', textAlign: 'center' }}>{item.category}</td>
-                        <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', textAlign: 'center' }}>{(Number(item.unitPrice) || 0).toLocaleString('ar-EG')}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', textAlign: 'center' }}>
+                          {Number(item.unitPrice) > 0 ? (Number(item.unitPrice) || 0).toLocaleString('ar-EG') : '-'}
+                        </td>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', textAlign: 'center' }}>{item.quantity}</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', textAlign: 'left', fontWeight: 700 }}>
-                          {(Number(item.totalPrice) || 0).toLocaleString('ar-EG')}
+                          {Number(item.totalPrice) > 0 ? (
+                            (Number(item.totalPrice) || 0).toLocaleString('ar-EG')
+                          ) : (
+                            <span style={{ color: '#4b5563', fontWeight: 600 }}>مشمول ضمن العرض</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -718,6 +784,7 @@ export default function ProposalsPage() {
                       <td style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'left' }}>{vatAmount.toLocaleString('ar-EG')} {currencySymbol}</td>
                     </tr>
                     <tr style={{ background: '#e5e7eb', fontWeight: 900, fontSize: '0.95rem' }}>
+
                       <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'right' }}>الإجمالي النهائي الشامل لتسليم وتأهيل النظام بالكامل</td>
                       <td style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'left', color: '#15803d' }}>
                         {grandTotal.toLocaleString('ar-EG')} {currencySymbol}
