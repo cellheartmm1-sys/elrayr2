@@ -44,8 +44,8 @@ const navItems = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  admin: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
-  secondary: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  admin: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  secondary: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   manager: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   engineer: ['/dashboard', '/projects', '/procurement', '/labor'],
   supervisor: ['/dashboard', '/projects', '/labor'],
@@ -87,6 +87,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             .filter((p: any) => p.can_view)
             .map((p: any) => `/${p.module}`);
           allowed.push('/dashboard');
+          if (currentRole === 'secondary') {
+            allowed.push('/proposals');
+          }
           setAllowedHrefs(allowed);
           return;
         }

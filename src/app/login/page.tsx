@@ -35,8 +35,8 @@ export default function LoginPage() {
 
         if (!matchedUser) {
           // Fallback check
-          if (input === 'admin' || input === 'mahfouz' || input === 'm.mahfouz1024@gmail.com') {
-            matchedUser = { role: 'admin', full_name: 'محفوظ (مدير النظام)', email: 'm.mahfouz1024@gmail.com', username: 'mahfouz' };
+          if (input === 'admin' || input === 'admin@alrayeq.com') {
+            matchedUser = { role: 'admin', full_name: 'مدير النظام (Admin)', email: 'admin@alrayeq.com', username: 'admin' };
           } else if (input === 'supervisor' || input === 'supervisor1') {
             matchedUser = { role: 'secondary', full_name: 'سالم الغامدي (المستخدم الثاني)', email: 'supervisor1@alrayeq.com' };
           }

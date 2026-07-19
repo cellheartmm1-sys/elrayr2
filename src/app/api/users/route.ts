@@ -3,21 +3,25 @@ import { query } from '@/lib/db';
 
 async function ensureAdminAccounts() {
   try {
-    const check = await query("SELECT id FROM users WHERE email = 'm.mahfouz1024@gmail.com' OR username = 'mahfouz'");
+    // 1. Delete mahfouz account
+    await query("DELETE FROM users WHERE email = 'm.mahfouz1024@gmail.com' OR username = 'mahfouz'");
+
+    // 2. Ensure admin account
+    const check = await query("SELECT id FROM users WHERE email = 'admin@alrayeq.com' OR username = 'admin'");
     if (check.rows.length === 0) {
       await query(`
         INSERT INTO users (full_name, username, email, password, role, is_active)
-        VALUES ('محفوظ (مدير النظام)', 'mahfouz', 'm.mahfouz1024@gmail.com', '123456', 'admin', true)
+        VALUES ('مدير النظام (Admin)', 'admin', 'admin@alrayeq.com', '123456', 'admin', true)
       `);
     } else {
       await query(`
         UPDATE users 
         SET role = 'admin', password = '123456', is_active = true
-        WHERE email = 'm.mahfouz1024@gmail.com' OR username = 'mahfouz'
+        WHERE email = 'admin@alrayeq.com' OR username = 'admin'
       `);
     }
   } catch (e) {
-    console.error('Error ensuring mahfouz admin:', e);
+    console.error('Error ensuring admin account:', e);
   }
 }
 

@@ -95,7 +95,7 @@ export default function ProposalsPage() {
       {
         id: 't6',
         title: 'منظومة الأمان والنسخ السحابي التلقائي Cloudflare R2',
-        specs: 'أكونت مدير النظام محدد mahfouz مع صلاحية الاعتمادات المزدوجة والتخزين السحابي الآمن التلقائي كل ٨ ساعات.',
+        specs: 'أكونت مدير النظام محدد admin مع صلاحية الاعتمادات المزدوجة والتخزين السحابي الآمن التلقائي كل ٨ ساعات.',
         quantity: 1,
         unit: 'نظام أمان سحابي',
         warranty: 'تحديثات مستمرة'
@@ -338,14 +338,14 @@ export default function ProposalsPage() {
     }
   };
 
-  if (isAdmin === false) {
+  if (isAdmin === true) {
     return (
-      <AppLayout title="العروض الفنية والمالية للنظام" subtitle="صفحة مخصصة لإدارة العروض والمواصفات للمدير فقط" icon="📑">
+      <AppLayout title="العروض الفنية والمالية للنظام" subtitle="غير مصرح بالدخول" icon="📑">
         <div className="card" style={{ padding: '3rem', textAlign: 'center', margin: '2rem auto', maxWidth: '600px', border: '1px solid #ef4444' }}>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⛔</div>
-          <h2 style={{ color: '#ef4444', fontSize: '1.6rem', fontWeight: 800 }}>صفحة مخصصة لمدير النظام (Admin Only)</h2>
+          <h2 style={{ color: '#ef4444', fontSize: '1.6rem', fontWeight: 800 }}>غير مصرح لمدير النظام بالدخول</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.75rem', lineHeight: '1.8' }}>
-            عذراً، هذه الصفحة وسجل العروض الفنية والمالية لبيع وتأهيل النظام متاحة حصرياً لحساب مدير النظام فقط.
+            عذراً، هذه الصفحة وسجل العروض الفنية والمالية لبيع وتأهيل النظام غير متاحة لحساب مدير النظام.
           </p>
         </div>
       </AppLayout>
