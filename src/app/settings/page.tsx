@@ -881,6 +881,52 @@ export default function SettingsPage() {
                   </div>
                 )}
 
+                <div className="form-group" style={{ margin: '0.5rem 0' }}>
+                  <label className="form-label" style={{ fontWeight: 700, display: 'block', marginBottom: '0.5rem' }}>⏰ معدل النسخ الاحتياطي التلقائي (بالساعات):</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select
+                      className="form-control"
+                      value={company.r2_backup_interval_hours || '8'}
+                      onChange={e => setCompany({ ...company, r2_backup_interval_hours: e.target.value })}
+                      style={{ width: 'auto', minWidth: '160px', padding: '0.375rem 0.75rem' }}
+                    >
+                      <option value="4">كل 4 ساعات</option>
+                      <option value="8">كل 8 ساعات (موصى به)</option>
+                      <option value="12">كل 12 ساعة</option>
+                      <option value="24">كل 24 ساعة (يومي)</option>
+                      <option value="48">كل 48 ساعة</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setSaving(true);
+                        try {
+                          const res = await fetch('/api/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(company)
+                          });
+                          if (res.ok) {
+                            alert('✅ تم تحديث معدل النسخ الاحتياطي بنجاح!');
+                          } else {
+                            alert('❌ فشل تحديث المعدل.');
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          alert('❌ حدث خطأ أثناء الاتصال بالخادم.');
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      className="btn btn-outline"
+                      disabled={saving}
+                      style={{ padding: '0.375rem 1rem', borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }}
+                    >
+                      {saving ? 'جاري الحفظ...' : '💾 حفظ المعدل'}
+                    </button>
+                  </div>
+                </div>
+
                 <div style={{ marginTop: '0.5rem' }}>
                   <button 
                     type="button" 

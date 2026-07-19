@@ -38,9 +38,8 @@ export default function ProposalsPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [selectedProposalId, setSelectedProposalId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  const [currencySymbol] = useState('ج.م');
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   const defaultEcosystemProposal: Proposal = {
@@ -171,18 +170,7 @@ export default function ProposalsPage() {
 
   const [currentProposal, setCurrentProposal] = useState<Proposal>(defaultEcosystemProposal);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const role = localStorage.getItem('user_role');
-      setIsAdmin(role === 'admin');
-      setCurrencySymbol('ج.م');
-    }
-
-    fetchProposals();
-  }, []);
-
   const fetchProposals = async () => {
-    setLoading(true);
     try {
       const res = await fetch('/api/proposals');
       const data = await res.json();
@@ -198,10 +186,20 @@ export default function ProposalsPage() {
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProposals();
+
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        const role = localStorage.getItem('user_role');
+        setIsAdmin(role === 'admin');
+      }
+    }, 0);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectProposal = (id: string) => {
     setSelectedProposalId(id);
@@ -238,7 +236,7 @@ export default function ProposalsPage() {
     }));
   };
 
-  const handleUpdateTechItem = (id: string, field: keyof TechItem, value: any) => {
+  const handleUpdateTechItem = (id: string, field: keyof TechItem, value: string | number) => {
     setCurrentProposal(p => ({
       ...p,
       technical_items: p.technical_items.map(item => item.id === id ? { ...item, [field]: value } : item)
@@ -268,7 +266,7 @@ export default function ProposalsPage() {
     }));
   };
 
-  const handleUpdateFinItem = (id: string, field: keyof FinItem, value: any) => {
+  const handleUpdateFinItem = (id: string, field: keyof FinItem, value: string | number) => {
     setCurrentProposal(p => ({
       ...p,
       financial_items: p.financial_items.map(item => {
@@ -315,8 +313,9 @@ export default function ProposalsPage() {
       } else {
         alert(`❌ فشل الحفظ: ${data.error}`);
       }
-    } catch (err: any) {
-      alert(`❌ خطأ: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`❌ خطأ: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -333,8 +332,37 @@ export default function ProposalsPage() {
         handleCreateNewProposal();
         fetchProposals();
       }
-    } catch (err: any) {
-      alert(`❌ خطأ: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`❌ خطأ: ${msg}`);
+    }
+  };
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportToWord = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/proposals/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentProposal)
+      });
+      if (!res.ok) throw new Error('فشل تصدير الملف');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentProposal.title || 'عرض-فني-ومالي'}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`❌ خطأ أثناء التصدير: ${msg}`);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -384,6 +412,9 @@ export default function ProposalsPage() {
             </button>
             <button className="btn btn-accent" onClick={() => setShowPrintModal(true)}>
               🖨️ معاينة وتصدير PDF رسمى
+            </button>
+            <button className="btn btn-outline" onClick={handleExportToWord} disabled={exporting} style={{ gap: '0.5rem', borderColor: '#c59b27', color: '#c59b27' }}>
+              {exporting ? '⏳ جاري التصدير...' : '📝 تصدير بصيغة Word'}
             </button>
           </div>
         </div>
@@ -457,7 +488,7 @@ export default function ProposalsPage() {
                 {currentProposal.technical_items.length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
-                      لا توجد بنود فنية مدرجة. اضغط على "+ إضافة بند فني جديد" للبدء.
+                      لا توجد بنود فنية مدرجة. اضغط على &quot;+ إضافة بند فني جديد&quot; للبدء.
                     </td>
                   </tr>
                 ) : (
@@ -551,7 +582,7 @@ export default function ProposalsPage() {
                 {currentProposal.financial_items.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
-                      لا توجد بنود مالية مدرجة. اضغط على "+ إضافة بند مالي جديد" للبدء.
+                      لا توجد بنود مالية مدرجة. اضغط على &quot;+ إضافة بند مالي جديد&quot; للبدء.
                     </td>
                   </tr>
                 ) : (

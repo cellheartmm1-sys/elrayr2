@@ -2,11 +2,34 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } fr
 import { query } from './db';
 
 export async function getR2Config() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let company: any = {};
   try {
     const res = await query('SELECT * FROM companies LIMIT 1');
     if (res.rows.length > 0) {
       company = res.rows[0];
+    } else {
+      try {
+        const insertRes = await query(`
+          INSERT INTO companies (
+            name_ar, name_en, cr_number, vat_number, address, phone, email, r2_backup_interval_hours
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+        `, [
+          'الرايق للمقاولات الكهروميكانيكية',
+          'Al-Rayeq Electromechanical Contracting',
+          '1010123456',
+          '300012345600003',
+          'القاهرة، مصر / الرياض، المملكة العربية السعودية',
+          '+20-100-000-0000',
+          'info@alrayeq.com',
+          8
+        ]);
+        if (insertRes.rows.length > 0) {
+          company = insertRes.rows[0];
+        }
+      } catch (insertErr) {
+        console.error('Failed to insert default company row:', insertErr);
+      }
     }
   } catch (err) {
     console.error('Failed to query company for R2 config:', err);
@@ -35,6 +58,7 @@ export async function getR2Config() {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createS3Client(config: any) {
   return new S3Client({
     region: 'auto',
@@ -61,6 +85,7 @@ export async function generateBackupData() {
     'employee_documents', 'equipment_documents', 'notifications'
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const backup: Record<string, any[]> = {};
   
   for (const name of TABLE_ORDER) {
@@ -84,6 +109,7 @@ export async function generateBackupData() {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function uploadBackupToR2(config: any) {
   const backupJson = await generateBackupData();
   const fileContent = JSON.stringify(backupJson, null, 2);
@@ -112,6 +138,7 @@ export async function uploadBackupToR2(config: any) {
   return { filename, timestamp: now.toISOString() };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function listBackupsFromR2(config: any) {
   const s3 = createS3Client(config);
   
@@ -132,6 +159,7 @@ export async function listBackupsFromR2(config: any) {
     .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getBackupFromR2(key: string, config: any) {
   const s3 = createS3Client(config);
   
