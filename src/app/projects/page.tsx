@@ -87,14 +87,22 @@ export default function ProjectsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const userRole = localStorage.getItem('user_role') || 'admin';
+      const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
+
       const res = await fetch('/api/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole,
+          'x-user-name': userName
+        },
         body: JSON.stringify({
           ...form,
           contract_value: Number(form.contract_value) || 0
         })
       });
+      const data = await res.json();
       if (res.ok) {
         setShowModal(false);
         setForm({
@@ -109,28 +117,51 @@ export default function ProjectsPage() {
           status: 'active',
           description: ''
         });
+        if (data.pending_approval) {
+          alert(`⏳ ${data.message}`);
+        } else {
+          alert('✅ تم إضافة المشروع بنجاح!');
+        }
         fetchProjects();
       } else {
-        const errData = await res.json();
-        alert(`حدث خطأ أثناء إضافة المشروع: ${errData.error || 'فشلت العملية'}`);
+        alert(`❌ حدث خطأ أثناء إضافة المشروع: ${data.error || 'فشلت العملية'}`);
       }
     } catch (err) {
       console.error(err);
-      alert('حدث خطأ في الاتصال بالخادم.');
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المشروع؟')) return;
     try {
-      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      const userRole = localStorage.getItem('user_role') || 'admin';
+      const userName = localStorage.getItem('user_name') || 'مستخدم النظام';
+
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': userRole,
+          'x-user-name': userName
+        }
+      });
+      const data = await res.json();
       if (res.ok) {
+        if (data.pending_approval) {
+          alert(`⏳ ${data.message}`);
+        } else {
+          alert('✅ تم حذف المشروع بنجاح!');
+        }
         fetchProjects();
+      } else {
+        alert(`❌ فشل الحذف: ${data.error || 'حدث خطأ أثناء التنفيذ'}`);
       }
     } catch (err) {
       console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
   };
+
 
   // KPI calculations
   const totalContractVal = projects.reduce((acc, p) => acc + Number(p.contract_value || 0), 0);
