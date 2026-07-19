@@ -300,8 +300,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ======================== SECTION: CONTACT & PARTNERSHIP INQUIRIES ======================== */}
-          <div className="card" style={{ marginBottom: '1.25rem', border: '1px solid rgba(245, 158, 11, 0.3)', background: 'var(--card-bg)' }}>
+          <div id="contact-requests" className="card" style={{ marginBottom: '1.25rem', border: '1px solid rgba(245, 158, 11, 0.3)', background: 'var(--card-bg)' }}>
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

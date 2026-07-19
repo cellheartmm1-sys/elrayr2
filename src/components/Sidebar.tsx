@@ -9,6 +9,7 @@ const navItems = [
     section: 'الرئيسية',
     items: [
       { href: '/dashboard', label: 'لوحة التحكم', icon: '📊', module: 'dashboard' },
+      { href: '/dashboard#contact-requests', label: 'طلبات تواصل العملاء', icon: '📩', module: 'contact_requests', adminOnly: true },
     ],
   },
   {
@@ -44,7 +45,7 @@ const navItems = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  admin: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  admin: ['/dashboard', '/dashboard#contact-requests', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   secondary: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   manager: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   engineer: ['/dashboard', '/projects', '/procurement', '/labor'],
