@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 
@@ -48,13 +48,23 @@ function formatNumber(val: string | number) {
 
 export default function ProcurementPage() {
   const [activeTab, setActiveTab] = useState<TabType>('requests');
+  const lastTabRef = useRef<string | null>(null);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    lastTabRef.current = tab;
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=${tab}`);
+    }
+  };
 
   useEffect(() => {
     const syncTab = () => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && ['requests', 'submittals', 'inventory', 'warehouses'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['requests', 'submittals', 'inventory', 'warehouses'].includes(tab)) {
+          lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
       }
@@ -417,10 +427,10 @@ export default function ProcurementPage() {
     <AppLayout title="المشتريات والمخازن" subtitle="إدارة طلبات شراء المواد، اعتمادات الاستشاريين، وتتبع المخزون في المواقع" icon="📦">
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>📋 طلبات توريد المواد</button>
-        <button className={`tab-btn ${activeTab === 'submittals' ? 'active' : ''}`} onClick={() => setActiveTab('submittals')}>📜 اعتمادات الاستشاريين</button>
-        <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>📦 مخازن وجرد المواقع</button>
-        <button className={`tab-btn ${activeTab === 'warehouses' ? 'active' : ''}`} onClick={() => setActiveTab('warehouses')}>🏢 إدارة المستودعات والمخازن ({warehouses.length})</button>
+        <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => handleTabChange('requests')}>📋 طلبات توريد المواد</button>
+        <button className={`tab-btn ${activeTab === 'submittals' ? 'active' : ''}`} onClick={() => handleTabChange('submittals')}>📜 اعتمادات الاستشاريين</button>
+        <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => handleTabChange('inventory')}>📦 مخازن وجرد المواقع</button>
+        <button className={`tab-btn ${activeTab === 'warehouses' ? 'active' : ''}`} onClick={() => handleTabChange('warehouses')}>🏢 إدارة المستودعات والمخازن ({warehouses.length})</button>
       </div>
 
       {/* ======================== TAB: REQUESTS ======================== */}

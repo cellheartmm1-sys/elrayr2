@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 import Link from 'next/link';
@@ -57,13 +57,23 @@ export default function HRPage() {
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('employees');
+  const lastTabRef = useRef<string | null>(null);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    lastTabRef.current = tab;
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=${tab}`);
+    }
+  };
 
   useEffect(() => {
     const syncTab = () => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && ['employees', 'payroll', 'attendance', 'overtime', 'assets', 'documents', 'loans'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['employees', 'payroll', 'attendance', 'overtime', 'assets', 'documents', 'loans'].includes(tab)) {
+          lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
       }
@@ -443,13 +453,13 @@ export default function HRPage() {
     <AppLayout title="إدارة الموارد البشرية" subtitle="إدارة شؤون الموظفين، الرواتب، العهد، الحضور، وتراخيص OSHA" icon="👨‍💼">
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab-btn ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => setActiveTab('employees')}>👨‍💼 الموظفون</button>
-        <button className={`tab-btn ${activeTab === 'payroll' ? 'active' : ''}`} onClick={() => setActiveTab('payroll')}>💳 الرواتب وهيكلة الأجور</button>
-        <button className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>📍 حضور المواقع (GPS)</button>
-        <button className={`tab-btn ${activeTab === 'overtime' ? 'active' : ''}`} onClick={() => setActiveTab('overtime')}>⏰ الموافقات الإضافية</button>
-        <button className={`tab-btn ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => setActiveTab('assets')}>🔨 العهد الشخصية</button>
-        <button className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>📜 تنبيهات الوثائق</button>
-        <button className={`tab-btn ${activeTab === 'loans' ? 'active' : ''}`} onClick={() => setActiveTab('loans')}>💵 السلفيات والقروض</button>
+        <button className={`tab-btn ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => handleTabChange('employees')}>👨‍💼 الموظفون</button>
+        <button className={`tab-btn ${activeTab === 'payroll' ? 'active' : ''}`} onClick={() => handleTabChange('payroll')}>💳 الرواتب وهيكلة الأجور</button>
+        <button className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => handleTabChange('attendance')}>📍 حضور المواقع (GPS)</button>
+        <button className={`tab-btn ${activeTab === 'overtime' ? 'active' : ''}`} onClick={() => handleTabChange('overtime')}>⏰ الموافقات الإضافية</button>
+        <button className={`tab-btn ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => handleTabChange('assets')}>🔨 العهد الشخصية</button>
+        <button className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => handleTabChange('documents')}>📜 تنبيهات الوثائق</button>
+        <button className={`tab-btn ${activeTab === 'loans' ? 'active' : ''}`} onClick={() => handleTabChange('loans')}>💵 السلفيات والقروض</button>
       </div>
 
       {/* ======================== TAB: EMPLOYEES ======================== */}

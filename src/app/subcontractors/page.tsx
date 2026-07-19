@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 
@@ -48,13 +48,23 @@ export default function SubcontractorsPage() {
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contractors');
+  const lastTabRef = useRef<string | null>(null);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    lastTabRef.current = tab;
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=${tab}`);
+    }
+  };
 
   useEffect(() => {
     const syncTab = () => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && ['contractors', 'contracts', 'ipc'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['contractors', 'contracts', 'ipc'].includes(tab)) {
+          lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
       }
@@ -296,8 +306,8 @@ export default function SubcontractorsPage() {
     <AppLayout title="مقاولو الباطن والعمالة" subtitle="إدارة عقود مقاولي الباطن ومستخلصاتهم" icon="🤝">
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab-btn ${activeTab === 'contractors' ? 'active' : ''}`} onClick={() => setActiveTab('contractors')}>🏢 المقاولون</button>
-        <button className={`tab-btn ${activeTab === 'ipc' ? 'active' : ''}`} onClick={() => setActiveTab('ipc')}>📄 المستخلصات</button>
+        <button className={`tab-btn ${activeTab === 'contractors' ? 'active' : ''}`} onClick={() => handleTabChange('contractors')}>🏢 المقاولون</button>
+        <button className={`tab-btn ${activeTab === 'ipc' ? 'active' : ''}`} onClick={() => handleTabChange('ipc')}>📄 المستخلصات</button>
       </div>
 
       {/* ======================== CONTRACTORS TAB ======================== */}

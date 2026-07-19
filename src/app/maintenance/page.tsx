@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 
@@ -48,13 +48,23 @@ export default function MaintenancePage() {
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contracts');
+  const lastTabRef = useRef<string | null>(null);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    lastTabRef.current = tab;
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=${tab}`);
+    }
+  };
 
   useEffect(() => {
     const syncTab = () => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && ['contracts', 'visits', 'tickets'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['contracts', 'visits', 'tickets'].includes(tab)) {
+          lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
       }
@@ -230,9 +240,9 @@ export default function MaintenancePage() {
     <AppLayout title="الصيانة والتشغيل" subtitle="إدارة عقود الصيانة الدورية لغرف المضخات وبلاغات الأعطال الطارئة" icon="🔧">
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab-btn ${activeTab === 'contracts' ? 'active' : ''}`} onClick={() => setActiveTab('contracts')}>📜 عقود الصيانة</button>
-        <button className={`tab-btn ${activeTab === 'visits' ? 'active' : ''}`} onClick={() => setActiveTab('visits')}>📅 زيارات الصيانة الدورية</button>
-        <button className={`tab-btn ${activeTab === 'tickets' ? 'active' : ''}`} onClick={() => setActiveTab('tickets')}>🚨 بلاغات الأعطال الطارئة</button>
+        <button className={`tab-btn ${activeTab === 'contracts' ? 'active' : ''}`} onClick={() => handleTabChange('contracts')}>📜 عقود الصيانة</button>
+        <button className={`tab-btn ${activeTab === 'visits' ? 'active' : ''}`} onClick={() => handleTabChange('visits')}>📅 زيارات الصيانة الدورية</button>
+        <button className={`tab-btn ${activeTab === 'tickets' ? 'active' : ''}`} onClick={() => handleTabChange('tickets')}>🚨 بلاغات الأعطال الطارئة</button>
       </div>
 
       {/* ======================== TAB: CONTRACTS ======================== */}

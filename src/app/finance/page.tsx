@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 import { Line } from 'react-chartjs-2';
@@ -91,13 +91,23 @@ export default function FinancePage() {
   }, []);
 
   const [activeTab, setActiveTab] = useState<TabType>('ipc');
+  const lastTabRef = useRef<string | null>(null);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    lastTabRef.current = tab;
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=${tab}`);
+    }
+  };
 
   useEffect(() => {
     const syncTab = () => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && ['ipc', 'expenses', 'cashflow', 'debts', 'reports'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['ipc', 'expenses', 'cashflow', 'debts', 'reports'].includes(tab)) {
+          lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
       }
@@ -464,11 +474,11 @@ export default function FinancePage() {
     <AppLayout title="المالية والمستخلصات" subtitle="إدارة مستخلصات العميل، مصروفات المشاريع، والتدفقات النقدية والربحية" icon="💰">
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab-btn ${activeTab === 'ipc' ? 'active' : ''}`} onClick={() => setActiveTab('ipc')}>📄 مستخلصات العميل</button>
-        <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>🧾 مصروفات المشاريع</button>
-        <button className={`tab-btn ${activeTab === 'cashflow' ? 'active' : ''}`} onClick={() => setActiveTab('cashflow')}>📈 التدفق النقدي والربحية</button>
-        <button className={`tab-btn ${activeTab === 'debts' ? 'active' : ''}`} onClick={() => setActiveTab('debts')}>🏛️ المديونيات وتمويل المشاريع</button>
-        <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>📊 التقارير المالية والطباعة</button>
+        <button className={`tab-btn ${activeTab === 'ipc' ? 'active' : ''}`} onClick={() => handleTabChange('ipc')}>📄 مستخلصات العميل</button>
+        <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => handleTabChange('expenses')}>🧾 مصروفات المشاريع</button>
+        <button className={`tab-btn ${activeTab === 'cashflow' ? 'active' : ''}`} onClick={() => handleTabChange('cashflow')}>📈 التدفق النقدي والربحية</button>
+        <button className={`tab-btn ${activeTab === 'debts' ? 'active' : ''}`} onClick={() => handleTabChange('debts')}>🏛️ المديونيات وتمويل المشاريع</button>
+        <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => handleTabChange('reports')}>📊 التقارير المالية والطباعة</button>
       </div>
 
 
