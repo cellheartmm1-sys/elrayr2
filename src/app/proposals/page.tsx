@@ -40,83 +40,141 @@ export default function ProposalsPage() {
   const [selectedProposalId, setSelectedProposalId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  const [currencySymbol, setCurrencySymbol] = useState('ر.س');
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  const [currentProposal, setCurrentProposal] = useState<Proposal>({
-    title: 'عرض فني ومالي شامـل لتغذية وتنفيذ أعمال المقاولات الكهروميكانيكية',
-    client_name: 'شركة التطوير العقاري الكبرى',
-    scope_text: `يتضمن هذا العرض توريد، تركيب، واختبار وتدشين الأنظمة الكهروميكانيكية الشاملة (MEP) للمشروع وفق أعلى معايير الجودة العالمية وكود البناء المعتمد (NFPA, ASHRAE, IEC).\nيشمل العمل: شبكات مكافحة الحريق والإطفاء التلقائي، محطات التكييف المركزي VRF والتشيلر، لوحات توزيع الكهرباء الرئيسية MDB، ومحطات الضخ والصرف.`,
-    terms_text: `١. مدة توريد وتنفيذ الأعمال: ٩٠ يوماً تقويمياً من تاريخ توقيع العقد واستلام الدفعة المقدمة.\n٢. الدفعة المقدمة: ٣٠٪ عند التوقيع، ٥٠٪ حسب نسبة الإنجاز والاعتماد بالمستخلصات، و٢٠٪ عند التسليم النهائي.\n٣. فترة الضمان الشامل: ضمان سنتين كاملتين على التركيبات والأعمال الكهروميكانيكية مع صيانة مجانية.`,
+  const defaultEcosystemProposal: Proposal = {
+    proposal_code: 'ERP-PROP-2026',
+    title: 'عرض فني ومالي شامـل لتطوير وتسليم نظام الرايق Enterprise ERP والموقع الإلكتروني المؤسسي',
+    client_name: 'رئيس مجلس الإدارة / صاحب مؤسسة الرايق للمقاولات الكهروميكانيكية',
+    scope_text: `يتضمن هذا العرض الفني والمالي تصميم، تطوير، وتأهيل المنظومة الرقمية الشاملة لمؤسسة الرايق للمقاولات الكهروميكانيكية.\nتشمل المنظومة المسلمة:\n١. موقع إلكتروني تعريفي سياحي وسينمائي واحترافي (Landing Page) يتوافق مع كبرى الشركات المليارية لاستعراض قطاعات أعمال المؤسسة، السلايدر التفاعلي، وتلقي طلبات المباشرة والشراكة.\n٢. نظام إدارة الموارد الرقمية الموحد (Enterprise ERP System) للربط المباشر بين لوحة التحكم المالية، المشاريع، المشتريات، الموارد البشرية، الصيانة، والحفظ السحابي في Cloudflare R2.`,
+    terms_text: `١. مدة التطوير والتأهيل والتسليم: ٦٠ يوماً تقويمياً شاملة رفع النظام وإتاحة السيرفرات وتدريب الكوادر.\n٢. الدفعات المالية: ٣٠٪ دفعة مقدمة عند التوقيع، ٥٠٪ عند تسليم المرحلة الأولى للنظام والموقع، و٢٠٪ عند الاعتماد والتسليم النهائي.\n٣. فترات الضمان والدعم الفني: ضمان برمجي كامل لمدة 12 شهراً مع الدعم الفني المجاني واستصدار النسخ الاحتياطية السحابية.`,
     vat_percentage: 15,
     technical_items: [
       {
         id: 't1',
-        title: 'شبكة ومضخات إطفاء الحريق المركزية',
-        specs: 'غرفة مضخات معتمدة من الدفاع المدني (مضخة كهرباء + مضخة ديزل + مضخة جوكي) سعة 1000 GPM مع شبكة رشاشات Sprinklers وصناديق إطفاء.',
+        title: 'الموقع الإلكتروني الشامل (Corporate Landing Page)',
+        specs: 'تصميم سينمائي فخم بتأثيرات Dark Glassmorphism، سلايدر صور تفاعلي 8K للمشاريع الكهروميكانيكية والتكييف والإطفاء، عداد الإنجازات، شريط الشركاء، وفورمة استلام طلبات الشراكة المربوطة بالداشبورد.',
         quantity: 1,
-        unit: 'محطة متكاملة',
-        warranty: 'سنتان شاملتان'
+        unit: 'منصة كاملة',
+        warranty: 'سنة دعم فني واستضافة'
       },
       {
         id: 't2',
-        title: 'نظام التكييف المركزي والتهوية HVAC',
-        specs: 'أنظمة التكييف ذات التدفق المتغير VRF سعة إجمالية 350 طن تبريد مع مجاري هواء عازلة للصوت والصدمات ومحركات تهوية نفاثة.',
+        title: 'موديول إدارة المشاريع والنسب ونطاق BOQ',
+        specs: 'شاشة متابعة تقدم المشاريع الفعلي vs المخطط، جدول الكميات، مراحل الإنجاز، وإدارة عقود المشاريع.',
         quantity: 1,
-        unit: 'شبكة شاملة',
-        warranty: '٥ سنوات على الكمبروسر'
+        unit: 'موديول برلمجي',
+        warranty: 'ضمان برمجي شامل'
       },
       {
         id: 't3',
-        title: 'اللوحات والشبكات الكهربائية الرئيسية MDB',
-        specs: 'توريد وتركيب لوحات توزيع رئيسية وفرعية من Schneider/ABB مع شبكة كوابل مسلحة ضد الحريق ونظام أجهزة المؤرض الصاعق.',
+        title: 'موديول المالية والتدفقات النقدية والتقارير المطبوعة',
+        specs: 'إصدار مستخلصات الملاك المعتمدة، مستخلصات مقاولي الباطن، كشف المصروفات والمديونيات، وتوليد تقارير مالية يومية وشهرية مطبوعة.',
         quantity: 1,
-        unit: 'موقع كامل',
-        warranty: 'سنتان شاملتان'
+        unit: 'موديول برلمجي',
+        warranty: 'ضمان برمجي شامل'
+      },
+      {
+        id: 't4',
+        title: 'موديول المشتريات والمستودعات والعهد',
+        specs: 'أتمتة طلبات الشراء، تحويلات المواد بين المواقع والمخازن، ومتابعة رصيد العهد والأصناف.',
+        quantity: 1,
+        unit: 'موديول برلمجي',
+        warranty: 'ضمان برمجي شامل'
+      },
+      {
+        id: 't5',
+        title: 'موديول الموارد البشرية الأجور والعمالة اليومية',
+        specs: 'تسجيل الحضور والإنصراف، السلف، الأوقات الإضافية، حساب الرواتب، وإدارة عمالة مقاولي الباطن اليومية.',
+        quantity: 1,
+        unit: 'موديول برلمجي',
+        warranty: 'ضمان برمجي شامل'
+      },
+      {
+        id: 't6',
+        title: 'منظومة الأمان والنسخ السحابي التلقائي Cloudflare R2',
+        specs: 'أكونت مدير النظام محدد mahfouz مع صلاحية الاعتمادات المزدوجة والتخزين السحابي الآمن التلقائي كل ٨ ساعات.',
+        quantity: 1,
+        unit: 'نظام أمان سحابي',
+        warranty: 'تحديثات مستمرة'
       }
     ],
     financial_items: [
       {
         id: 'f1',
-        description: 'توريد وتركيب وتدشين مضخات وشبكات الإطفاء والسلامة',
-        category: 'توريد وتركيب',
-        unitPrice: 450000,
+        description: 'تصميم وتطوير وتدشين الموقع الإلكتروني المؤسسي (Landing Page)',
+        category: 'تطوير وتصميم',
+        unitPrice: 25000,
         quantity: 1,
-        totalPrice: 450000
+        totalPrice: 25000
       },
       {
         id: 'f2',
-        description: 'توريد وتركيب وموازنة أنظمة التكييف المركزي VRF والدكتات',
-        category: 'توريد وتركيب',
-        unitPrice: 850000,
+        description: 'برمجة وتأهيل موديول إدارة المشاريع والنسب وجداول الكميات',
+        category: 'برمجة وتأهيل',
+        unitPrice: 45000,
         quantity: 1,
-        totalPrice: 850000
+        totalPrice: 45000
       },
       {
         id: 'f3',
-        description: 'توريد ومد الكوابل ولوحات التوزيع الكهربائية والمؤرض',
-        category: 'توريد وتركيب',
-        unitPrice: 380000,
+        description: 'برمجة وتأهيل موديول المالية، المستخلصات، والتقارير المالية المطبوعة',
+        category: 'برمجة وتأهيل',
+        unitPrice: 60000,
         quantity: 1,
-        totalPrice: 380000
+        totalPrice: 60000
       },
       {
         id: 'f4',
-        description: 'أعمال الاختبار والضبط والمعايرة والتسليم النهائي TAB',
-
-        category: 'تشغيل واختبار',
-        unitPrice: 70000,
+        description: 'برمجة وتأهيل موديول المشتريات والمستودعات والعهد والكميات',
+        category: 'برمجة وتأهيل',
+        unitPrice: 35000,
         quantity: 1,
-        totalPrice: 70000
+        totalPrice: 35000
+      },
+      {
+        id: 'f5',
+        description: 'برمجة وتأهيل موديول الموارد البشرية والرواتب والعمالة اليومية',
+        category: 'برمجة وتأهيل',
+        unitPrice: 40000,
+        quantity: 1,
+        totalPrice: 40000
+      },
+      {
+        id: 'f6',
+        description: 'برمجة موديول الصيانة والتشغيل وتذاكر الأعطال للمنشآت',
+        category: 'برمجة وتأهيل',
+        unitPrice: 25000,
+        quantity: 1,
+        totalPrice: 25000
+      },
+      {
+        id: 'f7',
+        description: 'ربط السيرفرات والأمان والنسخ السحابي التلقائي Cloudflare R2',
+        category: 'أمان وتكامل',
+        unitPrice: 20000,
+        quantity: 1,
+        totalPrice: 20000
+      },
+      {
+        id: 'f8',
+        description: 'الاستضافة، الدعم الفني، والتدريب المجاني للكوادر لمدة سنة كاملة',
+        category: 'دعم واستضافة',
+        unitPrice: 15000,
+        quantity: 1,
+        totalPrice: 15000
       }
     ]
-  });
+  };
+
+  const [currentProposal, setCurrentProposal] = useState<Proposal>(defaultEcosystemProposal);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const role = localStorage.getItem('user_role');
       setIsAdmin(role === 'admin');
-      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+      setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ر.س');
     }
     fetchProposals();
   }, []);
@@ -126,12 +184,15 @@ export default function ProposalsPage() {
     try {
       const res = await fetch('/api/proposals');
       const data = await res.json();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         setProposals(data);
-        if (data.length > 0 && !selectedProposalId) {
+        if (!selectedProposalId) {
           setSelectedProposalId(data[0].id);
           setCurrentProposal(data[0]);
         }
+      } else {
+        // If DB is empty, use default ecosystem proposal
+        setProposals([defaultEcosystemProposal]);
       }
     } catch (e) {
       console.error(e);
@@ -149,10 +210,10 @@ export default function ProposalsPage() {
   const handleCreateNewProposal = () => {
     setSelectedProposalId('');
     setCurrentProposal({
-      title: 'عرض فني ومالي جديد للمشروع',
-      client_name: '',
-      scope_text: 'أدخل تفاصيل ونطاق العمل الفني والمواصفات المعتمدة هنا...',
-      terms_text: 'أدخل الشروط والأحكام وفترات الدفع والضمان هنا...',
+      title: 'عرض فني ومالي جديد للنظام والمشروع',
+      client_name: 'صاحب المؤسسة / العميل',
+      scope_text: 'أدخل تفاصيل ومواصفات النظام أو المشروع الفنية هنا...',
+      terms_text: 'أدخل الشروط، الدفعات المالية، وفترات الضمان والتسليم هنا...',
       vat_percentage: 15,
       technical_items: [],
       financial_items: []
@@ -163,10 +224,10 @@ export default function ProposalsPage() {
   const handleAddTechItem = () => {
     const newItem: TechItem = {
       id: `t_${Date.now()}`,
-      title: 'بند فني جديد',
-      specs: 'المواصفات الفنية للبند...',
+      title: 'بند فني / موديول جديد',
+      specs: 'المواصفات الفنية والميزات...',
       quantity: 1,
-      unit: 'بند',
+      unit: 'موديول',
       warranty: 'سنة واحدة'
     };
     setCurrentProposal(p => ({
@@ -193,8 +254,8 @@ export default function ProposalsPage() {
   const handleAddFinItem = () => {
     const newItem: FinItem = {
       id: `f_${Date.now()}`,
-      description: 'بند تسعير مالي جديد',
-      category: 'توريد وتركيب',
+      description: 'بند تسعير / موديول مالي جديد',
+      category: 'برمجة وتأهيل',
       unitPrice: 0,
       quantity: 1,
       totalPrice: 0
@@ -243,7 +304,7 @@ export default function ProposalsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert('✅ تم حفظ العرض الفني والمالي بنجاح!');
+        alert('✅ تم حفظ العرض الفني والمالي للنظام بنجاح!');
         fetchProposals();
         if (data.id) {
           setSelectedProposalId(data.id);
@@ -277,12 +338,12 @@ export default function ProposalsPage() {
 
   if (isAdmin === false) {
     return (
-      <AppLayout title="العروض الفنية والمالية" subtitle="صفحة مخصصة لإدارة العروض والمواصفات للمدير فقط" icon="📑">
+      <AppLayout title="العروض الفنية والمالية للنظام" subtitle="صفحة مخصصة لإدارة العروض والمواصفات للمدير فقط" icon="📑">
         <div className="card" style={{ padding: '3rem', textAlign: 'center', margin: '2rem auto', maxWidth: '600px', border: '1px solid #ef4444' }}>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⛔</div>
           <h2 style={{ color: '#ef4444', fontSize: '1.6rem', fontWeight: 800 }}>صفحة مخصصة لمدير النظام (Admin Only)</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.75rem', lineHeight: '1.8' }}>
-            عذراً، هذه الصفحة وسجل العروض الفنية والمالية والمواصفات متاحة حصرياً لحساب مدير النظام فقط.
+            عذراً، هذه الصفحة وسجل العروض الفنية والمالية لبيع وتأهيل النظام متاحة حصرياً لحساب مدير النظام فقط.
           </p>
         </div>
       </AppLayout>
@@ -290,7 +351,7 @@ export default function ProposalsPage() {
   }
 
   return (
-    <AppLayout title="العروض الفنية والمالية والبنود" subtitle="إدارة العروض والمواصفات للمشروع بالكامل وتحديد الأسعار والبنود (خاص بالمدير)" icon="📑">
+    <AppLayout title="العرض الفني والمالي لبيع وتطوير النظام والموقع" subtitle="عرض شامل للمميزات، والمواصفات الفنية، والتسعير المالي لتسليم النظام والـ Landing Page لصاحب المؤسسة" icon="📑">
       {/* Action Header & Proposal Selector */}
       <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -298,18 +359,18 @@ export default function ProposalsPage() {
             <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>اختر العرض الفني والمالي:</label>
             <select
               className="form-control"
-              style={{ width: 'auto', minWidth: '280px' }}
+              style={{ width: 'auto', minWidth: '300px' }}
               value={selectedProposalId}
               onChange={e => handleSelectProposal(e.target.value)}
             >
               <option value="">+ إنشاء عرض جديد</option>
               {proposals.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.proposal_code ? `[${p.proposal_code}] ` : ''}{p.title} ({p.client_name || 'بدون عميل'})
+                <option key={p.id || 'default'} value={p.id}>
+                  {p.proposal_code ? `[${p.proposal_code}] ` : ''}{p.title}
                 </option>
               ))}
             </select>
-            <button className="btn btn-outline" onClick={handleCreateNewProposal}>+ جديد</button>
+            <button className="btn btn-outline" onClick={handleCreateNewProposal}>+ عرض جديد</button>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -317,10 +378,10 @@ export default function ProposalsPage() {
               <button className="btn btn-danger-text" onClick={handleDeleteProposal}>🗑️ حذف العرض</button>
             )}
             <button className="btn btn-primary" onClick={handleSaveProposal} disabled={saving}>
-              {saving ? 'جاري الحفظ...' : '💾 حفظ التعديلات'}
+              {saving ? 'جاري الحفظ...' : '💾 حفظ العرض والتعديلات'}
             </button>
             <button className="btn btn-accent" onClick={() => setShowPrintModal(true)}>
-              🖨️ معاينة وتصدير PDF
+              🖨️ معاينة وتصدير PDF رسمى
             </button>
           </div>
         </div>
@@ -331,26 +392,26 @@ export default function ProposalsPage() {
         {/* Proposal Meta Form */}
         <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-color)', marginBottom: '1.25rem' }}>
-            📋 البيانات الأساسية للعرض الفني والمالي
+            📋 البيانات الأساسية للعرض الفني والمالي الموجه لصاحب المؤسسة
           </h3>
           <div className="form-grid form-grid-2">
             <div className="form-group">
-              <label className="form-label required">عنوان العرض الفني والمالي للمشروع</label>
+              <label className="form-label required">عنوان العرض الفني والمالي لبيع النظام</label>
               <input
                 className="form-control"
                 required
                 value={currentProposal.title}
                 onChange={e => setCurrentProposal({ ...currentProposal, title: e.target.value })}
-                placeholder="عنوان العرض والمشروع..."
+                placeholder="عنوان العرض الفني والمالي..."
               />
             </div>
             <div className="form-group">
-              <label className="form-label">اسم العميل / المالك / المطور العقاري</label>
+              <label className="form-label">الجهة / الموجه له العرض (صاحب الشركة / المالك)</label>
               <input
                 className="form-control"
                 value={currentProposal.client_name}
                 onChange={e => setCurrentProposal({ ...currentProposal, client_name: e.target.value })}
-                placeholder="اسم شركة العميل أو المالك..."
+                placeholder="رئيس مجلس الإدارة / صاحب المؤسسة..."
               />
             </div>
           </div>
@@ -360,21 +421,21 @@ export default function ProposalsPage() {
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38bdf8', margin: 0 }}>
-              🧯 أولاً: العرض الفني والمواصفات والنطاق الهندسي (Technical Proposal)
+              💻 أولاً: المواصفات الفنية والموديولات المسلمة في النظام والموقع (Technical Proposal)
             </h3>
             <button className="btn btn-sm btn-outline" onClick={handleAddTechItem}>
-              + إضافة بند فني جديد
+              + إضافة بند فني / موديول جديد
             </button>
           </div>
 
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-            <label className="form-label">الشرح العام ونطاق العمل الهندسي (Scope of Work)</label>
+            <label className="form-label">الشرح العام ونطاق العمل الرقمي المسلم لصاحب المؤسسة (Scope of Work)</label>
             <textarea
               className="form-control"
-              rows={4}
+              rows={5}
               value={currentProposal.scope_text}
               onChange={e => setCurrentProposal({ ...currentProposal, scope_text: e.target.value })}
-              placeholder="اكتب تفاصيل النطاق الفني والمواصفات العامة المعتمدة هنا..."
+              placeholder="اكتب الشرح ونطاق التسليم الفني والميزات المعتمدة هنا..."
             />
           </div>
 
@@ -383,10 +444,10 @@ export default function ProposalsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th style={{ width: '25%' }}>عنوان البند / النظام الكهروميكانيكي</th>
-                  <th style={{ width: '40%' }}>المواصفات الفنية المعتمدة والمعايير</th>
+                  <th style={{ width: '25%' }}>عنوان الموديول / الخدمة البرمجية</th>
+                  <th style={{ width: '40%' }}>المواصفات والمميزات الفنية المعتمدة</th>
                   <th style={{ width: '12%' }}>الكمية والوحدة</th>
-                  <th style={{ width: '15%' }}>فترة الضمان والاعتماد</th>
+                  <th style={{ width: '15%' }}>فترة الضمان والدعم</th>
                   <th style={{ width: '8%', textAlign: 'center' }}>إجراء</th>
                 </tr>
               </thead>
@@ -405,7 +466,7 @@ export default function ProposalsPage() {
                           className="form-control form-control-sm"
                           value={item.title}
                           onChange={e => handleUpdateTechItem(item.id, 'title', e.target.value)}
-                          placeholder="عنوان البند الفني..."
+                          placeholder="اسم الموديول أو الخدمة..."
                         />
                       </td>
                       <td>
@@ -414,7 +475,7 @@ export default function ProposalsPage() {
                           rows={2}
                           value={item.specs}
                           onChange={e => handleUpdateTechItem(item.id, 'specs', e.target.value)}
-                          placeholder="تفاصيل المواصفات الفنية..."
+                          placeholder="المميزات والمواصفات الفنية..."
                         />
                       </td>
                       <td>
@@ -440,7 +501,7 @@ export default function ProposalsPage() {
                           className="form-control form-control-sm"
                           value={item.warranty}
                           onChange={e => handleUpdateTechItem(item.id, 'warranty', e.target.value)}
-                          placeholder="مثال: سنتان شاملتان"
+                          placeholder="الضمان والدعم"
                         />
                       </td>
                       <td style={{ textAlign: 'center' }}>
@@ -464,7 +525,7 @@ export default function ProposalsPage() {
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981', margin: 0 }}>
-              💰 ثانياً: العرض المالي وجدول التسعير والكميات (Financial Proposal BOQ)
+              💰 ثانياً: العرض المالي وجدول التسعير لبيع وتأهيل النظام كامل (Financial Proposal BOQ)
             </h3>
             <button className="btn btn-sm btn-outline" onClick={handleAddFinItem}>
               + إضافة بند مالي جديد
@@ -476,9 +537,9 @@ export default function ProposalsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th style={{ width: '35%' }}>بيان الأعمال والموديلات</th>
-                  <th style={{ width: '15%' }}>فئة العمل</th>
-                  <th style={{ width: '15%' }}>سعر الوحدة ({currencySymbol})</th>
+                  <th style={{ width: '35%' }}>بيان الموديول / التجهيزات البرمجية</th>
+                  <th style={{ width: '15%' }}>الفئة</th>
+                  <th style={{ width: '15%' }}>سعر البند ({currencySymbol})</th>
                   <th style={{ width: '10%' }}>الكمية</th>
                   <th style={{ width: '17%', textAlign: 'left' }}>الإجمالي المالي ({currencySymbol})</th>
                   <th style={{ width: '8%', textAlign: 'center' }}>إجراء</th>
@@ -499,7 +560,7 @@ export default function ProposalsPage() {
                           className="form-control form-control-sm"
                           value={item.description}
                           onChange={e => handleUpdateFinItem(item.id, 'description', e.target.value)}
-                          placeholder="وصف البند المالي..."
+                          placeholder="وصف وتكلفة البند..."
                         />
                       </td>
                       <td>
@@ -508,11 +569,11 @@ export default function ProposalsPage() {
                           value={item.category}
                           onChange={e => handleUpdateFinItem(item.id, 'category', e.target.value)}
                         >
-                          <option value="توريد وتركيب">توريد وتركيب</option>
-                          <option value="توريد فقط">توريد فقط</option>
-                          <option value="مصنعيات وتركيب">مصنعيات وتركيب</option>
-                          <option value="تشغيل واختبار">تشغيل واختبار</option>
-                          <option value="صيانة وتأهيل">صيانة وتأهيل</option>
+                          <option value="تطوير وتصميم">تطوير وتصميم</option>
+                          <option value="برمجة وتأهيل">برمجة وتأهيل</option>
+                          <option value="أمان وتكامل">أمان وتكامل</option>
+                          <option value="دعم واستضافة">دعم واستضافة</option>
+                          <option value="تدريب وتأهيل">تدريب وتأهيل</option>
                         </select>
                       </td>
                       <td>
@@ -565,7 +626,7 @@ export default function ProposalsPage() {
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 700 }}>الإجمالي النهائي الشامل للضريبة</div>
+              <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 700 }}>الإجمالي النهائي الشامل لبيع وتسليم النظام</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981', marginTop: '0.25rem' }} suppressHydrationWarning>
                 {grandTotal.toLocaleString('ar-EG')} {currencySymbol}
               </div>
@@ -584,7 +645,7 @@ export default function ProposalsPage() {
               rows={4}
               value={currentProposal.terms_text}
               onChange={e => setCurrentProposal({ ...currentProposal, terms_text: e.target.value })}
-              placeholder="اكتب الدفعات المقدمة، شروط التوريد، والضمان هنا..."
+              placeholder="اكتب الدفعات المالية، الشروط، وفترات الضمان والتسليم هنا..."
             />
           </div>
         </div>
@@ -595,7 +656,7 @@ export default function ProposalsPage() {
         <div className="modal-overlay print-modal-overlay" onClick={() => setShowPrintModal(false)}>
           <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', background: 'var(--card-bg)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
-              <div className="modal-title">🖨️ معاينة وتصدير العرض الفني والمالي الشامل (PDF)</div>
+              <div className="modal-title">🖨️ معاينة وتصدير العرض الفني والمالي لبيع النظام (PDF)</div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة العرض الآن</button>
                 <button className="btn btn-ghost" onClick={() => setShowPrintModal(false)}>إغلاق</button>
@@ -631,20 +692,20 @@ export default function ProposalsPage() {
               {/* Title & Metadata */}
               <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', textDecoration: 'underline', color: '#000', fontWeight: 800 }}>
-                  العرض الفني والمالي للمواصفات والبنود
+                  العرض الفني والمالي لتطوير وتأهيل نظام ERP والموقع الإلكتروني
                 </h2>
                 <div style={{ fontSize: '0.95rem', color: '#333', marginTop: '0.4rem', fontWeight: 600 }}>
                   الموضوع: {currentProposal.title}
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.2rem' }}>
-                  العميل الموجه له العرض: <strong>{currentProposal.client_name || 'السادة المالك / المحترمين'}</strong> | التاريخ: {new Date().toLocaleDateString('ar-EG')}
+                  الجهة الموجه لها العرض: <strong>{currentProposal.client_name || 'رئيس مجلس الإدارة / صاحب المؤسسة'}</strong> | التاريخ: {new Date().toLocaleDateString('ar-EG')}
                 </div>
               </div>
 
               {/* Technical Scope Section */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.1rem', borderBottom: '1px solid #000', paddingBottom: '0.4rem', color: '#000', fontWeight: 800 }}>
-                  أولاً: النطاق الفني والمواصفات الهندسي المعتمدة
+                  أولاً: النطاق الفني والمواصفات والأنظمة البرمجية المسلمة
                 </h3>
                 <p style={{ fontSize: '0.9rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: '#222' }}>
                   {currentProposal.scope_text}
@@ -654,10 +715,10 @@ export default function ProposalsPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.75rem', fontSize: '0.85rem' }}>
                     <thead>
                       <tr style={{ background: '#f3f4f6' }}>
-                        <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>البند والنظام</th>
-                        <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>المواصفات الفنية والمعايير</th>
+                        <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>الموديول / المنصة</th>
+                        <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>المواصفات الفنية والمميزات البرمجية</th>
                         <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>الكمية والوحدة</th>
-                        <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>الضمان</th>
+                        <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>الضمان والدعم</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -677,14 +738,14 @@ export default function ProposalsPage() {
               {/* Financial Pricing Section */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.1rem', borderBottom: '1px solid #000', paddingBottom: '0.4rem', color: '#000', fontWeight: 800 }}>
-                  ثانياً: العرض المالي وجدول الأسعار والكميات BOQ
+                  ثانياً: العرض المالي وجدول التسعير والكميات لبيع وتأهيل النظام بالكامل
                 </h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.75rem', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ background: '#f3f4f6' }}>
-                      <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>بيان الأعمال</th>
+                      <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>بيان الأعمال والموديولات</th>
                       <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>الفئة</th>
-                      <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>السعر الفردي</th>
+                      <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>السعر المالي</th>
                       <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'center' }}>الكمية</th>
                       <th style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'left' }}>الإجمالي ({currencySymbol})</th>
                     </tr>
@@ -702,7 +763,7 @@ export default function ProposalsPage() {
                       </tr>
                     ))}
                     <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
-                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>إجمالي التوريدات والتركيبات قبل الضريبة</td>
+                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>إجمالي التكلفة البرمجية قبل الضريبة</td>
                       <td style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'left' }}>{subtotal.toLocaleString('ar-EG')} {currencySymbol}</td>
                     </tr>
                     <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
@@ -710,7 +771,7 @@ export default function ProposalsPage() {
                       <td style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'left' }}>{vatAmount.toLocaleString('ar-EG')} {currencySymbol}</td>
                     </tr>
                     <tr style={{ background: '#e5e7eb', fontWeight: 900, fontSize: '0.95rem' }}>
-                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'right' }}>الإجمالي النهائي الشامل للضريبة</td>
+                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'right' }}>الإجمالي النهائي الشامل لتسليم وتأهيل النظام بالكامل</td>
                       <td style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'left', color: '#15803d' }}>
                         {grandTotal.toLocaleString('ar-EG')} {currencySymbol}
                       </td>
@@ -732,15 +793,15 @@ export default function ProposalsPage() {
               {/* Signatures */}
               <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
                 <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>إعداد المهندس الفني</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>إعداد المهندس / استشاري النظام</div>
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
                 </div>
                 <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>مراجعة المدير المالي</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>مراجعة المدير الفني والمالي</div>
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
                 </div>
                 <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>اعتماد مدير النظام (Admin)</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>اعتماد صاحب المؤسسة / المالك</div>
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
                 </div>
               </div>
