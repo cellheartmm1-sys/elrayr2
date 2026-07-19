@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 
-type TabType = 'requests' | 'submittals' | 'inventory';
+type TabType = 'requests' | 'submittals' | 'inventory' | 'warehouses';
 
 interface MaterialRequest {
   id: string; request_number: string; project_name: string; requested_by_name: string;
@@ -89,6 +89,16 @@ export default function ProcurementPage() {
     warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: ''
   });
 
+  // Warehouse CRUD states
+  const [showWarehouseModal, setShowWarehouseModal] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<any | null>(null);
+  const [warehouseForm, setWarehouseForm] = useState({
+    name: '', location: '', project_id: ''
+  });
+
+  // Inventory editing states
+  const [editingInventoryItem, setEditingInventoryItem] = useState<any | null>(null);
+
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -125,19 +135,27 @@ export default function ProcurementPage() {
     } finally { setLoading(false); }
   }, [lowStockFilter]);
 
+  const fetchWarehouses = async () => {
+    try {
+      const res = await fetch('/api/warehouses');
+      const data = await res.json();
+      setWarehouses(Array.isArray(data) ? data : (data?.data ?? []));
+    } catch (err) {
+      console.error('fetchWarehouses error:', err);
+    }
+  };
+
   const fetchFiltersData = async () => {
     try {
-      const [prjRes, whRes, empRes] = await Promise.all([
+      const [prjRes, empRes] = await Promise.all([
         fetch('/api/projects'),
-        fetch('/api/warehouses'),
         fetch('/api/employees')
       ]);
       const prjData = await prjRes.json();
-      const whData = await whRes.json();
       const empData = await empRes.json();
       setProjects(Array.isArray(prjData) ? prjData : (prjData?.data ?? []));
-      setWarehouses(Array.isArray(whData) ? whData : (whData?.data ?? []));
       setEmployees(Array.isArray(empData) ? empData : (empData?.data ?? []));
+      await fetchWarehouses();
     } catch (err) {
       console.error('fetchFiltersData error:', err);
     }
@@ -151,6 +169,7 @@ export default function ProcurementPage() {
     if (activeTab === 'requests') fetchRequests();
     if (activeTab === 'submittals') fetchSubmittals();
     if (activeTab === 'inventory') fetchInventory();
+    if (activeTab === 'warehouses') fetchWarehouses();
   }, [activeTab, fetchRequests, fetchSubmittals, fetchInventory]);
 
   const handleCreateRequest = async (e: React.FormEvent) => {
@@ -231,26 +250,33 @@ export default function ProcurementPage() {
     }
   };
 
-  const handleCreateInventory = async (e: React.FormEvent) => {
+  const handleSaveInventory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/procurement/inventory', {
-        method: 'POST',
+      const url = '/api/procurement/inventory';
+      const method = editingInventoryItem ? 'PUT' : 'POST';
+      const body = {
+        id: editingInventoryItem?.id,
+        warehouse_id: inventoryForm.warehouse_id,
+        description: inventoryForm.description,
+        unit: inventoryForm.unit || 'قطعة',
+        current_quantity: Number(inventoryForm.current_quantity) || 0,
+        min_quantity: Number(inventoryForm.min_quantity) || 0,
+        unit_cost: Number(inventoryForm.unit_cost) || 0
+      };
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          warehouse_id: inventoryForm.warehouse_id,
-          description: inventoryForm.description,
-          unit: inventoryForm.unit || 'قطعة',
-          current_quantity: Number(inventoryForm.current_quantity) || 0,
-          min_quantity: Number(inventoryForm.min_quantity) || 0,
-          unit_cost: Number(inventoryForm.unit_cost) || 0
-        })
+        body: JSON.stringify(body)
       });
+
       if (res.ok) {
         setShowInventoryModal(false);
         setInventoryForm({
           warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: ''
         });
+        setEditingInventoryItem(null);
         fetchInventory();
       } else {
         const errData = await res.json();
@@ -262,6 +288,112 @@ export default function ProcurementPage() {
     }
   };
 
+  const handleDeleteInventory = async (itemId: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا الصنف من الجرد نهائياً؟')) return;
+    try {
+      const res = await fetch(`/api/procurement/inventory?id=${itemId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchInventory();
+      } else {
+        alert('❌ فشل حذف الصنف.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = '/api/warehouses';
+      const method = editingWarehouse ? 'PUT' : 'POST';
+      const body = {
+        id: editingWarehouse?.id,
+        name: warehouseForm.name,
+        location: warehouseForm.location,
+        project_id: warehouseForm.project_id || null
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setShowWarehouseModal(false);
+        setWarehouseForm({ name: '', location: '', project_id: '' });
+        setEditingWarehouse(null);
+        fetchWarehouses();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حفظ المستودع: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ في الاتصال بالخادم: ${err.message}`);
+    }
+  };
+
+  const handleDeleteWarehouse = async (warehouseId: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا المستودع نهائياً؟')) return;
+    try {
+      const res = await fetch(`/api/warehouses?id=${warehouseId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchWarehouses();
+      } else {
+        alert('❌ فشل حذف المستودع.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOpenEditInventory = (item: any) => {
+    setEditingInventoryItem(item);
+    setInventoryForm({
+      warehouse_id: item.warehouse_id || '',
+      description: item.description || '',
+      unit: item.unit || 'قطعة',
+      current_quantity: String(item.current_quantity || '0'),
+      min_quantity: String(item.min_quantity || '10'),
+      unit_cost: String(item.unit_cost || '0')
+    });
+    setShowInventoryModal(true);
+  };
+
+  const handleOpenCreateInventory = () => {
+    setEditingInventoryItem(null);
+    setInventoryForm({
+      warehouse_id: '',
+      description: '',
+      unit: 'قطعة',
+      current_quantity: '',
+      min_quantity: '',
+      unit_cost: ''
+    });
+    setShowInventoryModal(true);
+  };
+
+  const handleOpenEditWarehouse = (wh: any) => {
+    setEditingWarehouse(wh);
+    setWarehouseForm({
+      name: wh.name || '',
+      location: wh.location || '',
+      project_id: wh.project_id || ''
+    });
+    setShowWarehouseModal(true);
+  };
+
+  const handleOpenCreateWarehouse = () => {
+    setEditingWarehouse(null);
+    setWarehouseForm({
+      name: '',
+      location: '',
+      project_id: ''
+    });
+    setShowWarehouseModal(true);
+  };
+
   // KPIs
   const totalItemsCount = inventory.length;
   const lowStockCount = inventory.filter(i => Number(i.current_quantity) <= Number(i.min_quantity)).length;
@@ -270,9 +402,10 @@ export default function ProcurementPage() {
     <AppLayout title="المشتريات والمخازن" subtitle="إدارة طلبات شراء المواد، اعتمادات الاستشاريين، وتتبع المخزون في المواقع" icon="📦">
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>📋 طلبات المواد</button>
+        <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>📋 طلبات توريد المواد</button>
         <button className={`tab-btn ${activeTab === 'submittals' ? 'active' : ''}`} onClick={() => setActiveTab('submittals')}>📜 اعتمادات الاستشاريين</button>
-        <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>📦 مخازن المواقع والمستودعات</button>
+        <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>📦 مخازن وجرد المواقع</button>
+        <button className={`tab-btn ${activeTab === 'warehouses' ? 'active' : ''}`} onClick={() => setActiveTab('warehouses')}>🏢 إدارة المستودعات والمخازن ({warehouses.length})</button>
       </div>
 
       {/* ======================== TAB: REQUESTS ======================== */}
@@ -407,7 +540,7 @@ export default function ProcurementPage() {
               <div className="page-description">مراقبة كميات قطع الغيار والمواسير والرشاشات والصمامات والمضخات المتوفرة في كل مستودع موقع</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setShowInventoryModal(true)}>+ جرد مادة جديدة بالمخزن</button>
+              <button className="btn btn-primary" onClick={handleOpenCreateInventory}>+ جرد مادة جديدة بالمخزن</button>
             </div>
           </div>
 
@@ -451,6 +584,7 @@ export default function ProcurementPage() {
                       <th>الحد الأدنى للطلب</th>
                       <th>التكلفة التقريبية للوحدة</th>
                       <th>الحالة</th>
+                      <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -471,9 +605,70 @@ export default function ProcurementPage() {
                               {isLow ? 'مخزون منخفض ⚠️' : 'كافٍ'}
                             </span>
                           </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                              <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditInventory(i)} title="تعديل الصنف">✏️</button>
+                              <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteInventory(i.id)} title="حذف الصنف">🗑️</button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ======================== TAB: WAREHOUSES ======================== */}
+      {activeTab === 'warehouses' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">🏢 إدارة المستودعات ومخازن الشركة</div>
+              <div className="page-description">تعريف وتعديل المستودعات المركزية ومخازن المواقع وربطها بالمشاريع</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={handleOpenCreateWarehouse}>+ إضافة مستودع جديد</button>
+            </div>
+          </div>
+
+          <div className="card">
+            {warehouses.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🏢</div>
+                <div className="empty-state-title">لا توجد مستودعات مسجلة حالياً</div>
+                <button className="btn btn-primary" onClick={handleOpenCreateWarehouse} style={{ marginTop: '1rem' }}>إضافة أول مستودع</button>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>اسم المستودع</th>
+                      <th>موقع المستودع / العنوان</th>
+                      <th>المشروع المرتبط</th>
+                      <th style={{ textAlign: 'center', width: '150px' }}>العمليات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {warehouses.map((wh: any) => (
+                      <tr key={wh.id}>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wh.name}</td>
+                        <td>{wh.location || '-'}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>
+                          {wh.project_name || 'مستودع مركزي (غير مرتبط بمشروع)'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditWarehouse(wh)}>✏️ تعديل</button>
+                            <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteWarehouse(wh.id)}>🗑️ حذف</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -674,10 +869,10 @@ export default function ProcurementPage() {
         <div className="modal-overlay" onClick={() => setShowInventoryModal(false)}>
           <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">📦 جرد مادة بمخزن الموقع</div>
+              <div className="modal-title">{editingInventoryItem ? '📐 تعديل جرد صنف بالمخزن' : '📦 جرد مادة بمخزن الموقع'}</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowInventoryModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleCreateInventory}>
+            <form onSubmit={handleSaveInventory}>
               <div className="form-grid form-grid-3">
                 <div className="form-group col-span-3">
                   <label className="form-label required">المستودع / مخزن الموقع المستهدف</label>
@@ -709,7 +904,61 @@ export default function ProcurementPage() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowInventoryModal(false)}>إلغاء</button>
-                <button type="submit" className="btn btn-primary">💾 حفظ الجرد</button>
+                <button type="submit" className="btn btn-primary">
+                  {editingInventoryItem ? '💾 حفظ التعديل' : '💾 حفظ الجرد'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: ADD / EDIT WAREHOUSE ======================== */}
+      {showWarehouseModal && (
+        <div className="modal-overlay" onClick={() => setShowWarehouseModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{editingWarehouse ? '📐 تعديل بيانات المستودع' : '🏢 إضافة مستودع جديد'}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowWarehouseModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveWarehouse}>
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-2">
+                  <label className="form-label required">اسم المستودع</label>
+                  <input 
+                    className="form-control" 
+                    required 
+                    value={warehouseForm.name} 
+                    onChange={e => setWarehouseForm({...warehouseForm, name: e.target.value})} 
+                    placeholder="مثال: مستودع أكتوبر المركزي، مخزن موقع برج راية..." 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">العنوان / الموقع</label>
+                  <input 
+                    className="form-control" 
+                    value={warehouseForm.location} 
+                    onChange={e => setWarehouseForm({...warehouseForm, location: e.target.value})} 
+                    placeholder="الجيزة، التجمع..." 
+                  />
+                </div>
+                <div className="form-group col-span-3">
+                  <label className="form-label">المشروع المرتبط (اختياري)</label>
+                  <select 
+                    className="form-control" 
+                    value={warehouseForm.project_id} 
+                    onChange={e => setWarehouseForm({...warehouseForm, project_id: e.target.value})}
+                  >
+                    <option value="">مستودع مركزي عام (غير مرتبط بمشروع)</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowWarehouseModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">
+                  {editingWarehouse ? '💾 حفظ التعديلات' : '💾 إضافة المستودع'}
+                </button>
               </div>
             </form>
           </div>

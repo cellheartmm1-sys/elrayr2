@@ -252,3 +252,21 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    await query('DELETE FROM subcontractor_ipc WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'IPC deleted successfully' });
+  } catch (error) {
+    const err = error as Error;
+    console.error('[DELETE /api/subcontractors/ipc]', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+

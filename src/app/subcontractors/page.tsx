@@ -257,6 +257,23 @@ export default function SubcontractorsPage() {
     }
   };
 
+  const handleDeleteIPC = async (ipcId: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا المستخلص نهائياً؟')) return;
+    try {
+      const res = await fetch(`/api/subcontractors/ipc?id=${ipcId}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف المستخلص بنجاح!');
+        fetchIPCs();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حذف المستخلص: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
   const totalPending = ipcs.filter(i => i.status === 'submitted').reduce((s, i) => s + Number(i.net_payable), 0);
   const totalPaid = ipcs.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.net_payable), 0);
 
@@ -474,6 +491,13 @@ export default function SubcontractorsPage() {
                               title="طباعة"
                             >
                               🖨️
+                            </button>
+                            <button
+                              className="btn btn-ghost text-danger btn-sm"
+                              onClick={() => handleDeleteIPC(ipc.id)}
+                              title="حذف"
+                            >
+                              🗑️
                             </button>
                           </div>
                         </td>

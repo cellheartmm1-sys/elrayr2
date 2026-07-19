@@ -127,6 +127,30 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   // File upload state for adding new files to existing employee
   const [uploading, setUploading] = useState(false);
 
+  // Salary allocation CRUD states
+  const [projects, setProjects] = useState<any[]>([]);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
+  const [editingAllocation, setEditingAllocation] = useState<any | null>(null);
+  const [allocationForm, setAllocationForm] = useState({
+    project_id: '',
+    allocation_percentage: '10',
+    month: String(new Date().getMonth() + 1),
+    year: String(new Date().getFullYear()),
+    notes: ''
+  });
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(Array.isArray(data) ? data : (data?.data ?? []));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchDetails = async () => {
     try {
       const res = await fetch(`/api/employees/${id}`);
@@ -147,7 +171,87 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     fetchDetails();
+    fetchProjects();
   }, [id]);
+
+  const handleSaveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = '/api/hr/allocations';
+      const method = editingAllocation ? 'PUT' : 'POST';
+      const body = {
+        id: editingAllocation?.id,
+        employee_id: id,
+        project_id: allocationForm.project_id,
+        allocation_percentage: Number(allocationForm.allocation_percentage),
+        month: Number(allocationForm.month),
+        year: Number(allocationForm.year),
+        notes: allocationForm.notes
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setShowAllocationModal(false);
+        setAllocationForm({
+          project_id: '',
+          allocation_percentage: '10',
+          month: String(new Date().getMonth() + 1),
+          year: String(new Date().getFullYear()),
+          notes: ''
+        });
+        setEditingAllocation(null);
+        fetchDetails();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حفظ توزيع الراتب: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ في الاتصال بالخادم: ${err.message}`);
+    }
+  };
+
+  const handleDeleteAllocation = async (allocId: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا التوزيع نهائياً؟')) return;
+    try {
+      const res = await fetch(`/api/hr/allocations?id=${allocId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchDetails();
+      } else {
+        alert('❌ فشل حذف التوزيع.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOpenCreateAllocation = () => {
+    setEditingAllocation(null);
+    setAllocationForm({
+      project_id: '',
+      allocation_percentage: '10',
+      month: String(new Date().getMonth() + 1),
+      year: String(new Date().getFullYear()),
+      notes: ''
+    });
+    setShowAllocationModal(true);
+  };
+
+  const handleOpenEditAllocation = (al: any) => {
+    setEditingAllocation(al);
+    setAllocationForm({
+      project_id: al.project_id || '',
+      allocation_percentage: String(al.allocation_percentage || '10'),
+      month: String(al.month || new Date().getMonth() + 1),
+      year: String(al.year || new Date().getFullYear()),
+      notes: al.notes || ''
+    });
+    setShowAllocationModal(true);
+  };
 
 
   // Wait! Let's implement document upload directly to the database for this employee
@@ -606,7 +710,15 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
             {/* Salary allocations */}
             <div className="card">
-              <div className="card-header"><div className="card-title">📊 توزيع الراتب والتكلفة على المشاريع</div></div>
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div className="card-title">📊 توزيع الراتب والتكلفة على المشاريع</div>
+                  <div className="card-subtitle">تحديد نسب تحميل تكلفة الموظف وراتبه على المشاريع المختلفة خلال الشهر والسنة</div>
+                </div>
+                <button className="btn btn-primary" onClick={handleOpenCreateAllocation}>
+                  ➕ إضافة توزيع جديد
+                </button>
+              </div>
               <div className="table-wrapper">
                 <table className="data-table">
                   <thead>
@@ -615,12 +727,13 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                       <th>نسبة التحميل</th>
                       <th>مبلغ التكلفة المستقطعة</th>
                       <th>الفترة</th>
+                      <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
                     {allocations.length === 0 ? (
                       <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                           لا توجد نسب تحميل تكلفة موزعة على المشاريع.
                         </td>
                       </tr>
@@ -631,6 +744,12 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                           <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{al.allocation_percentage}%</td>
                           <td style={{ fontWeight: 700 }}>{formatCurrency(al.allocated_amount)}</td>
                           <td style={{ fontFeatureSettings: '"tnum"' }}>{al.month} / {al.year}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                              <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditAllocation(al)} title="تعديل التوزيع">✏️</button>
+                              <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteAllocation(al.id)} title="حذف التوزيع">🗑️</button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -689,6 +808,86 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         )}
 
       </div>
+
+      {/* ======================== MODAL: ADD / EDIT SALARY ALLOCATION ======================== */}
+      {showAllocationModal && (
+        <div className="modal-overlay" onClick={() => setShowAllocationModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{editingAllocation ? '📐 تعديل توزيع راتب الموظف' : '➕ إضافة توزيع راتب الموظف على مشروع'}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowAllocationModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveAllocation}>
+              <div className="form-grid form-grid-3">
+                <div className="form-group col-span-2">
+                  <label className="form-label required">المشروع المستهدف</label>
+                  <select 
+                    className="form-control" 
+                    required 
+                    value={allocationForm.project_id} 
+                    onChange={e => setAllocationForm({...allocationForm, project_id: e.target.value})}
+                  >
+                    <option value="">اختر المشروع...</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">نسبة التحميل (%)</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    required 
+                    min="1" 
+                    max="100" 
+                    value={allocationForm.allocation_percentage} 
+                    onChange={e => setAllocationForm({...allocationForm, allocation_percentage: e.target.value})} 
+                    placeholder="50" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label required">الشهر</label>
+                  <select 
+                    className="form-control" 
+                    required 
+                    value={allocationForm.month} 
+                    onChange={e => setAllocationForm({...allocationForm, month: e.target.value})}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">السنة</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    required 
+                    value={allocationForm.year} 
+                    onChange={e => setAllocationForm({...allocationForm, year: e.target.value})} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">ملاحظات</label>
+                  <input 
+                    className="form-control" 
+                    value={allocationForm.notes} 
+                    onChange={e => setAllocationForm({...allocationForm, notes: e.target.value})} 
+                    placeholder="ملاحظات اختيارية..." 
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowAllocationModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">
+                  {editingAllocation ? '💾 حفظ التعديلات' : '💾 إضافة التوزيع'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

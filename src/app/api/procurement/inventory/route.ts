@@ -44,9 +44,69 @@ export async function POST(request: NextRequest) {
     const result = await query(`
       INSERT INTO inventory_items (warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-    `, [warehouse_id, item_catalog_id, description, unit, current_quantity || 0, min_quantity || 0, unit_cost || 0, location_in_warehouse]);
+    `, [warehouse_id, item_catalog_id || null, description, unit, current_quantity || 0, min_quantity || 0, unit_cost || 0, location_in_warehouse || null]);
 
     return NextResponse.json(result.rows[0], { status: 201 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const result = await query(`
+      UPDATE inventory_items SET
+        warehouse_id = $1,
+        item_catalog_id = $2,
+        description = $3,
+        unit = $4,
+        current_quantity = $5,
+        min_quantity = $6,
+        unit_cost = $7,
+        location_in_warehouse = $8
+      WHERE id = $9 RETURNING *
+    `, [
+      warehouse_id,
+      item_catalog_id || null,
+      description,
+      unit,
+      current_quantity || 0,
+      min_quantity || 0,
+      unit_cost || 0,
+      location_in_warehouse || null,
+      id
+    ]);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    await query('DELETE FROM inventory_items WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Item deleted successfully' });
   } catch (error: unknown) {
     const err = error as Error;
     return NextResponse.json({ error: err.message }, { status: 500 });
