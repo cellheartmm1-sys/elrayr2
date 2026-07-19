@@ -166,7 +166,21 @@ export async function POST(request: NextRequest) {
       ]
     );
 
-    return NextResponse.json({ data: result.rows[0] }, { status: 201 });
+    const newEmployee = result.rows[0];
+
+    // Store uploaded files in employee_documents table
+    if (body.uploaded_files && Array.isArray(body.uploaded_files)) {
+      for (const file of body.uploaded_files) {
+        await query(
+          `INSERT INTO employee_documents (
+            employee_id, document_type, document_number, file_url, notes
+          ) VALUES ($1, $2, $3, $4, $5)`,
+          [newEmployee.id, 'other', file.name, file.key, 'ملف مرفق عند إضافة الموظف']
+        );
+      }
+    }
+
+    return NextResponse.json({ data: newEmployee }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/employees]', error);
     return NextResponse.json(

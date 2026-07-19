@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
+import Link from 'next/link';
 
 type TabType = 'employees' | 'payroll' | 'attendance' | 'overtime' | 'assets' | 'documents' | 'loans';
 
@@ -68,6 +69,43 @@ export default function HRPage() {
   const [showEmpModal, setShowEmpModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ key: string; name: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/employees/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUploadedFiles(prev => [...prev, { key: data.key, name: data.filename }]);
+        } else {
+          alert(`فشل رفع الملف ${file.name}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء رفع الملفات.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveUploadedFile = (keyToRemove: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.key !== keyToRemove));
+  };
 
   // Filters
   const [search, setSearch] = useState('');
@@ -201,10 +239,11 @@ export default function HRPage() {
       const res = await fetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(empForm)
+        body: JSON.stringify({ ...empForm, uploaded_files: uploadedFiles })
       });
       if (res.ok) {
         setShowEmpModal(false);
+        setUploadedFiles([]);
         setEmpForm({
           employee_number: '', full_name: '', full_name_en: '', nationality: 'سعودي', id_number: '',
           iqama_number: '', iqama_expiry: '', passport_number: '', passport_expiry: '', job_title: '',
@@ -386,7 +425,11 @@ export default function HRPage() {
                     {employees.map(emp => (
                       <tr key={emp.id}>
                         <td style={{ fontWeight: 700 }}>{emp.employee_number}</td>
-                        <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{emp.full_name}</td>
+                        <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                          <Link href={`/hr/employees/${emp.id}`} style={{ color: 'var(--brand-primary-light)', textDecoration: 'none' }}>
+                            {emp.full_name}
+                          </Link>
+                        </td>
                         <td>{emp.job_title}</td>
                         <td>{emp.nationality || '-'}</td>
                         <td>{formatCurrency(emp.base_salary)}</td>
@@ -965,9 +1008,52 @@ export default function HRPage() {
                   <label className="form-label">بدل النقل</label>
                   <input className="form-control" type="number" value={empForm.transport_allowance} onChange={e => setEmpForm({...empForm, transport_allowance: e.target.value})} placeholder="0.00" />
                 </div>
-                <div className="form-group">
+                 <div className="form-group">
                   <label className="form-label">رقم الهاتف</label>
                   <input className="form-control" value={empForm.phone} onChange={e => setEmpForm({...empForm, phone: e.target.value})} placeholder="05xxxxxxxx" />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 4', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                  <label className="form-label" style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>📁 الملفات المرفقة للموظف (صور، PDF، Excel)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*,.pdf,.xls,.xlsx" 
+                      onChange={handleFileUpload} 
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                      id="emp-file-upload-input"
+                    />
+                    <label 
+                      htmlFor="emp-file-upload-input" 
+                      className="btn btn-outline" 
+                      style={{ cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      {uploading ? (
+                        <>
+                          <span className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                          جاري الرفع...
+                        </>
+                      ) : '➕ اختر ملفات للرفع'}
+                    </label>
+                  </div>
+                  
+                  {uploadedFiles.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                      {uploadedFiles.map((file) => (
+                        <div key={file.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-primary)' }}>📎 {file.name}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveUploadedFile(file.key)}
+                            style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontWeight: 700 }}
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

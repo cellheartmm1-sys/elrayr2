@@ -1,0 +1,694 @@
+'use client';
+
+import { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
+import AppLayout from '@/components/AppLayout';
+import { formatCurrency } from '@/lib/currencyHelper';
+import Link from 'next/link';
+
+interface Employee {
+  id: string;
+  employee_number: string;
+  full_name: string;
+  full_name_en?: string;
+  nationality?: string;
+  id_number?: string;
+  iqama_number?: string;
+  iqama_expiry?: string;
+  passport_number?: string;
+  passport_expiry?: string;
+  date_of_birth?: string;
+  hire_date?: string;
+  job_title: string;
+  department_name?: string;
+  employment_type: string;
+  base_salary: string;
+  housing_allowance?: string;
+  transport_allowance?: string;
+  other_allowances?: string;
+  bank_account?: string;
+  bank_name?: string;
+  iban?: string;
+  phone?: string;
+  email?: string;
+  emergency_contact?: string;
+  emergency_phone?: string;
+  status: string;
+  notes?: string;
+}
+
+interface Document {
+  id: string;
+  document_type: string;
+  document_number?: string;
+  file_url?: string;
+  notes?: string;
+  created_at: string;
+}
+
+interface Asset {
+  id: string;
+  asset_code: string;
+  asset_name: string;
+  asset_type: string;
+  condition: string;
+  status: string;
+}
+
+interface Attendance {
+  id: string;
+  attendance_date: string;
+  check_in_time?: string;
+  check_out_time?: string;
+  attendance_type: string;
+  overtime_hours?: string;
+}
+
+interface Allocation {
+  id: string;
+  project_name: string;
+  month: number;
+  year: number;
+  allocation_percentage: string;
+  allocated_amount: string;
+}
+
+const statusLabels: Record<string, string> = {
+  active: 'نشط',
+  inactive: 'غير نشط',
+  on_leave: 'في إجازة',
+  terminated: 'مستقيل/مفصول'
+};
+
+const statusBadge: Record<string, string> = {
+  active: 'badge-success',
+  inactive: 'badge-muted',
+  on_leave: 'badge-warning',
+  terminated: 'badge-danger'
+};
+
+const typeLabels: Record<string, string> = {
+  full_time: 'دوام كامل',
+  part_time: 'دوام جزئي',
+  contract: 'عقد مؤقت',
+  daily: 'يومية'
+};
+
+const typeBadge: Record<string, string> = {
+  full_time: 'badge-primary',
+  part_time: 'badge-purple',
+  contract: 'badge-warning',
+  daily: 'badge-success'
+};
+
+const docLabels: Record<string, string> = {
+  iqama: 'إقامة',
+  passport: 'جواز سفر',
+  osha: 'شهادة أوشا (OSHA)',
+  driving_license: 'رخصة قيادة',
+  vehicle_license: 'رخصة معدة',
+  health_card: 'بطاقة صحية',
+  contract: 'عقد العمل',
+  other: 'مرفق عام'
+};
+
+export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { id } = use(params);
+
+  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'docs' | 'assets' | 'logs'>('profile');
+
+  // File upload state for adding new files to existing employee
+  const [uploading, setUploading] = useState(false);
+
+  const fetchDetails = async () => {
+    try {
+      const res = await fetch(`/api/employees/${id}`);
+      if (!res.ok) throw new Error('Failed to fetch employee details');
+      const data = await res.json();
+      setEmployee(data.employee);
+      setDocuments(data.documents || []);
+      setAssets(data.assets || []);
+      setAttendance(data.attendance || []);
+      setAllocations(data.allocations || []);
+    } catch (err) {
+      console.error(err);
+      alert('خطأ أثناء تحميل بيانات الموظف.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDetails();
+  }, [id]);
+
+
+  // Wait! Let's implement document upload directly to the database for this employee
+  const uploadAndAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadRes = await fetch('/api/employees/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          // Save to employee_documents via a simple API call
+          const saveRes = await fetch('/api/hr/documents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employee_id: id,
+              document_type: 'other',
+              document_number: file.name,
+              file_url: uploadData.key,
+              notes: 'ملف مرفوع من الصفحة التفصيلية للموظف'
+            })
+          });
+
+          if (saveRes.ok) {
+            fetchDetails();
+          } else {
+            alert('فشل حفظ تفاصيل الملف في قاعدة البيانات.');
+          }
+        } else {
+          alert(`فشل رفع الملف ${file.name}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء رفع الملفات.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const isImage = (url: string) => {
+    const ext = url.split('.').pop()?.toLowerCase();
+    return ['png', 'jpg', 'jpeg', 'gif'].includes(ext || '');
+  };
+
+  const isPdf = (url: string) => {
+    return url.toLowerCase().endsWith('.pdf');
+  };
+
+  const isExcel = (url: string) => {
+    const ext = url.split('.').pop()?.toLowerCase();
+    return ['xls', 'xlsx'].includes(ext || '');
+  };
+
+  if (loading) {
+    return (
+      <AppLayout title="الملف الوظيفي" icon="👨‍💼">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+          <div className="loading-spinner" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <AppLayout title="الموظف غير موجود" icon="⚠️">
+        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <h3>عذراً، لم يتم العثور على الموظف المطلوب.</h3>
+          <Link href="/hr" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>العودة للموارد البشرية</Link>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout title={`الملف الوظيفي: ${employee.full_name}`} subtitle={`الرقم الوظيفي: ${employee.employee_number}`} icon="👨‍💼">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* Top Summary Card */}
+        <div className="card" style={{ padding: '1.5rem', background: 'var(--card-bg)', border: '1px solid var(--border-normal)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #a17e1b 0%, #e5b83b 100%)',
+                color: '#030406',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                fontWeight: 800
+              }}>
+                {employee.full_name.split(' ').map(n => n[0]).join('.').substring(0, 3)}
+              </div>
+              <div>
+                <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 800 }}>{employee.full_name}</h2>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                  <span>{employee.job_title}</span>
+                  <span style={{ margin: '0 0.5rem' }}>•</span>
+                  <span>{employee.department_name || 'إدارة غير محددة'}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <span className={`badge ${statusBadge[employee.status] || 'badge-muted'}`} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', fontWeight: 700 }}>
+                {statusLabels[employee.status] || employee.status}
+              </span>
+              <span className={`badge ${typeBadge[employee.employment_type] || 'badge-muted'}`} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', fontWeight: 700 }}>
+                {typeLabels[employee.employment_type] || employee.employment_type}
+              </span>
+              <Link href="/hr" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                🔙 رجوع
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Sub Navigation Tabs */}
+        <div className="tabs" style={{ background: 'rgba(255,255,255,0.01)', padding: '0.25rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', display: 'inline-flex', width: 'auto', gap: '0.25rem' }}>
+          <button className={`tab-btn ${activeSubTab === 'profile' ? 'active' : ''}`} style={{ borderRadius: '8px', padding: '0.5rem 1.25rem' }} onClick={() => setActiveSubTab('profile')}>📋 البيانات الأساسية</button>
+          <button className={`tab-btn ${activeSubTab === 'docs' ? 'active' : ''}`} style={{ borderRadius: '8px', padding: '0.5rem 1.25rem' }} onClick={() => setActiveSubTab('docs')}>📁 المرفقات والوثائق ({documents.length})</button>
+          <button className={`tab-btn ${activeSubTab === 'assets' ? 'active' : ''}`} style={{ borderRadius: '8px', padding: '0.5rem 1.25rem' }} onClick={() => setActiveSubTab('assets')}>🔨 العهد والرواتب الموزعة</button>
+          <button className={`tab-btn ${activeSubTab === 'logs' ? 'active' : ''}`} style={{ borderRadius: '8px', padding: '0.5rem 1.25rem' }} onClick={() => setActiveSubTab('logs')}>📍 الحضور والانصراف</button>
+        </div>
+
+        {/* Profile Details Grid */}
+        {activeSubTab === 'profile' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+            {/* Personal Details Card */}
+            <div className="card">
+              <div className="card-header"><div className="card-title">👤 البيانات الشخصية للاتصال</div></div>
+              <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>الاسم بالكامل (أجنبي)</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.full_name_en || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>الجنسية</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.nationality || '-'}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>رقم الهوية الوطنية / الإقامة</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.iqama_number || employee.id_number || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تاريخ انتهاء الإقامة</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {employee.iqama_expiry ? new Date(employee.iqama_expiry).toLocaleDateString('ar-SA') : '-'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>رقم الجواز</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.passport_number || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تاريخ ميلاد الموظف</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString('ar-SA') : '-'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>الهاتف الجوال</label>
+                    <div style={{ fontWeight: 600, color: 'var(--accent-color)' }}>{employee.phone || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>البريد الإلكتروني</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.email || '-'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Details Card */}
+            <div className="card">
+              <div className="card-header"><div className="card-title">💰 الهيكلة المالية والرواتب</div></div>
+              <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>الراتب الأساسي</label>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.1rem' }}>{formatCurrency(employee.base_salary)}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تاريخ التعيين والالتحاق</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('ar-SA') : '-'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>بدل السكن</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(employee.housing_allowance || 0)}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>بدل النقل</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(employee.transport_allowance || 0)}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>البنك المعتمد للتحويل</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.bank_name || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>رقم الحساب البنكي</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.bank_account || '-'}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>رقم الآيبان (IBAN)</label>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFeatureSettings: '"tnum"' }}>{employee.iban || '-'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency & Notes */}
+            <div className="card" style={{ gridColumn: 'span 2' }}>
+              <div className="card-header"><div className="card-title">🚨 حالات الطوارئ وملاحظات إضافية</div></div>
+              <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>شخص للاتصال في الطوارئ</label>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{employee.emergency_contact || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>هاتف الطوارئ</label>
+                    <div style={{ fontWeight: 600, color: 'var(--status-danger)' }}>{employee.emergency_phone || '-'}</div>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ملاحظات الموارد البشرية</label>
+                  <div style={{ 
+                    whiteSpace: 'pre-wrap', 
+                    fontSize: '0.9rem', 
+                    background: 'rgba(255,255,255,0.01)', 
+                    padding: '0.75rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-subtle)',
+                    minHeight: '80px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {employee.notes || 'لا توجد ملاحظات إضافية.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Documents Tab with Previews */}
+        {activeSubTab === 'docs' && (
+          <div className="card">
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div className="card-title">📁 وثائق ومستندات الموظف</div>
+                <div className="card-subtitle">الصور والملفات الثبوتية الخاصة بالموظف المرفوعة على Cloudflare R2</div>
+              </div>
+              <div>
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*,.pdf,.xls,.xlsx" 
+                  onChange={uploadAndAttachFile} 
+                  disabled={uploading}
+                  style={{ display: 'none' }}
+                  id="employee-detail-upload"
+                />
+                <label 
+                  htmlFor="employee-detail-upload" 
+                  className="btn btn-primary" 
+                  style={{ cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {uploading ? (
+                    <>
+                      <span className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                      جاري رفع المرفق...
+                    </>
+                  ) : '➕ رفع ملف جديد للموظف'}
+                </label>
+              </div>
+            </div>
+
+            <div className="card-body">
+              {documents.length === 0 ? (
+                <div className="empty-state" style={{ padding: '3rem' }}>
+                  <div className="empty-state-icon">📁</div>
+                  <div className="empty-state-title">لا توجد ملفات مرفوعة للموظف حالياً</div>
+                  <div className="empty-state-description">استخدم الزر في الأعلى لإرفاق صور شخصية، إقامات، شهادات أو عقود عمل.</div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                  {documents.map((doc) => {
+                    const hasFile = !!doc.file_url;
+                    const url = hasFile ? `/api/r2-file?key=${encodeURIComponent(doc.file_url || '')}` : '';
+
+                    return (
+                      <div key={doc.id} style={{
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border-normal)',
+                        borderRadius: '12px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '2rem' }}>
+                            {isPdf(doc.file_url || '') ? '📕' : isExcel(doc.file_url || '') ? '📗' : isImage(doc.file_url || '') ? '🖼️' : '📎'}
+                          </span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {docLabels[doc.document_type] || doc.document_type}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {doc.document_number || 'بدون رقم'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* File preview container */}
+                        {hasFile && (
+                          <div style={{ 
+                            height: '140px', 
+                            background: 'rgba(0,0,0,0.2)', 
+                            borderRadius: '8px', 
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid var(--border-subtle)'
+                          }}>
+                            {isImage(doc.file_url || '') ? (
+                              <img src={url} alt={doc.document_number} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : isPdf(doc.file_url || '') ? (
+                              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '2.5rem' }}>📄</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>مستند PDF</span>
+                              </div>
+                            ) : isExcel(doc.file_url || '') ? (
+                              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '2.5rem' }}>📊</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>جدول بيانات Excel</span>
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center' }}>
+                                <span style={{ fontSize: '2rem' }}>📎</span>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>ملف مرفق</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                          {hasFile && (
+                            <>
+                              <a 
+                                href={url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="btn btn-outline btn-sm" 
+                                style={{ flex: 1, textDecoration: 'none', justifyContent: 'center' }}
+                              >
+                                {isImage(doc.file_url || '') || isPdf(doc.file_url || '') ? '👁️ عرض' : '📥 تحميل'}
+                              </a>
+                              {(isImage(doc.file_url || '') || isPdf(doc.file_url || '')) && (
+                                <a 
+                                  href={url} 
+                                  download
+                                  className="btn btn-ghost btn-sm" 
+                                  style={{ border: '1px solid var(--border-subtle)', justifyContent: 'center' }}
+                                  title="تحميل الملف للكمبيوتر"
+                                >
+                                  📥
+                                </a>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Assets & Allocations Tab */}
+        {activeSubTab === 'assets' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            {/* Assets */}
+            <div className="card">
+              <div className="card-header"><div className="card-title">🔨 العهد الشخصية المستلمة</div></div>
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>كود العهدة</th>
+                      <th>العهد المستلمة</th>
+                      <th>النوع</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assets.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                          لا توجد عهد شخصية مسلمة للموظف.
+                        </td>
+                      </tr>
+                    ) : (
+                      assets.map((a) => (
+                        <tr key={a.id}>
+                          <td style={{ fontWeight: 700 }}>{a.asset_code}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{a.asset_name}</td>
+                          <td>{a.asset_type}</td>
+                          <td>
+                            <span className="badge badge-primary">{a.condition}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Salary allocations */}
+            <div className="card">
+              <div className="card-header"><div className="card-title">📊 توزيع الراتب والتكلفة على المشاريع</div></div>
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>المشروع</th>
+                      <th>نسبة التحميل</th>
+                      <th>مبلغ التكلفة المستقطعة</th>
+                      <th>الفترة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allocations.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                          لا توجد نسب تحميل تكلفة موزعة على المشاريع.
+                        </td>
+                      </tr>
+                    ) : (
+                      allocations.map((al) => (
+                        <tr key={al.id}>
+                          <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>{al.project_name}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{al.allocation_percentage}%</td>
+                          <td style={{ fontWeight: 700 }}>{formatCurrency(al.allocated_amount)}</td>
+                          <td style={{ fontFeatureSettings: '"tnum"' }}>{al.month} / {al.year}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Attendance Logs */}
+        {activeSubTab === 'logs' && (
+          <div className="card">
+            <div className="card-header"><div className="card-title">📍 سجلات الحضور والانصراف الجغرافية (آخر 30 يوم)</div></div>
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>التاريخ</th>
+                    <th>وقت الحضور</th>
+                    <th>وقت الانصراف</th>
+                    <th>نوع التحضير</th>
+                    <th>العمل الإضافي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendance.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                        لا توجد سجلات حضور مسجلة للموظف مؤخراً.
+                      </td>
+                    </tr>
+                  ) : (
+                    attendance.map((a) => (
+                      <tr key={a.id}>
+                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-SA')}</td>
+                        <td style={{ color: 'var(--status-success)', fontFeatureSettings: '"tnum"' }}>
+                          {a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        </td>
+                        <td style={{ color: 'var(--status-warning)', fontFeatureSettings: '"tnum"' }}>
+                          {a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        </td>
+                        <td>
+                          <span className={`badge ${a.attendance_type === 'present' ? 'badge-success' : a.attendance_type === 'late' ? 'badge-warning' : 'badge-danger'}`}>
+                            {a.attendance_type === 'present' ? 'حاضر' : a.attendance_type === 'late' ? 'متأخر' : 'غياب'}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600, color: 'var(--status-purple)' }}>{a.overtime_hours || 0} ساعة</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </AppLayout>
+  );
+}
