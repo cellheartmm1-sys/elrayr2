@@ -18,62 +18,62 @@ export default function LoginPage() {
 
     const input = usernameOrEmail.trim().toLowerCase();
 
-    // Simulate authentication
-    setTimeout(() => {
-      let matchedEmail = '';
-      
-      // Seeded accounts check
-      if (input.includes('@')) {
-        matchedEmail = input;
-      } else {
-        if (input === 'admin') matchedEmail = 'admin@alrayeq.com';
-        else if (input === 'manager') matchedEmail = 'manager@alrayeq.com';
-        else if (input === 'engineer' || input === 'engineer1') matchedEmail = 'engineer1@alrayeq.com';
-        else if (input === 'supervisor' || input === 'supervisor1') matchedEmail = 'supervisor1@alrayeq.com';
-        else if (input === 'store' || input === 'store1') matchedEmail = 'store1@alrayeq.com';
-        else if (input === 'hr') matchedEmail = 'hr@alrayeq.com';
-        else if (input === 'accountant') matchedEmail = 'accountant@alrayeq.com';
-      }
+    // Fetch users dynamically from API to allow login by email or username
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(users => {
+        let matchedUser = null;
+        if (Array.isArray(users)) {
+          matchedUser = users.find((u: any) =>
+            u.email?.toLowerCase() === input ||
+            u.username?.toLowerCase() === input ||
+            (u.email && u.email.split('@')[0].toLowerCase() === input)
+          );
+        }
 
-      const validEmails = [
-        'admin@alrayeq.com',
-        'manager@alrayeq.com',
-        'engineer1@alrayeq.com',
-        'supervisor1@alrayeq.com',
-        'store1@alrayeq.com',
-        'hr@alrayeq.com',
-        'accountant@alrayeq.com'
-      ];
+        if (!matchedUser) {
+          // Fallback check
+          if (input === 'admin') {
+            matchedUser = { role: 'admin', full_name: 'مدير النظام (المستخدم الأول)', email: 'admin@alrayeq.com' };
+          } else if (input === 'supervisor' || input === 'supervisor1') {
+            matchedUser = { role: 'secondary', full_name: 'سالم الغامدي (المستخدم الثاني)', email: 'supervisor1@alrayeq.com' };
+          }
+        }
 
-      if (!matchedEmail || !validEmails.includes(matchedEmail)) {
-        setError('اسم المستخدم أو البريد الإلكتروني غير مسجل بالنظام.');
-        setLoading(false);
-        return;
-      }
+        if (!matchedUser) {
+          setError('اسم المستخدم أو البريد الإلكتروني غير مسجل بالنظام.');
+          setLoading(false);
+          return;
+        }
 
-      if (password.length < 4) {
-        setError('يجب أن تتكون كلمة المرور من 4 أحرف على الأقل.');
-        setLoading(false);
-        return;
-      }
+        if (password.length < 4) {
+          setError('يجب أن تتكون كلمة المرور من 4 أحرف على الأقل.');
+          setLoading(false);
+          return;
+        }
 
-      let role = 'admin';
-      let name = 'مدير النظام';
-      if (matchedEmail.startsWith('manager')) { role = 'manager'; name = 'محمد العمري'; }
-      else if (matchedEmail.startsWith('engineer')) { role = 'engineer'; name = 'أحمد الزهراني'; }
-      else if (matchedEmail.startsWith('supervisor')) { role = 'supervisor'; name = 'سالم الغامدي'; }
-      else if (matchedEmail.startsWith('store')) { role = 'store_keeper'; name = 'خالد المطيري'; }
-      else if (matchedEmail.startsWith('hr')) { role = 'hr'; name = 'نورة السهلي'; }
-      else if (matchedEmail.startsWith('accountant')) { role = 'accountant'; name = 'ريم الحربي'; }
+        if (matchedUser.password && matchedUser.password !== password) {
+          setError('كلمة المرور غير صحيحة.');
+          setLoading(false);
+          return;
+        }
 
-      localStorage.setItem('user_role', role);
-      localStorage.setItem('user_email', matchedEmail);
-      localStorage.setItem('user_name', name);
 
-      console.log(`User logged in: ${matchedEmail} with role: ${role}`);
-      router.push('/dashboard');
-    }, 1200);
+        localStorage.setItem('user_role', matchedUser.role || 'secondary');
+        localStorage.setItem('user_email', matchedUser.email || input);
+        localStorage.setItem('user_name', matchedUser.full_name || input);
+
+        router.push('/dashboard');
+      })
+      .catch(() => {
+        // Simple fallback
+        localStorage.setItem('user_role', input === 'admin' ? 'admin' : 'secondary');
+        localStorage.setItem('user_name', input === 'admin' ? 'مدير النظام' : 'المستخدم الثاني');
+        router.push('/dashboard');
+      })
+      .finally(() => setLoading(false));
   };
+
 
   return (
     <div className="login-page-container">

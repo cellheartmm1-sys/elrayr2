@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ApprovalCenter from './ApprovalCenter';
 
 interface HeaderProps {
   title: string;
@@ -11,7 +12,8 @@ interface HeaderProps {
 }
 
 const roleLabels: Record<string, string> = {
-  admin: 'مدير النظام (Admin)',
+  admin: 'المستخدم الأول (المدير - كافة الصلاحيات)',
+  secondary: 'المستخدم الثاني (صلاحيات وموافقات مخصصة)',
   manager: 'مدير عام الشركة',
   engineer: 'مهندس موقع/مشروع',
   supervisor: 'مشرف مواقع ميداني',
@@ -24,9 +26,13 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [userName, setUserName] = useState('محمد العمري');
+  const [userName, setUserName] = useState('مدير النظام');
   const [userRole, setUserRole] = useState('admin');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Approval Center state
+  const [showApprovalCenter, setShowApprovalCenter] = useState(false);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
   useEffect(() => {
     const storedName = localStorage.getItem('user_name');
@@ -40,13 +46,42 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
     } else {
       setTheme('dark');
     }
+
+    fetchPendingApprovalsCount();
   }, []);
+
+  const fetchPendingApprovalsCount = async () => {
+    try {
+      const res = await fetch('/api/admin/approvals?status=pending');
+      if (res.ok) {
+        const data = await res.json();
+        setPendingApprovalsCount(Array.isArray(data) ? data.length : 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending approvals count', err);
+    }
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
+  };
+
+  const switchUserRole = (newRole: 'admin' | 'secondary') => {
+    if (newRole === 'admin') {
+      localStorage.setItem('user_role', 'admin');
+      localStorage.setItem('user_name', 'مدير النظام (المستخدم الأول)');
+      localStorage.setItem('user_email', 'admin@alrayeq.com');
+    } else {
+      localStorage.setItem('user_role', 'secondary');
+      localStorage.setItem('user_name', 'سالم الغامدي (المستخدم الثاني)');
+      localStorage.setItem('user_email', 'supervisor1@alrayeq.com');
+    }
+    setUserRole(newRole);
+    setShowUserMenu(false);
+    window.location.reload();
   };
 
   const getInitials = (name: string) => {
@@ -93,6 +128,58 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
       </div>
 
       <div className="header-actions">
+        {/* Quick User Role Switcher Pill */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.4rem',
+          padding: '0.25rem 0.6rem',
+          background: userRole === 'admin' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)',
+          border: `1px solid ${userRole === 'admin' ? 'rgba(16,185,129,0.3)' : 'rgba(59,130,246,0.3)'}`,
+          borderRadius: 'var(--radius-full)',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          color: userRole === 'admin' ? '#10b981' : '#3b82f6'
+        }}>
+          <span>{userRole === 'admin' ? '👑 المستخدم الأول (Admin)' : '👤 المستخدم الثاني'}</span>
+        </div>
+
+        {/* Approval Center Button for Admin */}
+        <button
+          className="btn btn-outline btn-sm"
+          style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            borderColor: pendingApprovalsCount > 0 ? 'rgba(234,179,8,0.6)' : 'var(--border-normal)',
+            color: pendingApprovalsCount > 0 ? '#eab308' : 'var(--text-primary)',
+            background: pendingApprovalsCount > 0 ? 'rgba(234,179,8,0.1)' : 'transparent',
+            padding: '0.35rem 0.75rem',
+            fontWeight: 600
+          }}
+          title="مركز الموافقات المعلقة"
+          onClick={() => setShowApprovalCenter(true)}
+        >
+          <span>📜 مركز الموافقات</span>
+          {pendingApprovalsCount > 0 && (
+            <span style={{
+              background: '#ef4444',
+              color: '#fff',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              borderRadius: '50%',
+              width: '18px',
+              height: '18px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {pendingApprovalsCount}
+            </span>
+          )}
+        </button>
+
         {/* Theme Toggle Button */}
         <button 
           className="header-icon-btn" 
@@ -145,7 +232,7 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
                 borderBottom: '1px solid var(--border-subtle)',
                 paddingBottom: '0.5rem',
                 display: 'flex',
-                justifyContent: 'between',
+                justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
                 <span>🔔 الإشعارات الواردة</span>
@@ -181,14 +268,14 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
         {/* Settings Button */}
         <button 
           className="header-icon-btn" 
-          title="الإعدادات العامة" 
+          title="الإعدادات العامة والصلاحيات" 
           id="settings-btn"
           onClick={() => router.push('/settings')}
         >
           <span style={{ fontSize: '1rem' }}>⚙️</span>
         </button>
 
-        {/* User Button */}
+        {/* User Button & Switcher */}
         <div style={{ position: 'relative' }}>
           <div 
             className="header-user" 
@@ -211,7 +298,7 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
               position: 'absolute',
               top: '46px',
               left: '0',
-              width: '180px',
+              width: '240px',
               background: 'var(--bg-card)',
               border: '1px solid var(--border-normal)',
               borderRadius: 'var(--radius-md)',
@@ -229,8 +316,32 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
                 fontSize: '0.75rem',
                 color: 'var(--text-muted)'
               }}>
-                الدور: <strong>{roleLabels[userRole] || userRole}</strong>
+                الحساب الحالي: <strong>{roleLabels[userRole] || userRole}</strong>
               </div>
+
+              {/* Role Switcher options */}
+              <div style={{ padding: '0.4rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                🔄 التبديل السريع بين المستخدمين:
+              </div>
+
+              <button
+                className={`btn btn-sm ${userRole === 'admin' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ justifyContent: 'flex-start', padding: '0.45rem 0.5rem', fontSize: '0.8rem' }}
+                onClick={() => switchUserRole('admin')}
+              >
+                👑 المستخدم الأول (المدير العام)
+              </button>
+
+              <button
+                className={`btn btn-sm ${userRole === 'secondary' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ justifyContent: 'flex-start', padding: '0.45rem 0.5rem', fontSize: '0.8rem' }}
+                onClick={() => switchUserRole('secondary')}
+              >
+                👤 المستخدم الثاني (موافقات مخصصة)
+              </button>
+
+              <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0.25rem 0' }} />
+
               <button 
                 className="btn btn-ghost btn-sm" 
                 style={{ justifyContent: 'flex-start', padding: '0.4rem 0.5rem', fontSize: '0.8rem' }}
@@ -239,7 +350,7 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
                   router.push('/settings');
                 }}
               >
-                ⚙️ إعدادات الحساب
+                ⚙️ إعدادات الحساب والصلاحيات
               </button>
               <button 
                 className="btn btn-ghost btn-sm text-danger" 
@@ -256,6 +367,13 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
           )}
         </div>
       </div>
+
+      {/* Approval Center Modal */}
+      <ApprovalCenter
+        isOpen={showApprovalCenter}
+        onClose={() => setShowApprovalCenter(false)}
+        onRefreshCount={fetchPendingApprovalsCount}
+      />
     </header>
   );
 }

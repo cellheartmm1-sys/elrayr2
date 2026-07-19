@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
+import UserPermissionsManager from '@/components/UserPermissionsManager';
+
 
 type TabType = 'company' | 'users' | 'defaults' | 'database';
 
@@ -621,60 +623,12 @@ export default function SettingsPage() {
 
       {/* ======================== TAB: USERS ======================== */}
       {activeTab === 'users' && (
-        <>
-          <div className="page-header">
-            <div className="page-header-left">
-              <div className="page-title">👥 مستخدمو النظام والمهندسين المشرفين</div>
-              <div className="page-description">إدارة حسابات المهندسين والمشرفين والمحاسبين لتمكينهم من تسجيل الدخول للمواقع</div>
-            </div>
-            <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setShowUserModal(true)}>+ إضافة مستخدم جديد</button>
-            </div>
-          </div>
-
-          <div className="card">
-            {loading ? (
-              <div className="empty-state"><div className="loading-spinner" /></div>
-            ) : users.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">👥</div>
-                <div className="empty-state-title">لا يوجد مستخدمون مضافون</div>
-              </div>
-            ) : (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>الاسم الكامل</th>
-                      <th>البريد الإلكتروني</th>
-                      <th>رقم الهاتف</th>
-                      <th>الصلاحية / الدور</th>
-                      <th>الحالة</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map(u => (
-                      <tr key={u.id}>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.full_name}</td>
-                        <td>{u.email}</td>
-                        <td>{u.phone || '-'}</td>
-                        <td>
-                          <span className={`badge ${roleBadge[u.role] || 'badge-muted'}`}>
-                            {roleLabels[u.role] || u.role}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge badge-success">نشط</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
+        <UserPermissionsManager
+          onSuccess={(msg) => alert(`✅ ${msg}`)}
+          onError={(msg) => alert(`❌ ${msg}`)}
+        />
       )}
+
 
       {/* ======================== TAB: DEFAULTS ======================== */}
       {activeTab === 'defaults' && (

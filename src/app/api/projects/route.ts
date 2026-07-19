@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { query } from '@/lib/db';
+import { createApprovalRequest } from '@/lib/approvals';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -47,6 +48,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description } = body;
 
+    const userRole = request.headers.get('x-user-role') || 'admin';
+    const userName = request.headers.get('x-user-name') || 'مستخدم النظام';
+    const requireApproval = request.headers.get('x-require-approval') === 'true' || userRole === 'secondary';
+
+    if (requireApproval) {
+      const approval = await createApprovalRequest(
+        userName,
+        userRole,
+        'projects',
+        'CREATE',
+        'project',
+        `إضافة مشروع جديد: ${name}`,
+        body
+      );
+      return NextResponse.json({
+        pending_approval: true,
+        message: 'تم إرسال طلب إضافة المشروع إلى مدير النظام للموافقة عليه أولاً.',
+        data: approval
+      }, { status: 202 });
+    }
+
     const result = await query(
       `INSERT INTO projects (name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
@@ -70,3 +92,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
