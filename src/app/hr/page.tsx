@@ -232,18 +232,25 @@ export default function HRPage() {
     if (activeTab === 'loans') fetchLoans();
   }, [activeTab, fetchEmployees, fetchPayroll, fetchAttendance, fetchOvertime, fetchAssets, fetchDocuments, fetchLoans]);
 
+  const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
+
   // Actions
-  const handleCreateEmployee = async (e: React.FormEvent) => {
+  const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/employees', {
-        method: 'POST',
+      const isEdit = !!editingEmployee;
+      const url = isEdit ? `/api/employees/${editingEmployee.id}` : '/api/employees';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...empForm, uploaded_files: uploadedFiles })
       });
       if (res.ok) {
         setShowEmpModal(false);
         setUploadedFiles([]);
+        setEditingEmployee(null);
         setEmpForm({
           employee_number: '', full_name: '', full_name_en: '', nationality: 'سعودي', id_number: '',
           iqama_number: '', iqama_expiry: '', passport_number: '', passport_expiry: '', job_title: '',
@@ -253,12 +260,70 @@ export default function HRPage() {
         fetchEmployees();
       } else {
         const errData = await res.json();
-        alert(`حدث خطأ أثناء إضافة الموظف: ${errData.error || 'فشلت العملية'}`);
+        alert(`حدث خطأ أثناء حفظ الموظف: ${errData.error || 'فشلت العملية'}`);
       }
     } catch (err) {
       console.error(err);
       alert('حدث خطأ في الاتصال بالخادم.');
     }
+  };
+
+  const handleDeleteEmployee = async (empId: string, empName: string) => {
+    if (!confirm(`⚠️ هل أنت متأكد من حذف الموظف "${empName}" نهائياً؟`)) return;
+    try {
+      const res = await fetch(`/api/employees/${empId}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف الموظف بنجاح!');
+        fetchEmployees();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حذف الموظف: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleOpenEditEmployee = (emp: any) => {
+    setEditingEmployee(emp);
+    setEmpForm({
+      employee_number: emp.employee_number || '',
+      full_name: emp.full_name || '',
+      full_name_en: emp.full_name_en || '',
+      nationality: emp.nationality || 'سعودي',
+      id_number: emp.id_number || '',
+      iqama_number: emp.iqama_number || '',
+      iqama_expiry: emp.iqama_expiry ? new Date(emp.iqama_expiry).toISOString().split('T')[0] : '',
+      passport_number: emp.passport_number || '',
+      passport_expiry: emp.passport_expiry ? new Date(emp.passport_expiry).toISOString().split('T')[0] : '',
+      job_title: emp.job_title || '',
+      employment_type: emp.employment_type || 'full_time',
+      base_salary: String(emp.base_salary || ''),
+      housing_allowance: String(emp.housing_allowance || ''),
+      transport_allowance: String(emp.transport_allowance || ''),
+      other_allowances: String(emp.other_allowances || ''),
+      bank_account: emp.bank_account || '',
+      bank_name: emp.bank_name || '',
+      iban: emp.iban || '',
+      phone: emp.phone || '',
+      email: emp.email || '',
+      status: emp.status || 'active'
+    });
+    setUploadedFiles([]);
+    setShowEmpModal(true);
+  };
+
+  const handleOpenCreateEmployee = () => {
+    setEditingEmployee(null);
+    setEmpForm({
+      employee_number: '', full_name: '', full_name_en: '', nationality: 'سعودي', id_number: '',
+      iqama_number: '', iqama_expiry: '', passport_number: '', passport_expiry: '', job_title: '',
+      employment_type: 'full_time', base_salary: '', housing_allowance: '', transport_allowance: '',
+      other_allowances: '', bank_account: '', bank_name: '', iban: '', phone: '', email: '', status: 'active'
+    });
+    setUploadedFiles([]);
+    setShowEmpModal(true);
   };
 
   const handleCreateAsset = async (e: React.FormEvent) => {
@@ -381,7 +446,7 @@ export default function HRPage() {
               <div className="page-description">إدارة كادر العمل من مهندسين وفنيين لحام وتركيبات ومشرفين</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setShowEmpModal(true)}>+ إضافة موظف جديد</button>
+              <button className="btn btn-primary" onClick={handleOpenCreateEmployee}>+ إضافة موظف جديد</button>
             </div>
           </div>
 
@@ -419,6 +484,7 @@ export default function HRPage() {
                       <th>نوع التوظيف</th>
                       <th>الهاتف</th>
                       <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -436,6 +502,24 @@ export default function HRPage() {
                         <td><span className={`badge ${typeBadge[emp.employment_type] || 'badge-muted'}`}>{typeLabels[emp.employment_type] || emp.employment_type}</span></td>
                         <td>{emp.phone || '-'}</td>
                         <td><span className={`badge ${statusBadge[emp.status] || 'badge-muted'}`}>{statusLabels[emp.status] || emp.status}</span></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-ghost text-primary btn-sm"
+                              onClick={() => handleOpenEditEmployee(emp)}
+                              title="تعديل"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="btn btn-ghost text-danger btn-sm"
+                              onClick={() => handleDeleteEmployee(emp.id, emp.full_name)}
+                              title="حذف"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -954,10 +1038,10 @@ export default function HRPage() {
         <div className="modal-overlay" onClick={() => setShowEmpModal(false)}>
           <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">👨‍💼 إضافة موظف جديد</div>
+              <div className="modal-title">{editingEmployee ? '✏️ تعديل بيانات الموظف' : '👨‍💼 إضافة موظف جديد'}</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowEmpModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleCreateEmployee}>
+            <form onSubmit={handleSaveEmployee}>
               <div className="form-grid form-grid-4">
                 <div className="form-group">
                   <label className="form-label required">الرقم الوظيفي</label>
