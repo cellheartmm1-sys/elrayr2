@@ -160,3 +160,18 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update fault ticket' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    await query('DELETE FROM fault_tickets WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Ticket deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/maintenance/tickets]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete ticket' }, { status: 500 });
+  }
+}

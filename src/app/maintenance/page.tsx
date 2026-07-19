@@ -231,6 +231,72 @@ export default function MaintenancePage() {
     }
   };
 
+  const handleContractStatusChange = async (id: string, status: string) => {
+    try {
+      const res = await fetch('/api/maintenance/contracts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) fetchContracts();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeleteContract = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف عقد الصيانة هذا؟')) return;
+    try {
+      const res = await fetch(`/api/maintenance/contracts?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف العقد بنجاح!');
+        fetchContracts();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleVisitStatusChange = async (id: string, status: string) => {
+    try {
+      const res = await fetch('/api/maintenance/visits', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) fetchVisits();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeleteVisit = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف زيارة الصيانة هذه؟')) return;
+    try {
+      const res = await fetch(`/api/maintenance/visits?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف الزيارة بنجاح!');
+        fetchVisits();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleTicketStatusChange = async (id: string, status: string) => {
+    try {
+      const res = await fetch('/api/maintenance/tickets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) fetchTickets();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeleteTicket = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف بلاغ العطل هذا؟')) return;
+    try {
+      const res = await fetch(`/api/maintenance/tickets?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف البلاغ بنجاح!');
+        fetchTickets();
+      }
+    } catch (e) { console.error(e); }
+  };
+
   // KPIs
   const activeContractsCount = contracts.filter(c => c.status === 'active').length;
   const annualContractsVal = contracts.reduce((acc, c) => acc + Number(c.annual_value || 0), 0);
@@ -291,7 +357,8 @@ export default function MaintenancePage() {
                       <th>تاريخ الانتهاء</th>
                       <th>القيمة السنوية</th>
                       <th>دورية الزيارات</th>
-                      <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -300,11 +367,32 @@ export default function MaintenancePage() {
                         <td style={{ fontWeight: 700 }}>{c.contract_number}</td>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.client_name}</td>
                         <td><span className="badge badge-primary">{systemLabels[c.system_type] || c.system_type}</span></td>
-                        <td>{new Date(c.start_date).toLocaleDateString('ar-SA')}</td>
-                        <td>{new Date(c.end_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(c.start_date).toLocaleDateString('ar-EG')}</td>
+                        <td>{new Date(c.end_date).toLocaleDateString('ar-EG')}</td>
                         <td>{formatCurrency(c.annual_value)}</td>
                         <td>{frequencyLabels[c.visit_frequency] || c.visit_frequency}</td>
-                        <td><span className={`badge ${statusBadge[c.status] || 'badge-muted'}`}>{statusLabels[c.status] || c.status}</span></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <select
+                            className={`form-control form-control-sm ${statusBadge[c.status] || 'badge-muted'}`}
+                            style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', fontWeight: 600, cursor: 'pointer', borderRadius: '100px' }}
+                            value={c.status}
+                            onChange={(e) => handleContractStatusChange(c.id, e.target.value)}
+                          >
+                            <option value="active">🟢 نشط</option>
+                            <option value="renewal_pending">🟡 بانتظار التجديد</option>
+                            <option value="expired">🔴 منتهي</option>
+                            <option value="cancelled">⚪ ملغي</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm text-danger"
+                            onClick={() => handleDeleteContract(c.id)}
+                            title="حذف العقد"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -345,19 +433,41 @@ export default function MaintenancePage() {
                       <th>التاريخ المخطط</th>
                       <th>تاريخ التنفيذ</th>
                       <th>الفني المسؤول</th>
-                      <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>الحالة</th>
                       <th>النتائج والملاحظات</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visits.map(v => (
                       <tr key={v.id}>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{v.client_name} ({v.contract_number})</td>
-                        <td>{new Date(v.scheduled_date).toLocaleDateString('ar-SA')}</td>
-                        <td>{v.actual_date ? new Date(v.actual_date).toLocaleDateString('ar-SA') : 'معلق'}</td>
+                        <td>{new Date(v.scheduled_date).toLocaleDateString('ar-EG')}</td>
+                        <td>{v.actual_date ? new Date(v.actual_date).toLocaleDateString('ar-EG') : 'معلق'}</td>
                         <td style={{ fontWeight: 600 }}>{v.technician_name || 'بانتظار التكليف'}</td>
-                        <td><span className={`badge ${visitStatusBadge[v.status] || 'badge-muted'}`}>{visitStatusLabels[v.status] || v.status}</span></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <select
+                            className={`form-control form-control-sm ${visitStatusBadge[v.status] || 'badge-muted'}`}
+                            style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', fontWeight: 600, cursor: 'pointer', borderRadius: '100px' }}
+                            value={v.status}
+                            onChange={(e) => handleVisitStatusChange(v.id, e.target.value)}
+                          >
+                            <option value="scheduled">🔵 مجدول</option>
+                            <option value="completed">🟢 تم بنجاح</option>
+                            <option value="rescheduled">🟡 مُعاد جدولته</option>
+                            <option value="missed">🔴 فائت</option>
+                          </select>
+                        </td>
                         <td>{v.findings || '-'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm text-danger"
+                            onClick={() => handleDeleteVisit(v.id)}
+                            title="حذف الزيارة"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -409,7 +519,8 @@ export default function MaintenancePage() {
                       <th>مستوى الأولوية</th>
                       <th>الفني المكلف</th>
                       <th>تاريخ البلاغ</th>
-                      <th>حالة المعالجة</th>
+                      <th style={{ textAlign: 'center' }}>حالة المعالجة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -421,8 +532,30 @@ export default function MaintenancePage() {
                         <td style={{ color: 'var(--text-primary)' }}>{t.fault_description}</td>
                         <td><span className={`badge ${ticketUrgencyBadge[t.urgency] || 'badge-muted'}`}>{ticketUrgencyLabels[t.urgency] || t.urgency}</span></td>
                         <td style={{ fontWeight: 600 }}>{t.technician_name || 'بانتظار التكليف'}</td>
-                        <td>{new Date(t.report_date).toLocaleString('ar-SA')}</td>
-                        <td><span className={`badge ${ticketStatusBadge[t.status] || 'badge-muted'}`}>{ticketStatusLabels[t.status] || t.status}</span></td>
+                        <td>{new Date(t.report_date).toLocaleString('ar-EG')}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <select
+                            className={`form-control form-control-sm ${ticketStatusBadge[t.status] || 'badge-muted'}`}
+                            style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', fontWeight: 600, cursor: 'pointer', borderRadius: '100px' }}
+                            value={t.status}
+                            onChange={(e) => handleTicketStatusChange(t.id, e.target.value)}
+                          >
+                            <option value="open">🔴 مفتوح</option>
+                            <option value="assigned">🟡 مُسنَد للفني</option>
+                            <option value="in_progress">🟣 جاري العمل</option>
+                            <option value="resolved">🟢 تم الحل</option>
+                            <option value="closed">⚪ مغلق</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm text-danger"
+                            onClick={() => handleDeleteTicket(t.id)}
+                            title="حذف البلاغ"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

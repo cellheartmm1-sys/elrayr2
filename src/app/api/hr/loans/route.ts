@@ -138,3 +138,18 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    await query('DELETE FROM employee_loans WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Loan deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/hr/loans]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete loan' }, { status: 500 });
+  }
+}

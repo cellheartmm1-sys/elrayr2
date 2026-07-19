@@ -163,3 +163,20 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    await query('DELETE FROM company_debts WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Debt deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/finance/debts]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete debt' }, { status: 500 });
+  }
+}

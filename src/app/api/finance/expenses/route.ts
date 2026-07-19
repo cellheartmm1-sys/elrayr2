@@ -110,3 +110,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, project_id, category, description, expense_date, amount, supplier, invoice_number } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const result = await query(
+      `UPDATE project_expenses
+       SET project_id = COALESCE($1, project_id),
+           category = COALESCE($2, category),
+           description = COALESCE($3, description),
+           expense_date = COALESCE($4, expense_date),
+           amount = COALESCE($5, amount),
+           supplier = COALESCE($6, supplier),
+           invoice_number = COALESCE($7, invoice_number)
+       WHERE id = $8 RETURNING *`,
+      [project_id ?? null, category ?? null, description ?? null, expense_date ?? null, amount ?? null, supplier ?? null, invoice_number ?? null, id]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error: any) {
+    console.error('[PUT /api/finance/expenses]', error);
+    return NextResponse.json({ error: error.message || 'Failed to update expense' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    await query('DELETE FROM project_expenses WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Expense deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/finance/expenses]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete expense' }, { status: 500 });
+  }
+}

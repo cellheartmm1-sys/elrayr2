@@ -128,6 +128,7 @@ export default function FinancePage() {
 
   // Edit & Print States
   const [editingIpc, setEditingIpc] = useState<IPC | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [printIpc, setPrintIpc] = useState<IPC | null>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
 
@@ -153,7 +154,7 @@ export default function FinancePage() {
   });
 
   const [expenseForm, setExpenseForm] = useState({
-    project_id: '', category: 'material', description: '', amount: '', supplier: '', invoice_number: ''
+    project_id: '', category: 'material', description: '', expense_date: '', amount: '', supplier: '', invoice_number: ''
   });
 
   const [debtForm, setDebtForm] = useState({
@@ -353,35 +354,68 @@ export default function FinancePage() {
     }
   };
 
+  const handleOpenEditExpense = (expense: any) => {
+    setEditingExpense(expense);
+    setExpenseForm({
+      project_id: expense.project_id || '',
+      category: expense.category || 'material',
+      description: expense.description || '',
+      expense_date: expense.expense_date ? new Date(expense.expense_date).toISOString().split('T')[0] : '',
+      amount: expense.amount || '',
+      supplier: expense.supplier || '',
+      invoice_number: expense.invoice_number || ''
+    });
+    setShowExpenseModal(true);
+  };
+
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const isEdit = !!editingExpense;
+      const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch('/api/finance/expenses', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: editingExpense?.id,
           project_id: expenseForm.project_id || null,
           category: expenseForm.category,
           description: expenseForm.description || '',
-          expense_date: new Date().toISOString().split('T')[0],
+          expense_date: expenseForm.expense_date || new Date().toISOString().split('T')[0],
           amount: Number(expenseForm.amount) || 0,
-          vendor: expenseForm.supplier || null,
+          supplier: expenseForm.supplier || null,
           invoice_number: expenseForm.invoice_number || null
         })
       });
       if (res.ok) {
         setShowExpenseModal(false);
-        setExpenseForm({
-          project_id: '', category: 'material', description: '', amount: '', supplier: '', invoice_number: ''
-        });
+        setEditingExpense(null);
+        setExpenseForm({ project_id: '', category: 'material', description: '', expense_date: '', amount: '', supplier: '', invoice_number: '' });
         fetchExpenses();
       } else {
         const errData = await res.json();
-        alert(`حدث خطأ أثناء إضافة المصروف: ${errData.error || 'فشلت عملية الإضافة'}`);
+        alert(`حدث خطأ أثناء حفظ المصروف: ${errData.error || 'فشلت عملية الحفظ'}`);
       }
     } catch (err) {
       console.error(err);
       alert('حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا المصروف؟')) return;
+    try {
+      const res = await fetch(`/api/finance/expenses?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف المصروف بنجاح!');
+        fetchExpenses();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
   };
 
@@ -411,6 +445,23 @@ export default function FinancePage() {
     } catch (err) {
       console.error(err);
       alert('حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleDeleteDebt = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذه المديونية؟')) return;
+    try {
+      const res = await fetch(`/api/finance/debts?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف المديونية بنجاح!');
+        fetchDebts();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
   };
 
@@ -662,18 +713,37 @@ export default function FinancePage() {
                       <th>المورد/الجهة</th>
                       <th>رقم الفاتورة</th>
                       <th>المبلغ</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
                     {expenses.map(e => (
                       <tr key={e.id}>
-                        <td>{new Date(e.expense_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(e.expense_date).toLocaleDateString('ar-EG')}</td>
                         <td style={{ fontWeight: 600 }}>{e.project_name}</td>
                         <td><span className="badge badge-purple">{categoryLabels[e.category] || e.category}</span></td>
                         <td style={{ color: 'var(--text-primary)' }}>{e.description}</td>
                         <td>{e.supplier || '-'}</td>
                         <td>{e.invoice_number || '-'}</td>
                         <td style={{ fontWeight: 700, color: 'var(--status-danger)' }}>{formatCurrency(e.amount)}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleOpenEditExpense(e)}
+                              title="تعديل المصروف"
+                            >
+                              ✏️ تعديل
+                            </button>
+                            <button
+                              className="btn btn-outline btn-sm text-danger"
+                              onClick={() => handleDeleteExpense(e.id)}
+                              title="حذف المصروف"
+                            >
+                              🗑️ حذف
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

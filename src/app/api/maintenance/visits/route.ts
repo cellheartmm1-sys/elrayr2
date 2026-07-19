@@ -113,3 +113,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create maintenance visit' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, technician_id, scheduled_date, actual_date, status, findings, work_done } = body;
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    const result = await query(
+      `UPDATE maintenance_visits
+       SET technician_id = COALESCE($1, technician_id),
+           scheduled_date = COALESCE($2, scheduled_date),
+           actual_date = COALESCE($3, actual_date),
+           status = COALESCE($4, status),
+           findings = COALESCE($5, findings),
+           work_done = COALESCE($6, work_done)
+       WHERE id = $7 RETURNING *`,
+      [technician_id ?? null, scheduled_date ?? null, actual_date ?? null, status ?? null, findings ?? null, work_done ?? null, id]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error: any) {
+    console.error('[PUT /api/maintenance/visits]', error);
+    return NextResponse.json({ error: error.message || 'Failed to update visit' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    await query('DELETE FROM maintenance_visits WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Visit deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/maintenance/visits]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete visit' }, { status: 500 });
+  }
+}

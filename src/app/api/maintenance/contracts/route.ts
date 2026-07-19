@@ -133,3 +133,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create maintenance contract' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, contract_number, client_name, system_type, start_date, end_date, annual_value, visit_frequency, status, notes } = body;
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    const result = await query(
+      `UPDATE maintenance_contracts
+       SET contract_number = COALESCE($1, contract_number),
+           client_name = COALESCE($2, client_name),
+           system_type = COALESCE($3, system_type),
+           start_date = COALESCE($4, start_date),
+           end_date = COALESCE($5, end_date),
+           annual_value = COALESCE($6, annual_value),
+           visit_frequency = COALESCE($7, visit_frequency),
+           status = COALESCE($8, status),
+           notes = COALESCE($9, notes)
+       WHERE id = $10 RETURNING *`,
+      [contract_number ?? null, client_name ?? null, system_type ?? null, start_date ?? null, end_date ?? null, annual_value ?? null, visit_frequency ?? null, status ?? null, notes ?? null, id]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error: any) {
+    console.error('[PUT /api/maintenance/contracts]', error);
+    return NextResponse.json({ error: error.message || 'Failed to update contract' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    await query('DELETE FROM maintenance_contracts WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Contract deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/maintenance/contracts]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete contract' }, { status: 500 });
+  }
+}

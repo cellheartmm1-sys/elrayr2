@@ -423,6 +423,39 @@ export default function HRPage() {
       console.error(err);
     }
   };
+  const handleDeleteAsset = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذه العهدة؟')) return;
+    try {
+      const res = await fetch(`/api/hr/assets?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف العهدة بنجاح!');
+        fetchAssets();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleDeleteLoan = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذه السلفة؟')) return;
+    try {
+      const res = await fetch(`/api/hr/loans?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف السلفة بنجاح!');
+        fetchLoans();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
 
   const handleOvertimeAction = async (id: string, action: 'approved' | 'rejected') => {
     try {
@@ -790,6 +823,7 @@ export default function HRPage() {
                       <th>الموقع الحالي</th>
                       <th>الحالة الفنية</th>
                       <th>حالة العهدة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -806,6 +840,15 @@ export default function HRPage() {
                           <span className={`badge ${a.status === 'available' ? 'badge-success' : a.status === 'assigned' ? 'badge-primary' : 'badge-warning'}`}>
                             {a.status === 'available' ? 'متوفرة بالمخزن' : 'مُسلمة للموظف'}
                           </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm text-danger"
+                            onClick={() => handleDeleteAsset(a.id)}
+                            title="حذف العهدة"
+                          >
+                            🗑️ حذف
+                          </button>
                         </td>
                       </tr>
                     ))}

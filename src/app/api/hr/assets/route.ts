@@ -127,3 +127,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create asset' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, asset_code, asset_name, asset_type, brand, model, serial_number, condition, status, assigned_to, notes } = body;
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    const result = await query(
+      `UPDATE personal_assets
+       SET asset_code = COALESCE($1, asset_code),
+           asset_name = COALESCE($2, asset_name),
+           asset_type = COALESCE($3, asset_type),
+           brand = COALESCE($4, brand),
+           model = COALESCE($5, model),
+           serial_number = COALESCE($6, serial_number),
+           condition = COALESCE($7, condition),
+           status = COALESCE($8, status),
+           assigned_to = COALESCE($9, assigned_to),
+           notes = COALESCE($10, notes)
+       WHERE id = $11 RETURNING *`,
+      [asset_code ?? null, asset_name ?? null, asset_type ?? null, brand ?? null, model ?? null, serial_number ?? null, condition ?? null, status ?? null, assigned_to ?? null, notes ?? null, id]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error: any) {
+    console.error('[PUT /api/hr/assets]', error);
+    return NextResponse.json({ error: error.message || 'Failed to update asset' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    await query('DELETE FROM personal_assets WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Asset deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/hr/assets]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete asset' }, { status: 500 });
+  }
+}
