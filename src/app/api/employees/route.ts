@@ -80,9 +80,9 @@ export async function GET(request: NextRequest) {
         FROM employees e
         LEFT JOIN departments d ON d.id = e.department_id
         LEFT JOIN projects p ON p.id = e.project_id
-        \${where}
+        ${where}
         ORDER BY e.full_name ASC
-        LIMIT \${paramIndex} OFFSET \${paramIndex + 1}`,
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
