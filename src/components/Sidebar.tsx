@@ -2,9 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
-const navItems = [
+interface SubItem {
+  href: string;
+  label: string;
+  icon: string;
+}
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  module: string;
+  adminOnly?: boolean;
+  subItems?: SubItem[];
+}
+
+interface NavSection {
+  section: string;
+  items: NavItem[];
+}
+
+const navItems: NavSection[] = [
   {
     section: 'الرئيسية',
     items: [
@@ -13,27 +33,84 @@ const navItems = [
     ],
   },
   {
-    section: 'إدارة الأعمال',
+    section: 'إدارة الأعمال والمشاريع',
     items: [
-      { href: '/projects', label: 'المشاريع', icon: '🏗️', module: 'projects' },
-      { href: '/proposals', label: 'العروض الفنية والمالية', icon: '📑', module: 'proposals', adminOnly: true },
-      { href: '/estimation', label: 'الهندسة والتسعير', icon: '📐', module: 'estimation' },
-      { href: '/procurement', label: 'المشتريات والمخازن', icon: '📦', module: 'procurement' },
+      {
+        href: '/projects',
+        label: 'المشاريع والتثمين',
+        icon: '🏗️',
+        module: 'projects',
+        subItems: [
+          { href: '/projects', label: 'قائمة المشاريع الفعالة', icon: '📊' },
+          { href: '/proposals', label: 'العروض الفنية والمالية', icon: '📑' },
+          { href: '/estimation', label: 'الهندسة والتقدير والتثمين', icon: '📐' },
+        ],
+      },
+      {
+        href: '/procurement',
+        label: 'المشتريات والمخازن',
+        icon: '📦',
+        module: 'procurement',
+        subItems: [
+          { href: '/procurement?tab=requests', label: 'طلبات وتوريد المواد', icon: '📝' },
+          { href: '/procurement?tab=submittals', label: 'اعتمادات المواد (Submittals)', icon: '📋' },
+          { href: '/procurement?tab=warehouses', label: 'إدارة المستودعات والمخازن', icon: '🏢' },
+          { href: '/procurement?tab=inventory', label: 'مخازن وجرد المواقع', icon: '📦' },
+        ],
+      },
     ],
   },
   {
-    section: 'العمليات',
+    section: 'العمليات والمالية',
     items: [
-      { href: '/subcontractors', label: 'مقاولو الباطن', icon: '🤝', module: 'subcontractors' },
+      {
+        href: '/finance',
+        label: 'المالية والمستخلصات',
+        icon: '💰',
+        module: 'finance',
+        subItems: [
+          { href: '/finance?tab=ipc', label: 'مستخلصات العميل', icon: '📄' },
+          { href: '/finance?tab=expenses', label: 'مصروفات وتكاليف المشاريع', icon: '🧾' },
+          { href: '/finance?tab=cashflow', label: 'التدفق النقدي والربحية', icon: '📈' },
+          { href: '/finance?tab=debts', label: 'المديونيات وتمويل المشاريع', icon: '🏛️' },
+          { href: '/finance?tab=reports', label: 'التقارير المالية والطباعة', icon: '📊' },
+        ],
+      },
+      {
+        href: '/subcontractors',
+        label: 'مقاولو الباطن',
+        icon: '🤝',
+        module: 'subcontractors',
+        subItems: [
+          { href: '/subcontractors?tab=contractors', label: 'قائمة المقاولين', icon: '🏢' },
+          { href: '/subcontractors?tab=ipc', label: 'مستخلصات مقاولي الباطن', icon: '📄' },
+        ],
+      },
       { href: '/labor', label: 'العمالة اليومية', icon: '👷', module: 'labor' },
-      { href: '/maintenance', label: 'الصيانة والتشغيل', icon: '🔧', module: 'maintenance' },
-    ],
-  },
-  {
-    section: 'المالية والموارد',
-    items: [
-      { href: '/finance', label: 'المالية والمستخلصات', icon: '💰', module: 'finance' },
-      { href: '/hr', label: 'الموارد البشرية', icon: '👨‍💼', module: 'hr' },
+      {
+        href: '/hr',
+        label: 'الموارد البشرية والرواتب',
+        icon: '👨‍💼',
+        module: 'hr',
+        subItems: [
+          { href: '/hr?tab=employees', label: 'شؤون الموظفين', icon: '👨‍💼' },
+          { href: '/hr?tab=payroll', label: 'مسيرات الرواتب وهيكلة الأجور', icon: '💳' },
+          { href: '/hr?tab=assets', label: 'العهد والرواتب الموزعة', icon: '🔨' },
+          { href: '/hr?tab=attendance', label: 'حضور المواقع (GPS)', icon: '📍' },
+          { href: '/hr?tab=loans', label: 'السلفيات والقروض', icon: '💵' },
+        ],
+      },
+      {
+        href: '/maintenance',
+        label: 'الصيانة والتشغيل',
+        icon: '🔧',
+        module: 'maintenance',
+        subItems: [
+          { href: '/maintenance?tab=contracts', label: 'عقود الصيانة', icon: '📜' },
+          { href: '/maintenance?tab=tickets', label: 'بلاغات الأعطال', icon: '🎫' },
+          { href: '/maintenance?tab=visits', label: 'الزيارات الميدانية', icon: '🚚' },
+        ],
+      },
     ],
   },
   {
@@ -45,16 +122,15 @@ const navItems = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  admin: ['/dashboard', '/dashboard#contact-requests', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  admin: ['/dashboard', '/dashboard#contact-requests', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   secondary: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
-  manager: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  manager: ['/dashboard', '/projects', '/proposals', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
   engineer: ['/dashboard', '/projects', '/procurement', '/labor'],
   supervisor: ['/dashboard', '/projects', '/labor'],
   store_keeper: ['/dashboard', '/procurement'],
   hr: ['/dashboard', '/hr', '/labor'],
   accountant: ['/dashboard', '/finance', '/subcontractors']
 };
-
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -63,8 +139,11 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [role, setRole] = useState('admin');
   const [allowedHrefs, setAllowedHrefs] = useState<string[]>(rolePermissions['admin']);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const [currentUrl, setCurrentUrl] = useState('');
 
   useEffect(() => {
     const storedRole = localStorage.getItem('user_role') || 'admin';
@@ -73,10 +152,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (storedRole === 'admin') {
       setAllowedHrefs(rolePermissions['admin']);
     } else {
-      // Fetch dynamic user permissions
       fetchDynamicPermissions(storedRole);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentUrl(window.location.pathname + window.location.search);
+    }
+  }, [pathname]);
+
+  // Expand matching menu section automatically when navigating
+  useEffect(() => {
+    navItems.forEach(section => {
+      section.items.forEach(item => {
+        if (item.subItems && item.subItems.length > 0) {
+          const isMatching = pathname === item.href || item.subItems.some(sub => pathname.startsWith(sub.href.split('?')[0]));
+          if (isMatching) {
+            setOpenMenus(prev => ({ ...prev, [item.href]: true }));
+          }
+        }
+      });
+    });
+  }, [pathname]);
+
+  const toggleMenu = (href: string) => {
+    setOpenMenus(prev => ({ ...prev, [href]: !prev[href] }));
+  };
 
   const fetchDynamicPermissions = async (currentRole: string) => {
     try {
@@ -143,16 +245,57 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div key={section.section}>
               <div className="sidebar-section-title">{section.section}</div>
               {visibleItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                const hasSub = item.subItems && item.subItems.length > 0;
+                const isOpen = !!openMenus[item.href];
+                const isMainActive = pathname === item.href || (hasSub && item.subItems?.some(s => s.href.split('?')[0] === pathname));
+
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`nav-item ${isActive ? 'active' : ''}`}
-                  >
-                    <span style={{ fontSize: '1rem' }}>{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
+                  <div key={item.href} style={{ marginBottom: '0.25rem' }}>
+                    <div
+                      className={`nav-item ${isMainActive ? 'active' : ''}`}
+                      onClick={() => {
+                        if (hasSub) {
+                          toggleMenu(item.href);
+                        } else {
+                          router.push(item.href);
+                        }
+                      }}
+                      style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '1rem' }}>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </div>
+                      {hasSub && (
+                        <span style={{ 
+                          fontSize: '0.7rem', 
+                          transition: 'transform 0.2s ease', 
+                          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          opacity: 0.7
+                        }}>
+                          ▼
+                        </span>
+                      )}
+                    </div>
+
+                    {hasSub && isOpen && (
+                      <div className="nav-sub-menu">
+                        {item.subItems?.map((sub) => {
+                          const isSubActive = currentUrl === sub.href || (pathname === sub.href.split('?')[0] && currentUrl === sub.href);
+                          return (
+                            <Link
+                              key={sub.href}
+                              href={sub.href}
+                              className={`nav-sub-item ${isSubActive ? 'active' : ''}`}
+                            >
+                              <span style={{ fontSize: '0.85rem' }}>{sub.icon}</span>
+                              <span>{sub.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

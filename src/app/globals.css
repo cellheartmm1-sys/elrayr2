@@ -365,6 +365,43 @@ body {
   opacity: 1;
 }
 
+.nav-sub-menu {
+  margin-right: 1.25rem;
+  padding-right: 0.75rem;
+  border-right: 2px solid var(--border-normal);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  animation: fadeIn var(--transition-fast) ease-in-out;
+}
+
+.nav-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.nav-sub-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
+
+.nav-sub-item.active {
+  color: var(--brand-primary-light);
+  background: rgba(197, 155, 39, 0.12);
+  font-weight: 700;
+  border-right: 2px solid var(--brand-primary);
+}
+
 .sidebar-footer {
   padding: 1rem 0.75rem;
   border-top: 1px solid var(--border-subtle);
