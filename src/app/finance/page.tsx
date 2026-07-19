@@ -27,7 +27,7 @@ ChartJS.register(
   Filler
 );
 
-type TabType = 'ipc' | 'expenses' | 'cashflow' | 'debts';
+type TabType = 'ipc' | 'expenses' | 'cashflow' | 'debts' | 'reports';
 
 interface IPC {
   id: string;
@@ -109,6 +109,15 @@ export default function FinancePage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [debtTypeFilter, setDebtTypeFilter] = useState('');
 
+  // Financial Reports State
+  const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('monthly');
+  const [reportFromDate, setReportFromDate] = useState('');
+  const [reportToDate, setReportToDate] = useState('');
+  const [reportProjectFilter, setReportProjectFilter] = useState('all');
+  const [reportData, setReportData] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [showPrintReportModal, setShowPrintReportModal] = useState(false);
+
   // Forms
   const [ipcForm, setIpcForm] = useState({
     project_id: '', ipc_number: '', period_from: '', period_to: '',
@@ -160,14 +169,23 @@ export default function FinancePage() {
   const fetchDebts = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (projectFilter) params.set('project_id', projectFilter);
     if (debtTypeFilter) params.set('debt_type', debtTypeFilter);
     try {
       const res = await fetch(`/api/finance/debts?${params}`);
       const data = await res.json();
       setDebts(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
-  }, [projectFilter, debtTypeFilter]);
+  }, [debtTypeFilter]);
+
+  const fetchProjectsList = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      setProjects(Array.isArray(data) ? data : (data?.data ?? []));
+    } catch (e) {
+      console.error('Failed to fetch projects', e);
+    }
+  };
 
   const fetchCompanyInfo = async () => {
     try {
@@ -181,11 +199,48 @@ export default function FinancePage() {
     }
   };
 
-  const fetchProjectsList = async () => {
-    const res = await fetch('/api/projects');
-    const data = await res.json();
-    setProjects(data);
-  };
+  const fetchFinancialReport = useCallback(async () => {
+    setLoadingReport(true);
+    try {
+      const params = new URLSearchParams();
+      if (reportProjectFilter !== 'all') params.set('project_id', reportProjectFilter);
+
+      const now = new Date();
+      let from = reportFromDate;
+      let to = reportToDate;
+
+      if (reportPeriod === 'daily') {
+        const todayStr = reportFromDate || now.toISOString().split('T')[0];
+        from = todayStr;
+        to = todayStr;
+      } else if (reportPeriod === 'weekly') {
+        const curr = reportFromDate ? new Date(reportFromDate) : new Date();
+        const first = curr.getDate() - curr.getDay();
+        const last = first + 6;
+        from = new Date(curr.setDate(first)).toISOString().split('T')[0];
+        to = new Date(curr.setDate(last)).toISOString().split('T')[0];
+      } else if (reportPeriod === 'monthly') {
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        from = `${year}-${month}-01`;
+        const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+        to = `${year}-${month}-${lastDay}`;
+      }
+
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+
+      const res = await fetch(`/api/finance/reports?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setReportData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch financial report', err);
+    } finally {
+      setLoadingReport(false);
+    }
+  }, [reportPeriod, reportFromDate, reportToDate, reportProjectFilter]);
 
   useEffect(() => {
     fetchProjectsList();
@@ -196,7 +251,7 @@ export default function FinancePage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as TabType;
-      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow', 'debts'];
+      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow', 'debts', 'reports'];
       if (tab && validTabs.includes(tab)) {
         setActiveTab(tab);
       }
@@ -208,7 +263,8 @@ export default function FinancePage() {
     if (activeTab === 'expenses') fetchExpenses();
     if (activeTab === 'cashflow') fetchCashflow();
     if (activeTab === 'debts') fetchDebts();
-  }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow, fetchDebts]);
+    if (activeTab === 'reports') fetchFinancialReport();
+  }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow, fetchDebts, fetchFinancialReport]);
 
   const handleCreateIpc = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -377,7 +433,9 @@ export default function FinancePage() {
         <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>🧾 مصروفات المشاريع</button>
         <button className={`tab-btn ${activeTab === 'cashflow' ? 'active' : ''}`} onClick={() => setActiveTab('cashflow')}>📈 التدفق النقدي والربحية</button>
         <button className={`tab-btn ${activeTab === 'debts' ? 'active' : ''}`} onClick={() => setActiveTab('debts')}>🏛️ المديونيات وتمويل المشاريع</button>
+        <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>📊 التقارير المالية والطباعة</button>
       </div>
+
 
       {/* ======================== TAB: CLIENT IPCs ======================== */}
       {activeTab === 'ipc' && (
@@ -731,6 +789,275 @@ export default function FinancePage() {
           </div>
         </>
       )}
+
+      {/* ======================== TAB: FINANCIAL REPORTS ======================== */}
+      {activeTab === 'reports' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">📊 التقارير المالية والتحليلات الشاملة</div>
+              <div className="page-description">توليد تقارير الإيرادات والمصروفات والتدفق النقدي (يومياً، أسبوعياً، شهرياً، أو مدة محددة) مع إمكانية الطباعة والـ PDF</div>
+            </div>
+            <div className="page-header-actions">
+              <button
+                className="btn btn-primary"
+                onClick={() => window.print()}
+                disabled={!reportData}
+              >
+                🖨️ طباعة التقرير المالي
+              </button>
+            </div>
+          </div>
+
+          {/* Report Filter Toolbar */}
+          <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <label className="form-label" style={{ marginBottom: '0.25rem' }}>فترة التقرير</label>
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${reportPeriod === 'daily' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setReportPeriod('daily')}
+                  >
+                    📅 يومي
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${reportPeriod === 'weekly' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setReportPeriod('weekly')}
+                  >
+                    📆 أسبوعي
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${reportPeriod === 'monthly' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setReportPeriod('monthly')}
+                  >
+                    🗓️ شهري
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${reportPeriod === 'custom' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setReportPeriod('custom')}
+                  >
+                    ⏳ مدة محددة
+                  </button>
+                </div>
+              </div>
+
+              {reportPeriod === 'custom' ? (
+                <>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ marginBottom: '0.25rem' }}>من تاريخ</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={reportFromDate}
+                      onChange={e => setReportFromDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ marginBottom: '0.25rem' }}>إلى تاريخ</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={reportToDate}
+                      onChange={e => setReportToDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ marginBottom: '0.25rem' }}>تحديد التاريخ / اليوم</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={reportFromDate}
+                    onChange={e => setReportFromDate(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ marginBottom: '0.25rem' }}>تصفية بمشروع معين</label>
+                <select
+                  className="form-control"
+                  value={reportProjectFilter}
+                  onChange={e => setReportProjectFilter(e.target.value)}
+                >
+                  <option value="all">كل المشاريع</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginTop: 'auto' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={fetchFinancialReport}
+                  disabled={loadingReport}
+                  style={{ padding: '0.6rem 1.25rem' }}
+                >
+                  {loadingReport ? 'جاري التوليد...' : '🔄 عرض التقرير'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Financial KPI Summary Cards */}
+          {reportData && (
+            <>
+              <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+                <div className="stat-card success">
+                  <div className="stat-card-icon">💰</div>
+                  <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+                    {formatCurrency(reportData.summary?.total_revenues || 0)}
+                  </div>
+                  <div className="stat-label">إجمالي الإيرادات والتحصيلات ({currencySymbol})</div>
+                </div>
+
+                <div className="stat-card danger">
+                  <div className="stat-card-icon">💸</div>
+                  <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+                    {formatCurrency(reportData.summary?.total_expenses || 0)}
+                  </div>
+                  <div className="stat-label">إجمالي المصروفات والنفقات ({currencySymbol})</div>
+                </div>
+
+                <div className="stat-card warning">
+                  <div className="stat-card-icon">🤝</div>
+                  <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+                    {formatCurrency(reportData.summary?.total_subcontractor || 0)}
+                  </div>
+                  <div className="stat-label">مستخلصات مقاولي الباطن ({currencySymbol})</div>
+                </div>
+
+                <div className="stat-card purple">
+                  <div className="stat-card-icon">⚖️</div>
+                  <div className="stat-value" style={{ fontSize: '1.4rem', color: (reportData.summary?.net_cash_flow || 0) >= 0 ? '#10b981' : '#ef4444' }}>
+                    {formatCurrency(reportData.summary?.net_cash_flow || 0)}
+                  </div>
+                  <div className="stat-label">صافي التدفق المالي والأرباح ({currencySymbol})</div>
+                </div>
+              </div>
+
+              {/* Transactions Breakdown Table */}
+              <div className="card">
+                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>📋 كشف العمليات المالية والحركات المنجزة ({reportData.transactions?.length || 0})</h3>
+                </div>
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th>نوع الحركة</th>
+                        <th>البيان / الوصف</th>
+                        <th>المشروع / الجهة</th>
+                        <th>التصنيف</th>
+                        <th style={{ textAlign: 'left' }}>المبلغ ({currencySymbol})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.transactions?.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                            لا توجد حركات مالية في هذه الفترة المحددة.
+                          </td>
+                        </tr>
+                      ) : (
+                        reportData.transactions?.map((t: any, index: number) => {
+                          const isRevenue = t.type === 'revenue';
+                          const isExpense = t.type === 'expense';
+                          const isSub = t.type === 'subcontractor';
+
+                          return (
+                            <tr key={t.id || index}>
+                              <td>{t.date ? new Date(t.date).toLocaleDateString('ar-EG') : '-'}</td>
+                              <td>
+                                <span className={`badge ${isRevenue ? 'badge-success' : isExpense ? 'badge-danger' : isSub ? 'badge-warning' : 'badge-info'}`}>
+                                  {isRevenue ? 'إيراد / تحصيل 🟢' : isExpense ? 'مصروفات 🔴' : isSub ? 'مستخلص مقاول 🟡' : 'التزام مالية 🔵'}
+                                </span>
+                              </td>
+                              <td style={{ fontWeight: 600 }}>{t.title || t.description || '-'}</td>
+                              <td>{t.project_name || t.creditor_name || '-'}</td>
+                              <td><span className="badge badge-muted">{t.category || '-'}</span></td>
+                              <td style={{ textAlign: 'left', fontWeight: 700, color: isRevenue ? '#10b981' : '#ef4444' }}>
+                                {isRevenue ? '+' : '-'}{formatCurrency(t.amount || 0)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Printable Financial Statement Container for window.print() */}
+              <div className="print-container">
+                <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                  <img src="/logo.jpg" alt="Logo" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+                  <h2 style={{ margin: '0.5rem 0', fontSize: '1.6rem' }}>{companyInfo?.name_ar || 'مؤسسة الرايق للمقاولات الكهروميكانيكية'}</h2>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, textDecoration: 'underline' }}>تقرير الكشف المالي الشامل وتدفقات الحسابات</div>
+                  <div style={{ fontSize: '0.95rem', color: '#555', marginTop: '0.25rem' }}>
+                    فترة التقرير: {reportPeriod === 'daily' ? 'تقرير يومي' : reportPeriod === 'weekly' ? 'تقرير أسبوعي' : reportPeriod === 'monthly' ? 'تقرير شهري' : 'تقرير فترة مخصصة'} ({new Date().toLocaleDateString('ar-EG')})
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid #000', padding: '1rem', borderRadius: '6px' }}>
+                  <div><strong>إجمالي الإيرادات:</strong> {formatCurrency(reportData.summary?.total_revenues || 0)}</div>
+                  <div><strong>إجمالي المصروفات:</strong> {formatCurrency(reportData.summary?.total_expenses || 0)}</div>
+                  <div><strong>مستخلصات المقاولين:</strong> {formatCurrency(reportData.summary?.total_subcontractor || 0)}</div>
+                  <div><strong>صافي الأرباح/التدفق:</strong> {formatCurrency(reportData.summary?.net_cash_flow || 0)}</div>
+                </div>
+
+                <table className="print-table">
+                  <thead>
+                    <tr>
+                      <th>التاريخ</th>
+                      <th>نوع الحركة</th>
+                      <th>البيان / الوصف</th>
+                      <th>المشروع / الجهة</th>
+                      <th style={{ textAlign: 'left' }}>المبلغ ({currencySymbol})</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.transactions?.map((t: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{t.date ? new Date(t.date).toLocaleDateString('ar-EG') : '-'}</td>
+                        <td>{t.type === 'revenue' ? 'إيراد' : 'مصروف'}</td>
+                        <td>{t.title || t.description}</td>
+                        <td>{t.project_name || '-'}</td>
+                        <td style={{ textAlign: 'left', fontWeight: 'bold' }}>{formatCurrency(t.amount || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="print-footer" style={{ marginTop: '3rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="print-signature-box">
+                    <div>إعداد المحاسب المالي</div>
+                    <div className="print-signature-line"></div>
+                  </div>
+                  <div className="print-signature-box">
+                    <div>مراجعة المدير المالي</div>
+                    <div className="print-signature-line"></div>
+                  </div>
+                  <div className="print-signature-box">
+                    <div>اعتماد مدير النظام</div>
+                    <div className="print-signature-line"></div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
 
       {/* ======================== MODAL: ADD DEBT ======================== */}
       {showDebtModal && (
