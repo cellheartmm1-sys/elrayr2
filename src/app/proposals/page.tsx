@@ -673,16 +673,10 @@ export default function ProposalsPage() {
               ` }} />
 
               {/* Official Document Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#000', fontWeight: 800 }}>مؤسسة الرايق للمقاولات الكهروميكانيكية</h2>
-                  <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '0.25rem' }}>
-                    سجل تجاري: ١٠١٠١٢٣٤٥٦ | الرقم الضريبي: ٣٠٠٠١٢٣٤٥٦٠٠٠٠٣
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#444' }}>العنوان: القاهرة / الرياض | البريد: info@alrayeq.com</div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
                 <img src="/logo.jpg" alt="Logo" style={{ width: '85px', height: '85px', objectFit: 'contain' }} />
               </div>
+
 
               {/* Title & Metadata */}
               <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
