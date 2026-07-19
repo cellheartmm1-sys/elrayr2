@@ -133,14 +133,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'تم تسجيل حضور هذا العامل لهذا اليوم مسبقاً' }, { status: 400 });
     }
 
-    let resolvedCheckIn = check_in_time ?? check_in ?? null;
-    let resolvedCheckOut = check_out_time ?? check_out ?? null;
+    let rawCheckIn = check_in_time ?? check_in ?? null;
+    let rawCheckOut = check_out_time ?? check_out ?? null;
+    let resolvedCheckIn: string | null = null;
+    let resolvedCheckOut: string | null = null;
 
-    if (typeof resolvedCheckIn === 'string' && resolvedCheckIn.includes('T')) {
-      resolvedCheckIn = resolvedCheckIn.split('T')[1]?.replace('Z', '') || null;
+    if (rawCheckIn && typeof rawCheckIn === 'string') {
+      if (rawCheckIn.includes('T')) {
+        const timePart = rawCheckIn.split('T')[1]?.replace('Z', '') || '08:00:00';
+        resolvedCheckIn = `${attendance_date} ${timePart}`;
+      } else if (!rawCheckIn.includes(' ')) {
+        resolvedCheckIn = `${attendance_date} ${rawCheckIn}`;
+      } else {
+        resolvedCheckIn = rawCheckIn;
+      }
+    } else if (resolvedType === 'present') {
+      resolvedCheckIn = `${attendance_date} 08:00:00`;
     }
-    if (typeof resolvedCheckOut === 'string' && resolvedCheckOut.includes('T')) {
-      resolvedCheckOut = resolvedCheckOut.split('T')[1]?.replace('Z', '') || null;
+
+    if (rawCheckOut && typeof rawCheckOut === 'string') {
+      if (rawCheckOut.includes('T')) {
+        const timePart = rawCheckOut.split('T')[1]?.replace('Z', '') || '17:00:00';
+        resolvedCheckOut = `${attendance_date} ${timePart}`;
+      } else if (!rawCheckOut.includes(' ')) {
+        resolvedCheckOut = `${attendance_date} ${rawCheckOut}`;
+      } else {
+        resolvedCheckOut = rawCheckOut;
+      }
+    } else if (resolvedType === 'present') {
+      resolvedCheckOut = `${attendance_date} 17:00:00`;
     }
 
     const result = await query(

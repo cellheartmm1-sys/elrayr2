@@ -161,8 +161,8 @@ export default function LaborPage() {
           status: attForm.is_present ? 'present' : 'absent',
           hours_worked: attForm.is_present ? Number(attForm.hours_worked) || 8 : 0,
           overtime_hours: Number(attForm.overtime_hours) || 0,
-          check_in: attForm.is_present ? '08:00:00' : null,
-          check_out: attForm.is_present ? '17:00:00' : null,
+          check_in: attForm.is_present ? `${attForm.attendance_date} 08:00:00` : null,
+          check_out: attForm.is_present ? `${attForm.attendance_date} 17:00:00` : null,
           notes: attForm.notes || ''
         })
       });
