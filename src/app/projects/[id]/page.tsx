@@ -129,6 +129,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [uploading, setUploading] = useState(false);
 
+  // Print modal states
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [showPrintProgressModal, setShowPrintProgressModal] = useState(false);
+  const [showPrintReportModal, setShowPrintReportModal] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setCompanyInfo(data))
+      .catch(err => console.error(err));
+  }, []);
+
   // Phase editing states
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [editingPhase, setEditingPhase] = useState<any | null>(null);
@@ -489,9 +501,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* ======================== TAB: PROGRESS ======================== */}
       {activeTab === 'progress' && (
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">📋 سجل تقارير نسب الإنجاز الأسبوعية</div>
-            <div className="card-subtitle">التقارير المرفوعة دورياً من المشرفين والمهندسين بالموقع</div>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div className="card-title">📋 سجل تقارير نسب الإنجاز الأسبوعية</div>
+              <div className="card-subtitle">التقارير المرفوعة دورياً من المشرفين والمهندسين بالموقع</div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowPrintProgressModal(true)}>
+              🖨️ طباعة تقرير الإنجاز والتنفيذ
+            </button>
           </div>
           {progress.length === 0 ? (
             <div className="empty-state">
@@ -888,9 +905,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           
           {/* Project Net Profitability Summary Card */}
           <div className="card" style={{ background: 'linear-gradient(135deg, rgba(23,43,77,0.4) 0%, rgba(9,30,66,0.6) 100%)', border: '1px solid var(--brand-primary-light)' }}>
-            <div className="card-header">
-              <div className="card-title" style={{ color: 'var(--brand-primary-light)' }}>📊 التقرير المالي والأرباح التقديرية للمشروع</div>
-              <div className="card-subtitle">الربحية الصافية والتدفق المالي المحتسب بناءً على الفواتير، المصاريف، مقاولي الباطن وعمال اليومية</div>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div className="card-title" style={{ color: 'var(--brand-primary-light)' }}>📊 التقرير المالي والأرباح التقديرية للمشروع</div>
+                <div className="card-subtitle">الربحية الصافية والتدفق المالي المحتسب بناءً على الفواتير، المصاريف، مقاولي الباطن وعمال اليومية</div>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowPrintReportModal(true)}>
+                🖨️ طباعة تقرير الأرباح والإنجاز
+              </button>
             </div>
             <div className="card-body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -1176,6 +1198,242 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
         </div>
       )}
+
+      {/* ======================== MODAL: PRINT PROGRESS REPORT ======================== */}
+      {showPrintProgressModal && (
+        <div className="modal-overlay" onClick={() => setShowPrintProgressModal(false)}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()} style={{ background: '#fff', color: '#000', direction: 'rtl', padding: '2rem' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid #ccc', paddingBottom: '1rem' }}>
+              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1a202c' }}>🖨️ معاينة طباعة تقرير الإنجاز والتنفيذ</div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
+                <button className="btn btn-outline" onClick={() => setShowPrintProgressModal(false)}>إغلاق</button>
+              </div>
+            </div>
+
+            {/* Printable Content */}
+            <div id="printable-progress-report" style={{ color: '#000', fontFamily: 'Cairo, sans-serif' }}>
+              {/* Report Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{companyInfo?.company_name || 'شركة الرايق للمقاولات الكهروميكانيكية'}</h2>
+                  <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '4px' }}>قسم إدارة المشاريع والتنفيذ الهندسي</div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>الهاتف: {companyInfo?.phone || '0555555555'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'}</div>
+                </div>
+                {companyInfo?.logo_url && (
+                  <img src={companyInfo.logo_url} alt="Logo" style={{ height: '60px', objectFit: 'contain' }} />
+                )}
+              </div>
+
+              {/* Title */}
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', textDecoration: 'underline', fontWeight: 800 }}>تقرير نسبة الإنجاز والتقدم الفني للمشروع</h3>
+                <div style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px' }}>تاريخ الإصدار: {new Date().toLocaleDateString('ar-EG')}</div>
+              </div>
+
+              {/* Project Data */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                <div><strong>اسم المشروع:</strong> {project.name}</div>
+                <div><strong>كود المشروع:</strong> {project.code}</div>
+                <div><strong>المالك / العميل:</strong> {project.client_name || '-'}</div>
+                <div><strong>الموقع:</strong> {project.location || '-'}</div>
+                <div><strong>نسبة الإنجاز الفني الحالية:</strong> <span style={{ color: '#059669', fontWeight: 800 }}>{actualProgress.toFixed(1)}%</span></div>
+                <div><strong>نسبة الإنجاز المخططة:</strong> {plannedProgress.toFixed(1)}%</div>
+              </div>
+
+              {/* Phases Table */}
+              <h4 style={{ fontSize: '1rem', margin: '0 0 0.5rem 0', textDecoration: 'underline' }}>📋 جدول مراحل الأعمال المنجزة والتقدم الفني:</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#e2e8f0', color: '#000' }}>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>المرحلة</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>نوع الأعمال</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>الوزن النسبي</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>المخطط %</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>الفعلي %</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {phases.map(p => (
+                    <tr key={p.id}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 600 }}>{p.phase_name}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{phaseTypeLabels[p.phase_type] || p.phase_type}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 700 }}>{Number(p.weight_percentage || 0).toFixed(0)}%</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{Number(p.planned_progress || 0).toFixed(0)}%</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: '#059669' }}>{Number(p.actual_progress || 0).toFixed(0)}%</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{Number(p.actual_progress || 0) >= 100 ? 'مكتملة' : 'جاري العمل'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Progress Reports History Table */}
+              <h4 style={{ fontSize: '1rem', margin: '0 0 0.5rem 0', textDecoration: 'underline' }}>📅 سجل التقارير الأسبوعية المرفوعة من الموقع:</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#e2e8f0', color: '#000' }}>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>تاريخ التقرير</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>المخطط %</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>الفعلي %</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>ملاحظات المهندس المشرف</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progress.length === 0 ? (
+                    <tr><td colSpan={4} style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'center' }}>لا توجد تقارير أسبوعية مرفوعة بعد</td></tr>
+                  ) : (
+                    progress.map(pr => (
+                      <tr key={pr.id}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 600 }}>{pr.report_date ? new Date(pr.report_date).toLocaleDateString('ar-EG') : '-'}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{Number(pr.planned_percentage || 0).toFixed(1)}%</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: '#059669' }}>{Number(pr.actual_percentage || 0).toFixed(1)}%</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{pr.notes || '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {/* Signatures */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 700 }}>مهندس الموقع</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 700 }}>استشاري المشروع</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 700 }}>اعتماد مدير المشاريع</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: PRINT FINANCIAL & PROFIT REPORT ======================== */}
+      {showPrintReportModal && (
+        <div className="modal-overlay" onClick={() => setShowPrintReportModal(false)}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()} style={{ background: '#fff', color: '#000', direction: 'rtl', padding: '2rem' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid #ccc', paddingBottom: '1rem' }}>
+              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1a202c' }}>🖨️ معاينة طباعة تقرير الأرباح والإنجاز المالي</div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
+                <button className="btn btn-outline" onClick={() => setShowPrintReportModal(false)}>إغلاق</button>
+              </div>
+            </div>
+
+            {/* Printable Content */}
+            <div id="printable-financial-report" style={{ color: '#000', fontFamily: 'Cairo, sans-serif' }}>
+              {/* Report Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{companyInfo?.company_name || 'شركة الرايق للمقاولات الكهروميكانيكية'}</h2>
+                  <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '4px' }}>الإدارة المالية وحسابات التكاليف والربحية</div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>الهاتف: {companyInfo?.phone || '0555555555'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'}</div>
+                </div>
+                {companyInfo?.logo_url && (
+                  <img src={companyInfo.logo_url} alt="Logo" style={{ height: '60px', objectFit: 'contain' }} />
+                )}
+              </div>
+
+              {/* Title */}
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', textDecoration: 'underline', fontWeight: 800 }}>تقرير التحليل المالي والأرباح والإنجاز للمشروع</h3>
+                <div style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px' }}>تاريخ الإصدار: {new Date().toLocaleDateString('ar-EG')}</div>
+              </div>
+
+              {/* Project Data */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                <div><strong>اسم المشروع:</strong> {project.name}</div>
+                <div><strong>كود المشروع:</strong> {project.code}</div>
+                <div><strong>المالك / العميل:</strong> {project.client_name || '-'}</div>
+                <div><strong>قيمة العقد الإجمالية:</strong> {formatCurrency(project.contract_value)}</div>
+                <div><strong>إجمالي المستخلصات المرفوعة:</strong> {formatCurrency(totalInvoiced)}</div>
+                <div><strong>المبالغ المحصلة فعلياً:</strong> <span style={{ color: '#059669', fontWeight: 700 }}>{formatCurrency(totalCollected)}</span></div>
+              </div>
+
+              {/* Costs & Net Profit Card */}
+              <div style={{ border: '2px solid #000', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem', background: '#fafafa' }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', textDecoration: 'underline' }}>📊 بيان النفقات والتكاليف وصافي الربح المحقق:</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', fontSize: '0.9rem' }}>
+                  <div><strong>1. المصروفات النثرية والمشتريات:</strong> {formatCurrency(totalExpenses)}</div>
+                  <div><strong>2. مستخلصات مقاولي الباطن:</strong> {formatCurrency(totalSubcontractorIpc)}</div>
+                  <div><strong>3. تكاليف أجور عمال اليومية:</strong> {formatCurrency(totalDailyLaborCost)}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#dc2626' }}><strong>إجمالي تكاليف ونفقات المشروع:</strong> {formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</div>
+                </div>
+                <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #ccc', fontSize: '1.2rem', fontWeight: 800, display: 'flex', justifyContent: 'space-between', color: netProjectProfit >= 0 ? '#059669' : '#dc2626' }}>
+                  <span>💰 صافي ربحية المشروع الحالية:</span>
+                  <span>{formatCurrency(netProjectProfit)}</span>
+                </div>
+              </div>
+
+              {/* Earned Value Table */}
+              <h4 style={{ fontSize: '1rem', margin: '0 0 0.5rem 0', textDecoration: 'underline' }}>📈 القيمة المستحقة المنجزة للمراحل (Earned Value):</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#e2e8f0', color: '#000' }}>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>المرحلة</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>الوزن المالي %</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>القيمة المالية من العقد</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'center' }}>الإنجاز الفني %</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>الأعمال المنجزة (Earned Value)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {phases.map(phase => {
+                    const phaseWeightNum = Number(phase.weight_percentage || 0);
+                    const phaseProgressNum = Number(phase.actual_progress || 0);
+                    const phaseVal = Number(project.contract_value || 0) * (phaseWeightNum / 100);
+                    const phaseEarnedVal = phaseVal * (phaseProgressNum / 100);
+                    return (
+                      <tr key={phase.id}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 600 }}>{phase.phase_name}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 700 }}>{phaseWeightNum.toFixed(1)}%</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{formatCurrency(phaseVal)}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: '#059669' }}>{phaseProgressNum.toFixed(0)}%</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 700, color: '#2563eb' }}>{formatCurrency(phaseEarnedVal)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Signatures */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 700 }}>المحاسب المسؤول</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 700 }}>مدير المشاريع</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 700 }}>اعتماد المدير العام</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          .no-print { display: none !important; }
+          .modal-overlay { position: absolute !important; left: 0 !important; top: 0 !important; background: white !important; padding: 0 !important; }
+          .modal { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+          #printable-progress-report, #printable-progress-report *,
+          #printable-financial-report, #printable-financial-report * { visibility: visible; }
+          #printable-progress-report, #printable-financial-report { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+      ` }} />
     </AppLayout>
   );
 }
