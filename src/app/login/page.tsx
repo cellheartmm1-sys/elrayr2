@@ -1,8 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +20,34 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      setDeferredPrompt(null);
+    } else {
+      alert(`💡 لتثبيت النظام كبرنامج على سطح المكتب أو الجوال:
+1. في متصفح Chrome/Edge على الكمبيوتر: اضغط على زر التثبيت 📥 في شريط العنوان (Address Bar).
+2. في هواتف آيفون (Safari): اضغط على زر "مشاركة" ثم اختر "إضافة إلى الصفحة الرئيسية".
+3. في هواتف أندرويد (Chrome): اضغط على القائمة (ثلاث نقاط) ثم اختر "تثبيت التطبيق".`);
+    }
+  };
 
 
   const handleLogin = (e: React.FormEvent) => {
@@ -26,7 +63,7 @@ export default function LoginPage() {
       .then(users => {
         let matchedUser = null;
         if (Array.isArray(users)) {
-          matchedUser = users.find((u: any) =>
+          matchedUser = users.find((u: { email?: string; username?: string }) =>
             u.email?.toLowerCase() === input ||
             u.username?.toLowerCase() === input ||
             (u.email && u.email.split('@')[0].toLowerCase() === input)
@@ -217,6 +254,41 @@ export default function LoginPage() {
             <Link href="/" style={{ color: '#94a3b8', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }}>
               ← العودة إلى الصفحة الرئيسية للمؤسسة
             </Link>
+          </div>
+
+          {/* Install App Button */}
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1.2rem', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              style={{
+                background: 'rgba(197, 155, 39, 0.1)',
+                border: '1px dashed rgba(197, 155, 39, 0.4)',
+                color: '#e5b83b',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease',
+                width: '100%',
+                justifyContent: 'center'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(197, 155, 39, 0.2)';
+                e.currentTarget.style.borderColor = '#e5b83b';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(197, 155, 39, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(197, 155, 39, 0.4)';
+              }}
+            >
+              <span>📥</span>
+              <span>تثبيت النظام على سطح المكتب / الجوال</span>
+            </button>
           </div>
         </form>
       </div>

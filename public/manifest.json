@@ -1,0 +1,22 @@
+{
+  "name": "الرايق ERP | نظام إدارة المقاولات",
+  "short_name": "الرايق ERP",
+  "description": "نظام إدارة موارد مؤسسة الرايق للمقاولات الكهروميكانيكية",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#030406",
+  "theme_color": "#c59b27",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
