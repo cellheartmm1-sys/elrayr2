@@ -722,17 +722,13 @@ export default function EstimationPage() {
                 </div>
               )}
 
-              <div className="print-footer">
-                <div className="print-signature-box">
-                  <div>أعده (قسم الهندسة والتسعير)</div>
+              <div className="print-footer" style={{ display: 'flex', justifyContent: 'space-around' }}>
+                <div className="print-signature-box" style={{ width: '40%' }}>
+                  <div>توقيع المحاسب المالي</div>
                   <div className="print-signature-line" />
                 </div>
-                <div className="print-signature-box">
-                  <div>راجعه (المدير المالي)</div>
-                  <div className="print-signature-line" />
-                </div>
-                <div className="print-signature-box">
-                  <div>اعتمد (المدير العام للمؤسسة)</div>
+                <div className="print-signature-box" style={{ width: '40%' }}>
+                  <div>اعتماد المدير العام للمؤسسة</div>
                   <div className="print-signature-line" />
                 </div>
               </div>

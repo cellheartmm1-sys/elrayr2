@@ -472,13 +472,17 @@ export default function ProjectsPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">الموقع الجغرافي</label>
-                  <input
+                  <label className="form-label">الموقع الجغرافي (المحافظة)</label>
+                  <select
                     className="form-control"
                     value={form.location}
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    placeholder="الرياض، جدة..."
-                  />
+                  >
+                    <option value="">اختر المحافظة (مصر)...</option>
+                    {['القاهرة', 'الجيزة', 'الإسكندرية', 'الدقهلية', 'البحر الأحمر', 'البحيرة', 'الفيوم', 'الغربية', 'الإسماعيلية', 'المنوفية', 'المنيا', 'القليوبية', 'الوادي الجديد', 'السويس', 'أسوان', 'أسيوط', 'بني سويف', 'بورسعيد', 'دمياط', 'الشرقية', 'جنوب سيناء', 'كفر الشيخ', 'مطروح', 'قنا', 'شمال سيناء', 'سوهاج', 'الأقصر'].map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">قيمة العقد ({currencySymbol})</label>

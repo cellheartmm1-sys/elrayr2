@@ -183,6 +183,40 @@ export default function LaborPage() {
     }
   };
 
+  const handleDeleteLaborer = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف بيانات هذا العامل؟')) return;
+    try {
+      const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف العامل بنجاح!');
+        fetchLaborers();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleDeleteAttendance = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف سجل اليومية هذا؟')) return;
+    try {
+      const res = await fetch(`/api/hr/attendance?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف سجّل اليومية بنجاح!');
+        fetchAttendance();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
   const totalDailyLaborCost = attendance.reduce((acc, a) => acc + Number(a.total_pay || 0), 0);
 
   return (
@@ -227,6 +261,7 @@ export default function LaborPage() {
                       <th>جوال الاتصال</th>
                       <th>الأجر اليومي المعتاد</th>
                       <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -243,6 +278,15 @@ export default function LaborPage() {
                           <span className={`badge ${l.is_active ? 'badge-success' : 'badge-muted'}`}>
                             {l.is_active ? 'نشط' : 'غير نشط'}
                           </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm text-danger"
+                            onClick={() => handleDeleteLaborer(l.id)}
+                            title="حذف العامل"
+                          >
+                            🗑️ حذف
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -308,6 +352,7 @@ export default function LaborPage() {
                       <th>حالة الحضور</th>
                       <th>ساعات الإضافي</th>
                       <th>الأجر الإجمالي المستحق</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -316,7 +361,7 @@ export default function LaborPage() {
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{a.worker_name}</td>
                         <td>{skillLabels[a.skill] || a.skill}</td>
                         <td style={{ fontWeight: 600 }}>{a.project_name || 'بالمكتب الرئيسي'}</td>
-                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG')}</td>
                         <td>
                           <span className={`badge ${a.is_present ? 'badge-success' : 'badge-danger'}`}>
                             {a.is_present ? 'حاضر' : 'غائب'}
@@ -324,6 +369,15 @@ export default function LaborPage() {
                         </td>
                         <td style={{ color: 'var(--status-purple)', fontWeight: 600 }}>{a.overtime_hours} ساعة</td>
                         <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{formatCurrency(a.total_pay)}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm text-danger"
+                            onClick={() => handleDeleteAttendance(a.id)}
+                            title="حذف سجل اليومية"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -187,3 +187,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message || 'فشل تسجيل حضور اليومية' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    await query('DELETE FROM attendance_records WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, message: 'Attendance deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE /api/hr/attendance]', error);
+    return NextResponse.json({ error: error?.message || 'فشل حذف اليومية' }, { status: 500 });
+  }
+}

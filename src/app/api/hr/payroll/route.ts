@@ -164,13 +164,38 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Query approved overtime requests
+      const overtimeReqRes = await query(
+        `SELECT COALESCE(SUM(amount), 0) AS req_amount, COALESCE(SUM(hours), 0) AS req_hours 
+         FROM overtime 
+         WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date) = $2 AND EXTRACT(YEAR FROM overtime_date) = $3`,
+        [empId, month, year]
+      );
+      const reqOvertimeAmount = Number(overtimeReqRes.rows[0]?.req_amount || 0);
+
+      // Query attendance overtime hours
+      const attOvertimeRes = await query(
+        `SELECT COALESCE(SUM(overtime_hours), 0) AS att_hours 
+         FROM attendance_records 
+         WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = $2 AND EXTRACT(YEAR FROM attendance_date) = $3`,
+        [empId, month, year]
+      );
+      const attOvertimeHours = Number(attOvertimeRes.rows[0]?.att_hours || 0);
+
+      // Hourly rate calculation: (base_salary / 240) * 1.5
+      const hourlyRate = ((Number(salaryData.base_salary) || 0) / 240) * 1.5;
+      const attOvertimeAmount = attOvertimeHours * hourlyRate;
+
+      const calculatedOvertime = reqOvertimeAmount + attOvertimeAmount;
+      const finalOvertime = Number(overtime_amount) > 0 ? Number(overtime_amount) : calculatedOvertime;
+
       const finalDeductions = Number(customDeductions) + loanDeduction;
       const grossSalary =
         (Number(salaryData.base_salary) ?? 0) +
         (Number(salaryData.housing_allowance) ?? 0) +
         (Number(salaryData.transport_allowance) ?? 0) +
         (Number(salaryData.other_allowances) ?? 0) +
-        Number(overtime_amount);
+        finalOvertime;
       const netSalary = grossSalary - finalDeductions;
 
       const result = await query(
@@ -188,7 +213,7 @@ export async function POST(request: NextRequest) {
           salaryData.housing_allowance ?? 0,
           salaryData.transport_allowance ?? 0,
           salaryData.other_allowances ?? 0,
-          overtime_amount,
+          finalOvertime,
           finalDeductions,
           netSalary,
           status,

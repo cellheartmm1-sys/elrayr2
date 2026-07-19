@@ -1790,17 +1790,13 @@ export default function FinancePage() {
               </table>
 
               {/* Signatures */}
-              <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>إعداد المحاسب المالي</div>
+              <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'space-around', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>توقيع المحاسب المالي</div>
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
                 </div>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>مراجعة المدير المالي</div>
-                  <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
-                </div>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>اعتماد مدير النظام</div>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>اعتماد المدير العام</div>
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
                 </div>
               </div>

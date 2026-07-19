@@ -15,22 +15,21 @@ export async function GET(request: NextRequest) {
       : '';
     if (projectId) params.push(projectId);
 
-    // IPC inflows for last 12 months
+    // IPC inflows for last 12 months (client_ipc uses net_payable)
     const ipcResult = await query(
       `SELECT
           TO_CHAR(DATE_TRUNC('month', ipc_date), 'YYYY-MM') AS month,
-          SUM(net_amount) AS total_inflow,
+          SUM(COALESCE(net_payable, 0)) AS total_inflow,
           COUNT(*) AS ipc_count
         FROM client_ipc
         WHERE ipc_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
-          AND status IN ('approved', 'paid')
           ${projectFilter}
         GROUP BY DATE_TRUNC('month', ipc_date)
         ORDER BY DATE_TRUNC('month', ipc_date)`,
       params
     );
 
-    // Reset params for expenses query
+    // Expense outflows for last 12 months (expenses + sub_ipc + payroll)
     const expenseParams: unknown[] = [];
     let expenseParamIndex = 1;
     const expenseProjectFilter = projectId
@@ -38,17 +37,44 @@ export async function GET(request: NextRequest) {
       : '';
     if (projectId) expenseParams.push(projectId);
 
-    // Expense outflows for last 12 months
     const expenseResult = await query(
       `SELECT
-          TO_CHAR(DATE_TRUNC('month', expense_date), 'YYYY-MM') AS month,
-          SUM(amount) AS total_outflow,
-          COUNT(*) AS expense_count
-        FROM project_expenses
-        WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
-          ${expenseProjectFilter}
-        GROUP BY DATE_TRUNC('month', expense_date)
-        ORDER BY DATE_TRUNC('month', expense_date)`,
+          month,
+          SUM(outflow) AS total_outflow,
+          SUM(cnt) AS expense_count
+        FROM (
+          SELECT
+            TO_CHAR(DATE_TRUNC('month', expense_date), 'YYYY-MM') AS month,
+            SUM(amount) AS outflow,
+            COUNT(*) AS cnt
+          FROM project_expenses
+          WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+            ${expenseProjectFilter}
+          GROUP BY DATE_TRUNC('month', expense_date)
+
+          UNION ALL
+
+          SELECT
+            TO_CHAR(DATE_TRUNC('month', ipc_date), 'YYYY-MM') AS month,
+            SUM(COALESCE(net_payable, 0)) AS outflow,
+            COUNT(*) AS cnt
+          FROM subcontractor_ipc
+          WHERE ipc_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+            ${expenseProjectFilter}
+          GROUP BY DATE_TRUNC('month', ipc_date)
+
+          UNION ALL
+
+          SELECT
+            TO_CHAR(MAKE_DATE(year, month, 1), 'YYYY-MM') AS month,
+            SUM(COALESCE(net_salary, 0)) AS outflow,
+            COUNT(*) AS cnt
+          FROM payroll
+          WHERE MAKE_DATE(year, month, 1) >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+          GROUP BY year, month
+        ) combined
+        GROUP BY month
+        ORDER BY month`,
       expenseParams
     );
 

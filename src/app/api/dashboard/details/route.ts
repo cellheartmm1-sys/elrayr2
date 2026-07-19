@@ -50,12 +50,28 @@ export async function GET(request: NextRequest) {
 
       case 'documents': // وثائق تنتهي خلال 30 يوم
         result = await query(`
-          SELECT e.full_name, e.employee_number, d.document_type, d.document_number, d.expiry_date,
-                 (d.expiry_date - CURRENT_DATE) as days_remaining 
-          FROM employee_documents d 
-          JOIN employees e ON e.id = d.employee_id 
-          WHERE d.expiry_date <= NOW() + INTERVAL '30 days' AND d.expiry_date > NOW() 
-          ORDER BY d.expiry_date ASC
+          WITH all_expiring AS (
+            SELECT e.full_name, e.employee_number, d.document_type, d.document_number, d.expiry_date
+            FROM employee_documents d 
+            JOIN employees e ON e.id = d.employee_id 
+            WHERE d.expiry_date <= NOW() + INTERVAL '30 days' AND d.expiry_date > NOW() 
+
+            UNION ALL
+
+            SELECT e.full_name, e.employee_number, 'iqama' as document_type, e.iqama_number as document_number, e.iqama_expiry as expiry_date
+            FROM employees e
+            WHERE e.iqama_expiry <= NOW() + INTERVAL '30 days' AND e.iqama_expiry > NOW()
+
+            UNION ALL
+
+            SELECT e.full_name, e.employee_number, 'passport' as document_type, e.passport_number as document_number, e.passport_expiry as expiry_date
+            FROM employees e
+            WHERE e.passport_expiry <= NOW() + INTERVAL '30 days' AND e.passport_expiry > NOW()
+          )
+          SELECT full_name, employee_number, document_type, document_number, expiry_date,
+                 (expiry_date - CURRENT_DATE) as days_remaining
+          FROM all_expiring
+          ORDER BY expiry_date ASC
         `);
         break;
 

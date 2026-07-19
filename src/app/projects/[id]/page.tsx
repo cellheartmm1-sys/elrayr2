@@ -1218,7 +1218,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{companyInfo?.company_name || 'شركة الرايق للمقاولات الكهروميكانيكية'}</h2>
                   <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '4px' }}>قسم إدارة المشاريع والتنفيذ الهندسي</div>
-                  <div style={{ fontSize: '0.85rem', color: '#444' }}>الهاتف: {companyInfo?.phone || '0555555555'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>سجل تجاري: {companyInfo?.cr_number || '1010895421'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'} | الهاتف: {companyInfo?.phone || '0555555555'}</div>
                 </div>
                 {companyInfo?.logo_url && (
                   <img src={companyInfo.logo_url} alt="Logo" style={{ height: '60px', objectFit: 'contain' }} />
@@ -1296,17 +1296,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </table>
 
               {/* Signatures */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700 }}>مهندس الموقع</div>
+              <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 700 }}>توقيع المحاسب المالي</div>
                   <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
                 </div>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700 }}>استشاري المشروع</div>
-                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
-                </div>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700 }}>اعتماد مدير المشاريع</div>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 700 }}>اعتماد المدير العام</div>
                   <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
                 </div>
               </div>
@@ -1334,7 +1330,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{companyInfo?.company_name || 'شركة الرايق للمقاولات الكهروميكانيكية'}</h2>
                   <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '4px' }}>الإدارة المالية وحسابات التكاليف والربحية</div>
-                  <div style={{ fontSize: '0.85rem', color: '#444' }}>الهاتف: {companyInfo?.phone || '0555555555'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>سجل تجاري: {companyInfo?.cr_number || '1010895421'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'} | الهاتف: {companyInfo?.phone || '0555555555'}</div>
                 </div>
                 {companyInfo?.logo_url && (
                   <img src={companyInfo.logo_url} alt="Logo" style={{ height: '60px', objectFit: 'contain' }} />
@@ -1404,16 +1400,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </table>
 
               {/* Signatures */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700 }}>المحاسب المسؤول</div>
+              <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 700 }}>توقيع المحاسب المالي</div>
                   <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
                 </div>
-                <div style={{ textAlign: 'center', width: '30%' }}>
-                  <div style={{ fontWeight: 700 }}>مدير المشاريع</div>
-                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
-                </div>
-                <div style={{ textAlign: 'center', width: '30%' }}>
+                <div style={{ textAlign: 'center', width: '40%' }}>
                   <div style={{ fontWeight: 700 }}>اعتماد المدير العام</div>
                   <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
                 </div>
