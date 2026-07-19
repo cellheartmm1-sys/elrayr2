@@ -7,6 +7,17 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
   const search = searchParams.get('search');
 
+  // Ensure project_documents table exists
+  await query(`
+    CREATE TABLE IF NOT EXISTS project_documents (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      document_name TEXT NOT NULL,
+      file_url TEXT NOT NULL,
+      uploaded_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   let sql = `
     SELECT p.*,
       u1.full_name as manager_name,
@@ -76,6 +87,17 @@ export async function POST(request: NextRequest) {
       }, { status: 202 });
     }
 
+    // Ensure project_documents table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS project_documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        document_name TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     const result = await query(
       `INSERT INTO projects (name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
@@ -93,7 +115,21 @@ export async function POST(request: NextRequest) {
       ]
     );
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    const newProject = result.rows[0];
+
+    // Store uploaded files in project_documents table
+    if (body.uploaded_files && Array.isArray(body.uploaded_files)) {
+      for (const file of body.uploaded_files) {
+        await query(
+          `INSERT INTO project_documents (
+            project_id, document_name, file_url
+          ) VALUES ($1, $2, $3)`,
+          [newProject.id, file.name, file.key]
+        );
+      }
+    }
+
+    return NextResponse.json(newProject, { status: 201 });
   } catch (error: unknown) {
     const err = error as Error;
     return NextResponse.json({ error: err.message }, { status: 500 });

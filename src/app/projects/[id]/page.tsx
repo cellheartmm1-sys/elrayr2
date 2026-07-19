@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
@@ -78,9 +78,15 @@ interface ProjectDetails {
     status: string;
     notes: string;
   }>;
+  documents: Array<{
+    id: string;
+    document_name: string;
+    file_url: string;
+    uploaded_at: string;
+  }>;
 }
 
-type TabType = 'overview' | 'phases' | 'progress' | 'financials';
+type TabType = 'overview' | 'phases' | 'progress' | 'financials' | 'documents';
 
 const statusLabels: Record<string, string> = {
   active: 'نشط', completed: 'مكتمل', suspended: 'متوقف', tender: 'مناقصة'
@@ -109,22 +115,24 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [uploading, setUploading] = useState(false);
+
+  const fetchDetails = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${id}`);
+      if (!res.ok) throw new Error('فشل تحميل تفاصيل المشروع من السيرفر');
+      const data = await res.json();
+      setDetails(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const res = await fetch(`/api/projects/${id}`);
-        if (!res.ok) throw new Error('فشل تحميل تفاصيل المشروع من السيرفر');
-        const data = await res.json();
-        setDetails(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchDetails();
-  }, [id]);
+  }, [fetchDetails]);
 
   if (loading) {
     return (
@@ -153,7 +161,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     );
   }
 
-  const { project, phases, progress, expenses, ipcs, subIpcs, debts = [] } = details;
+  const { project, phases, progress, expenses, ipcs, subIpcs, debts = [], documents = [] } = details;
   const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.total || 0), 0);
 
   return (
@@ -190,6 +198,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         <button className={`tab-btn ${activeTab === 'phases' ? 'active' : ''}`} onClick={() => setActiveTab('phases')}>📈 مراحل العمل</button>
         <button className={`tab-btn ${activeTab === 'progress' ? 'active' : ''}`} onClick={() => setActiveTab('progress')}>📋 تقارير الإنجاز</button>
         <button className={`tab-btn ${activeTab === 'financials' ? 'active' : ''}`} onClick={() => setActiveTab('financials')}>💰 الحسابات والمصروفات</button>
+        <button className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>📁 المرفقات والمخططات ({documents.length})</button>
       </div>
 
       {/* ======================== TAB: OVERVIEW ======================== */}
@@ -540,6 +549,181 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================== TAB: DOCUMENTS ======================== */}
+      {activeTab === 'documents' && (
+        <div className="card">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div className="card-title">📁 مستندات ومخططات المشروع</div>
+              <div className="card-subtitle">الملفات والعقود الهندسية والمخططات المرفوعة للمشروع على Cloudflare R2</div>
+            </div>
+            <div>
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*,.pdf,.xls,.xlsx" 
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files || files.length === 0) return;
+                  setUploading(true);
+                  try {
+                    for (let i = 0; i < files.length; i++) {
+                      const file = files[i];
+                      const formData = new FormData();
+                      formData.append('file', file);
+
+                      const uploadRes = await fetch('/api/employees/upload', {
+                        method: 'POST',
+                        body: formData
+                      });
+
+                      if (uploadRes.ok) {
+                        const uploadData = await uploadRes.json();
+                        // Save document to DB
+                        const saveRes = await fetch('/api/projects/documents', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            project_id: id,
+                            document_name: file.name,
+                            file_url: uploadData.key
+                          })
+                        });
+
+                        if (saveRes.ok) {
+                          fetchDetails();
+                        } else {
+                          alert('فشل حفظ معلومات الملف في قاعدة البيانات.');
+                        }
+                      } else {
+                        alert(`فشل رفع الملف ${file.name}`);
+                      }
+                    }
+                  } catch(err) {
+                    console.error(err);
+                    alert('حدث خطأ أثناء رفع الملفات.');
+                  } finally {
+                    setUploading(false);
+                  }
+                }} 
+                disabled={uploading}
+                style={{ display: 'none' }}
+                id="project-detail-upload"
+              />
+              <label 
+                htmlFor="project-detail-upload" 
+                className="btn btn-primary" 
+                style={{ cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                {uploading ? (
+                  <>
+                    <span className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                    جاري الرفع...
+                  </>
+                ) : '➕ رفع ملف جديد للمشروع'}
+              </label>
+            </div>
+          </div>
+
+          <div className="card-body">
+            {documents.length === 0 ? (
+              <div className="empty-state" style={{ padding: '3rem' }}>
+                <div className="empty-state-icon">📁</div>
+                <div className="empty-state-title">لا توجد ملفات مرفوعة للمشروع حالياً</div>
+                <div className="empty-state-description">استخدم الزر في الأعلى لرفع المخططات وعقود التنفيذ وتراخيص البناء.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                {documents.map((doc) => {
+                  const url = `/api/r2-file?key=${encodeURIComponent(doc.file_url)}`;
+                  const isImage = (f: string) => ['png', 'jpg', 'jpeg', 'gif'].includes(f.split('.').pop()?.toLowerCase() || '');
+                  const isPdf = (f: string) => f.toLowerCase().endsWith('.pdf');
+                  const isExcel = (f: string) => ['xls', 'xlsx'].includes(f.split('.').pop()?.toLowerCase() || '');
+
+                  return (
+                    <div key={doc.id} style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid var(--border-normal)',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '2rem' }}>
+                          {isPdf(doc.file_url) ? '📕' : isExcel(doc.file_url) ? '📗' : isImage(doc.file_url) ? '🖼️' : '📎'}
+                        </span>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {doc.document_name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            تاريخ الرفع: {new Date(doc.uploaded_at).toLocaleDateString('ar-SA')}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        height: '140px', 
+                        background: 'rgba(0,0,0,0.2)', 
+                        borderRadius: '8px', 
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        {isImage(doc.file_url) ? (
+                          <img src={url} alt={doc.document_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : isPdf(doc.file_url) ? (
+                          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '2.5rem' }}>📄</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>مستند PDF</span>
+                          </div>
+                        ) : isExcel(doc.file_url) ? (
+                          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '2.5rem' }}>📊</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>جدول Excel</span>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center' }}>
+                            <span style={{ fontSize: '2rem' }}>📎</span>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>ملف مرفق</div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <a 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-outline btn-sm" 
+                          style={{ flex: 1, textDecoration: 'none', justifyContent: 'center' }}
+                        >
+                          {isImage(doc.file_url) || isPdf(doc.file_url) ? '👁️ عرض' : '📥 تحميل'}
+                        </a>
+                        {(isImage(doc.file_url) || isPdf(doc.file_url)) && (
+                          <a 
+                            href={url} 
+                            download
+                            className="btn btn-ghost btn-sm" 
+                            style={{ border: '1px solid var(--border-subtle)', justifyContent: 'center' }}
+                          >
+                            📥
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

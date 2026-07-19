@@ -48,6 +48,43 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ key: string; name: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/employees/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUploadedFiles(prev => [...prev, { key: data.key, name: data.filename }]);
+        } else {
+          alert(`فشل رفع الملف ${file.name}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء رفع الملفات.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveUploadedFile = (keyToRemove: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.key !== keyToRemove));
+  };
 
   // Form State
   const [form, setForm] = useState({
@@ -99,12 +136,14 @@ export default function ProjectsPage() {
         },
         body: JSON.stringify({
           ...form,
-          contract_value: Number(form.contract_value) || 0
+          contract_value: Number(form.contract_value) || 0,
+          uploaded_files: uploadedFiles
         })
       });
       const data = await res.json();
       if (res.ok) {
         setShowModal(false);
+        setUploadedFiles([]);
         setForm({
           name: '',
           code: '',
@@ -417,6 +456,49 @@ export default function ProjectsPage() {
                     placeholder="تركيب شبكات حريق، مضخات، رشاشات..."
                     rows={2}
                   />
+                </div>
+                <div className="form-group col-span-3" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                  <label className="form-label" style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>📁 الملفات المرفقة للمشروع (مخططات، عقود، صور)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*,.pdf,.xls,.xlsx" 
+                      onChange={handleFileUpload} 
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                      id="project-file-upload-input"
+                    />
+                    <label 
+                      htmlFor="project-file-upload-input" 
+                      className="btn btn-outline" 
+                      style={{ cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      {uploading ? (
+                        <>
+                          <span className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                          جاري الرفع...
+                        </>
+                      ) : '➕ اختر ملفات للرفع'}
+                    </label>
+                  </div>
+                  
+                  {uploadedFiles.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                      {uploadedFiles.map((file) => (
+                        <div key={file.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-primary)' }}>📎 {file.name}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveUploadedFile(file.key)}
+                            style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontWeight: 700 }}
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

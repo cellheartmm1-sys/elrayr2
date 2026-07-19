@@ -61,6 +61,15 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Project Documents (مرفقات المشاريع)
+CREATE TABLE IF NOT EXISTS project_documents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  document_name TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Work phases per project (شبكات، صواعد، تركيبات)
 CREATE TABLE IF NOT EXISTS project_phases (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

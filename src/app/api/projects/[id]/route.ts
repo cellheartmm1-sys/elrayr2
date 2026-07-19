@@ -5,7 +5,7 @@ import { createApprovalRequest } from '@/lib/approvals';
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const [project, phases, progress, expenses, ipcs, subIpcs] = await Promise.all([
+  const [project, phases, progress, expenses, ipcs, subIpcs, documents] = await Promise.all([
     query(`
       SELECT p.*, u1.full_name as manager_name, u2.full_name as engineer_name
       FROM projects p
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       WHERE si.project_id = $1
       ORDER BY si.ipc_date DESC
     `, [id]),
+    query(`SELECT * FROM project_documents WHERE project_id = $1 ORDER BY uploaded_at DESC`, [id]),
   ]);
 
   if (!project.rows[0]) {
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     expenses: expenses.rows,
     ipcs: ipcs.rows,
     subIpcs: subIpcs.rows,
+    documents: documents.rows,
   });
 }
 
