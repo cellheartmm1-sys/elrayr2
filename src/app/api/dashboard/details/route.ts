@@ -61,8 +61,8 @@ export async function GET(request: NextRequest) {
 
       case 'overtime': // طلبات عمل إضافي معلقة
         result = await query(`
-          SELECT e.full_name as employee_name, p.name as project_name, o.overtime_date, o.hours_requested, o.reason 
-          FROM overtime_requests o 
+          SELECT e.full_name as employee_name, p.name as project_name, o.overtime_date, o.hours as hours_requested, o.reason 
+          FROM overtime o 
           JOIN employees e ON e.id = o.employee_id 
           LEFT JOIN projects p ON p.id = o.project_id 
           WHERE o.status = 'pending' 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
       case 'maintenance': // عقود صيانة نشطة
         result = await query(`
-          SELECT contract_number, client_name, contract_value, start_date, end_date 
+          SELECT contract_number, client_name, annual_value as contract_value, start_date, end_date 
           FROM maintenance_contracts 
           WHERE status = 'active' 
           ORDER BY created_at DESC
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
       case 'expenses': // مصروفات هذا الشهر
         result = await query(`
-          SELECT pe.expense_date, pe.item_name, pe.amount, p.name as project_name 
+          SELECT pe.expense_date, COALESCE(pe.description, pe.category) as item_name, pe.amount, p.name as project_name 
           FROM project_expenses pe 
           LEFT JOIN projects p ON p.id = pe.project_id 
           WHERE EXTRACT(MONTH FROM pe.expense_date) = EXTRACT(MONTH FROM NOW()) 
