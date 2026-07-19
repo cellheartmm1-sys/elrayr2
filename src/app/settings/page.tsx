@@ -846,127 +846,54 @@ export default function SettingsPage() {
 
           {/* Cloudflare R2 Cloud Backup Section */}
           <div className="dashboard-grid-1-1">
-            {/* R2 Configuration Form */}
+            {/* R2 Cloud Status Box */}
             <div className="card">
               <div className="card-header">
-                <div className="card-title">☁️ إعدادات النسخ الاحتياطي السحابي (Cloudflare R2)</div>
-                <div className="card-subtitle">تكوين إعدادات النسخ الاحتياطي التلقائي للبيانات إلى سحابة Cloudflare R2 (يدعم الربط المباشر بملف .env و Vercel)</div>
+                <div className="card-title">☁️ النسخ الاحتياطي السحابي (Cloudflare R2)</div>
+                <div className="card-subtitle">النسخ الاحتياطي السحابي والتخزين التلقائي لقاعدة البيانات</div>
               </div>
               
-              {company.r2_env_configured && (
+              <div style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{
-                  margin: '0.75rem 0',
-                  padding: '0.85rem 1rem',
+                  padding: '1rem',
                   background: 'rgba(16,185,129,0.12)',
                   border: '1px solid rgba(16,185,129,0.3)',
                   borderRadius: 'var(--radius-md)',
                   color: '#10b981',
                   fontWeight: 600,
-                  fontSize: '0.85rem',
+                  fontSize: '0.9rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.75rem'
                 }}>
-                  <span>🔒</span>
-                  <span>تم ضبط مفاتيح R2 تلقائياً عبر متغيّرات البيئة المنسقة في الفيرسل (Vercel Environment Variables / .env.local).</span>
+                  <span style={{ fontSize: '1.25rem' }}>🔒</span>
+                  <div>
+                    <div style={{ color: '#10b981', fontWeight: 700 }}>تم ربط حساب Cloudflare R2 بنجاح تلقائياً</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      تمت تهيئة مفاتيح التخزين السحابي المحمية عبر متغيرات البيئة في الفيرسل (Vercel Environment Variables / .env.local).
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <form onSubmit={handleSaveR2Settings} style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label">Account ID (معرف الحساب)</label>
-                  <input 
-                    className="form-control"
-                    value={company.r2_account_id || ''}
-                    onChange={e => setCompany({ ...company, r2_account_id: e.target.value })}
-                    placeholder="47aa407c8a51f1fe4fe1f387b381e424"
-                    disabled={dbActionRunning || saving}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">S3 API / Endpoint</label>
-                  <input 
-                    className="form-control"
-                    value={company.r2_endpoint || ''}
-                    onChange={e => setCompany({ ...company, r2_endpoint: e.target.value })}
-                    placeholder="https://47aa407c8a51f1fe4fe1f387b381e424.r2.cloudflarestorage.com"
-                    disabled={dbActionRunning || saving}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Bucket Name (اسم وعاء التخزين)</label>
-                  <input 
-                    className="form-control"
-                    value={company.r2_bucket_name || ''}
-                    onChange={e => setCompany({ ...company, r2_bucket_name: e.target.value })}
-                    placeholder="elraye2"
-                    disabled={dbActionRunning || saving}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">R2 Access Key ID</label>
-                  <input 
-                    className="form-control"
-                    type="password"
-                    value={company.r2_access_key_id || ''}
-                    onChange={e => setCompany({ ...company, r2_access_key_id: e.target.value })}
-                    placeholder={company.r2_env_configured ? 'محفوظ في متغيّرات البيئة (Environment Variables)...' : 'أدخل Access Key ID...'}
-                    disabled={dbActionRunning || saving}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">R2 Secret Access Key</label>
-
-                  <input 
-                    className="form-control"
-                    type="password"
-                    required
-                    value={company.r2_secret_access_key || ''}
-                    onChange={e => setCompany({ ...company, r2_secret_access_key: e.target.value })}
-                    placeholder="أدخل Secret Access Key..."
-                    disabled={dbActionRunning || saving}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label required">فترة النسخ الاحتياطي التلقائي (بالساعات)</label>
-                  <input 
-                    className="form-control"
-                    type="number"
-                    min="1"
-                    max="168"
-                    required
-                    value={company.r2_backup_interval_hours || '8'}
-                    onChange={e => setCompany({ ...company, r2_backup_interval_hours: e.target.value })}
-                    placeholder="8"
-                    disabled={dbActionRunning || saving}
-                  />
-                </div>
-                
                 {company.r2_last_backup_at && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    📅 آخر نسخ احتياطي سحابي ناجح: {new Date(company.r2_last_backup_at).toLocaleString('ar-EG')}
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', background: 'var(--bg-subtle)', padding: '0.75rem', borderRadius: '6px' }}>
+                    📅 <strong>آخر نسخ احتياطي سحابي ناجح:</strong> {new Date(company.r2_last_backup_at).toLocaleString('ar-EG')}
                   </div>
                 )}
 
-                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    disabled={dbActionRunning || saving}
-                  >
-                    {saving ? 'جاري الحفظ...' : '💾 حفظ إعدادات R2'}
-                  </button>
+                <div style={{ marginTop: '0.5rem' }}>
                   <button 
                     type="button" 
                     onClick={handleManualR2Backup}
-                    className="btn btn-outline" 
-                    disabled={dbActionRunning || saving || !company.r2_access_key_id}
+                    className="btn btn-primary" 
+                    disabled={dbActionRunning || saving}
                   >
-                    ☁️ اختبار الاتصال والنسخ الآن
+                    ☁️ اختبار الاتصال والنسخ الاحتياطي الآن
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
+
 
             {/* R2 Backups List */}
             <div className="card">
