@@ -127,6 +127,58 @@ const DEFAULT_LANDING_CONTENT = {
 export default function LandingPage() {
   const [landingContent, setLandingContent] = useState<any>(null);
   const [editContent, setEditContent] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).deferredInstallPrompt) {
+      setDeferredPrompt((window as any).deferredInstallPrompt);
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (typeof window !== 'undefined') {
+        (window as any).deferredInstallPrompt = e;
+      }
+    };
+
+    const handleCustomPromptAvailable = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setDeferredPrompt(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-available', handleCustomPromptAvailable);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-available', handleCustomPromptAvailable);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        setDeferredPrompt(null);
+        if (typeof window !== 'undefined') {
+          (window as any).deferredInstallPrompt = null;
+        }
+      } catch (err) {
+        console.error('PWA prompt failed:', err);
+      }
+    } else {
+      alert(`💡 لتثبيت النظام كبرنامج على سطح المكتب أو الجوال:
+1. في متصفح Chrome/Edge على الكمبيوتر: اضغط على زر التثبيت 📥 في شريط العنوان (Address Bar).
+2. في هواتف آيفون (Safari): اضغط على زر "مشاركة" ثم اختر "إضافة إلى الصفحة الرئيسية".
+3. في هواتف أندرويد (Chrome): اضغط على القائمة (ثلاث نقاط) ثم اختر "تثبيت التطبيق".`);
+    }
+  };
+
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -1164,6 +1216,37 @@ export default function LandingPage() {
         </ul>
 
         <div className="nav-actions">
+          <button
+            onClick={handleInstallClick}
+            style={{
+              background: 'rgba(6, 182, 212, 0.1)',
+              border: '1px solid rgba(6, 182, 212, 0.35)',
+              color: '#06b6d4',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              padding: '0.5rem 0.9rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              marginLeft: '0.75rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontFamily: 'inherit'
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = '#06b6d4';
+              e.currentTarget.style.color = '#fff';
+              e.currentTarget.style.borderColor = '#06b6d4';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)';
+              e.currentTarget.style.color = '#06b6d4';
+              e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.35)';
+            }}
+          >
+            📥 تثبيت النظام
+          </button>
           <Link href="/login" className="btn-nav-login">
             💼 بوابة الموظفين
           </Link>

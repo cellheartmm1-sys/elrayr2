@@ -23,24 +23,48 @@ export default function LoginPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
+    // Check if the prompt was already intercepted globally
+    if (typeof window !== 'undefined' && (window as any).deferredInstallPrompt) {
+      setDeferredPrompt((window as any).deferredInstallPrompt);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      if (typeof window !== 'undefined') {
+        (window as any).deferredInstallPrompt = e;
+      }
+    };
+
+    const handleCustomPromptAvailable = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setDeferredPrompt(customEvent.detail);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-available', handleCustomPromptAvailable);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-available', handleCustomPromptAvailable);
     };
   }, []);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to the install prompt: ${outcome}`);
-      setDeferredPrompt(null);
+      try {
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        setDeferredPrompt(null);
+        if (typeof window !== 'undefined') {
+          (window as any).deferredInstallPrompt = null;
+        }
+      } catch (err) {
+        console.error('PWA prompt failed:', err);
+      }
     } else {
       alert(`💡 لتثبيت النظام كبرنامج على سطح المكتب أو الجوال:
 1. في متصفح Chrome/Edge على الكمبيوتر: اضغط على زر التثبيت 📥 في شريط العنوان (Address Bar).

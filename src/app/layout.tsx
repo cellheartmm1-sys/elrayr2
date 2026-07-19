@@ -48,6 +48,23 @@ export default function RootLayout({
           }}
         />
         <Script
+          id="pwa-initializer"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  window.addEventListener('beforeinstallprompt', function(e) {
+                    e.preventDefault();
+                    window.deferredInstallPrompt = e;
+                    window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
+                  });
+                } catch(err) {}
+              })();
+            `,
+          }}
+        />
+        <Script
           id="register-sw"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
