@@ -116,7 +116,14 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
             <span style={{ fontSize: '1.25rem' }}>☰</span>
           </button>
         )}
-        {icon && <span style={{ fontSize: '1.25rem' }}>{icon}</span>}
+        {icon && (
+          typeof icon === 'string' && (icon.endsWith('.jpg') || icon.endsWith('.png') || icon.startsWith('/')) ? (
+            <img src={icon} alt="Logo Icon" style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px', marginLeft: '0.5rem' }} />
+          ) : (
+            <span style={{ fontSize: '1.25rem', marginLeft: '0.5rem' }}>{icon}</span>
+          )
+        )}
+
         <div>
           <div>{title}</div>
           {subtitle && (

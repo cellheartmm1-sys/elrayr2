@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: "الرايق ERP | نظام إدارة المقاولات الكهروميكانيكية",
   description: "نظام متكامل لإدارة مشاريع الرايق للمقاولات الكهروميكانيكية - إدارة المشاريع، المشتريات، الموارد البشرية، والمالية",
   keywords: "مقاولات، كهروميكانيكية، شبكات حريق، ERP، إدارة مشاريع",
+  icons: {
+    icon: "/logo.jpg",
+    shortcut: "/logo.jpg",
+    apple: "/logo.jpg",
+  },
 };
 
 export default function RootLayout({
@@ -15,6 +20,9 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/logo.jpg" type="image/jpeg" />
+        <link rel="shortcut icon" href="/logo.jpg" type="image/jpeg" />
+        <link rel="apple-touch-icon" href="/logo.jpg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
