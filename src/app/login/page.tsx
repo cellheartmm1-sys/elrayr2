@@ -215,7 +215,7 @@ export default function LoginPage() {
           width: 100%;
           display: flex;
           align-items: center;
-          justifyContent: center;
+          justify-content: center;
           background-color: #030406;
           overflow: hidden;
           padding: 1.5rem;
@@ -278,7 +278,7 @@ export default function LoginPage() {
         .login-card {
           position: relative;
           width: 100%;
-          maxWidth: 440px;
+          max-width: 440px;
           background: rgba(10, 12, 18, 0.85);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
@@ -330,7 +330,7 @@ export default function LoginPage() {
         .lightning-divider {
           display: flex;
           align-items: center;
-          justifyContent: center;
+          justify-content: center;
           margin-top: 0.75rem;
           position: relative;
         }
@@ -520,7 +520,7 @@ export default function LoginPage() {
         .btn-content {
           display: flex;
           align-items: center;
-          justifyContent: center;
+          justify-content: center;
           gap: 0.6rem;
         }
         .btn-arrow {
