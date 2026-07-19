@@ -806,11 +806,12 @@ export default function FinancePage() {
             <div className="page-header-actions">
               <button
                 className="btn btn-primary"
-                onClick={() => window.print()}
+                onClick={() => setShowPrintReportModal(true)}
                 disabled={!reportData}
               >
                 🖨️ طباعة التقرير المالي
               </button>
+
             </div>
           </div>
 
@@ -1536,6 +1537,159 @@ export default function FinancePage() {
           </div>
         </div>
       )}
+
+      {/* ======================== FINANCIAL REPORT PRINT MODAL ======================== */}
+      {showPrintReportModal && (
+        <div className="modal-overlay print-modal-overlay" onClick={() => setShowPrintReportModal(false)}>
+          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '850px', background: 'var(--card-bg)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
+              <div className="modal-title">🖨️ معاينة طباعة التقرير المالي الشامل</div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
+                <button className="btn btn-ghost" onClick={() => setShowPrintReportModal(false)}>إغلاق</button>
+              </div>
+            </div>
+
+            <div className="print-container" style={{ direction: 'rtl', padding: '2rem', background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+              <style dangerouslySetInnerHTML={{ __html: `
+                @page {
+                  size: A4 portrait;
+                  margin: 10mm;
+                }
+                @media print {
+                  html, body {
+                    background: #fff !important;
+                    color: #000 !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                  }
+                  body * {
+                    visibility: hidden !important;
+                  }
+                  .print-container, .print-container * {
+                    visibility: visible !important;
+                  }
+                  .print-container {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    box-shadow: none !important;
+                    background: #fff !important;
+                    color: #000 !important;
+                  }
+                  .print-modal-overlay {
+                    position: static !important;
+                    background: transparent !important;
+                    padding: 0 !important;
+                    backdrop-filter: none !important;
+                    display: block !important;
+                  }
+                  .print-modal-content {
+                    max-height: none !important;
+                    overflow: visible !important;
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    max-width: 100% !important;
+                  }
+                  .print-actions {
+                    display: none !important;
+                  }
+                }
+              ` }} />
+
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#000', fontWeight: 700 }}>{companyInfo?.name_ar || 'مؤسسة الرايق للمقاولات الكهروميكانيكية'}</h2>
+                  <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '0.25rem' }}>
+                    سجل تجاري: {companyInfo?.cr_number || '١٠١٠١٢٣٤٥٦'} | الرقم الضريبي: {companyInfo?.vat_number || '٣٠٠٠١٢٣٤٥٦٠٠٠٠٣'}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>العنوان: {companyInfo?.address || 'القاهرة، مصر'} | الهاتف: {companyInfo?.phone || '+20-100-000-0000'}</div>
+                </div>
+                <img src="/logo.jpg" alt="Logo" style={{ width: '85px', height: '85px', objectFit: 'contain' }} />
+              </div>
+
+              {/* Report Title */}
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.4rem', textDecoration: 'underline', color: '#000', fontWeight: 700 }}>تقرير الكشف المالي الشامل وتدفقات الحسابات</h3>
+                <div style={{ fontSize: '0.9rem', color: '#555', marginTop: '0.4rem' }}>
+                  فترة التقرير: <strong>{reportPeriod === 'daily' ? 'تقرير يومي' : reportPeriod === 'weekly' ? 'تقرير أسبوعي' : reportPeriod === 'monthly' ? 'تقرير شهري' : 'تقرير فترة مخصصة'}</strong> (تاريخ الإصدار: {new Date().toLocaleDateString('ar-EG')})
+                </div>
+              </div>
+
+              {/* Summary Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ border: '1px solid #10b981', padding: '0.75rem', borderRadius: '6px', background: '#f0fdf4', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#166534', fontWeight: 600 }}>إجمالي الإيرادات</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#15803d', marginTop: '0.25rem' }}>{formatCurrency(reportData?.summary?.total_revenues || 0)}</div>
+                </div>
+                <div style={{ border: '1px solid #ef4444', padding: '0.75rem', borderRadius: '6px', background: '#fef2f2', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#991b1b', fontWeight: 600 }}>إجمالي المصروفات</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#b91c1c', marginTop: '0.25rem' }}>{formatCurrency(reportData?.summary?.total_expenses || 0)}</div>
+                </div>
+                <div style={{ border: '1px solid #eab308', padding: '0.75rem', borderRadius: '6px', background: '#fefce8', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#854d0e', fontWeight: 600 }}>مستخلصات المقاولين</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#a16207', marginTop: '0.25rem' }}>{formatCurrency(reportData?.summary?.total_subcontractor || 0)}</div>
+                </div>
+                <div style={{ border: '1px solid #3b82f6', padding: '0.75rem', borderRadius: '6px', background: '#eff6ff', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>صافي الأرباح والتدفق</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1d4ed8', marginTop: '0.25rem' }}>{formatCurrency(reportData?.summary?.net_cash_flow || 0)}</div>
+                </div>
+              </div>
+
+              {/* Breakdown Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#f3f4f6' }}>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem', textAlign: 'right' }}>التاريخ</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem', textAlign: 'right' }}>نوع الحركة</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem', textAlign: 'right' }}>البيان / الوصف</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem', textAlign: 'right' }}>المشروع / الجهة</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem', textAlign: 'left' }}>المبلغ ({currencySymbol})</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportData?.transactions?.map((t: any, idx: number) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ border: '1px solid #d1d5db', padding: '0.4rem' }}>{t.date ? new Date(t.date).toLocaleDateString('ar-EG') : '-'}</td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', fontWeight: 600, color: t.type === 'revenue' ? '#16a34a' : '#dc2626' }}>
+                        {t.type === 'revenue' ? 'إيراد / تحصيل' : t.type === 'expense' ? 'مصروف' : 'مستخلص مقاول'}
+                      </td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', fontWeight: 600 }}>{t.title || t.description}</td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '0.4rem' }}>{t.project_name || '-'}</td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '0.4rem', textAlign: 'left', fontWeight: 700, color: t.type === 'revenue' ? '#16a34a' : '#dc2626' }}>
+                        {t.type === 'revenue' ? '+' : '-'}{formatCurrency(t.amount || 0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Signatures */}
+              <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>إعداد المحاسب المالي</div>
+                  <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
+                </div>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>مراجعة المدير المالي</div>
+                  <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
+                </div>
+                <div style={{ textAlign: 'center', width: '30%' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>اعتماد مدير النظام</div>
+                  <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </AppLayout>
   );
 }
