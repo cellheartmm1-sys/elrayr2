@@ -49,7 +49,8 @@ export default function ProposalsPage() {
     client_name: 'رئيس مجلس الإدارة / صاحب مؤسسة الرايق للمقاولات الكهروميكانيكية',
     scope_text: `يتضمن هذا العرض الفني والمالي تصميم، تطوير، وتأهيل المنظومة الرقمية الشاملة لمؤسسة الرايق للمقاولات الكهروميكانيكية.\nتشمل المنظومة المسلمة:\n١. موقع إلكتروني تعريفي سياحي وسينمائي واحترافي (Landing Page) يتوافق مع كبرى الشركات المليارية لاستعراض قطاعات أعمال المؤسسة، السلايدر التفاعلي، وتلقي طلبات المباشرة والشراكة.\n٢. نظام إدارة الموارد الرقمية الموحد (Enterprise ERP System) للربط المباشر بين لوحة التحكم المالية، المشاريع، المشتريات، الموارد البشرية، الصيانة، والحفظ السحابي في Cloudflare R2.`,
     terms_text: `١. مدة التطوير والتأهيل والتسليم: ٦٠ يوماً تقويمياً شاملة رفع النظام وإتاحة السيرفرات وتدريب الكوادر.\n٢. الدفعات المالية: ٣٠٪ دفعة مقدمة عند التوقيع، ٥٠٪ عند تسليم المرحلة الأولى للنظام والموقع، و٢٠٪ عند الاعتماد والتسليم النهائي.\n٣. فترات الضمان والدعم الفني: ضمان برمجي كامل لمدة 12 شهراً مع الدعم الفني المجاني واستصدار النسخ الاحتياطية السحابية.`,
-    vat_percentage: 15,
+    vat_percentage: 0,
+
     technical_items: [
       {
         id: 't1',
@@ -290,8 +291,8 @@ export default function ProposalsPage() {
 
   // Financial Calculations
   const subtotal = currentProposal.financial_items.reduce((acc, item) => acc + (Number(item.totalPrice) || 0), 0);
-  const vatAmount = subtotal * ((currentProposal.vat_percentage || 15) / 100);
-  const grandTotal = subtotal + vatAmount;
+  const grandTotal = subtotal;
+
 
   // Save Proposal Handler
   const handleSaveProposal = async () => {
@@ -619,26 +620,13 @@ export default function ProposalsPage() {
           </div>
 
           {/* Financial Breakdown Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', background: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>إجمالي الأعمال قبل الضريبة</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }} suppressHydrationWarning>
-                {subtotal.toLocaleString('ar-EG')} {currencySymbol}
-              </div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ضريبة القيمة المضافة ({currentProposal.vat_percentage || 15}%)</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.25rem' }} suppressHydrationWarning>
-                {vatAmount.toLocaleString('ar-EG')} {currencySymbol}
-              </div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 700 }}>الإجمالي النهائي الشامل لبيع وتسليم النظام</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981', marginTop: '0.25rem' }} suppressHydrationWarning>
-                {grandTotal.toLocaleString('ar-EG')} {currencySymbol}
-              </div>
+          <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.95rem', color: '#10b981', fontWeight: 700 }}>الإجمالي النهائي الشامل لبيع وتأهيل النظام والموقع</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#10b981', marginTop: '0.25rem' }} suppressHydrationWarning>
+              {grandTotal.toLocaleString('ar-EG')} {currencySymbol}
             </div>
           </div>
+
         </div>
 
         {/* SECTION 3: TERMS & CONDITIONS */}
@@ -775,21 +763,13 @@ export default function ProposalsPage() {
                         </td>
                       </tr>
                     ))}
-                    <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
-                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>إجمالي التكلفة البرمجية قبل الضريبة</td>
-                      <td style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'left' }}>{subtotal.toLocaleString('ar-EG')} {currencySymbol}</td>
-                    </tr>
-                    <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
-                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'right' }}>ضريبة القيمة المضافة ({currentProposal.vat_percentage || 15}%)</td>
-                      <td style={{ border: '1px solid #9ca3af', padding: '0.4rem', textAlign: 'left' }}>{vatAmount.toLocaleString('ar-EG')} {currencySymbol}</td>
-                    </tr>
                     <tr style={{ background: '#e5e7eb', fontWeight: 900, fontSize: '0.95rem' }}>
-
-                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'right' }}>الإجمالي النهائي الشامل لتسليم وتأهيل النظام بالكامل</td>
-                      <td style={{ border: '1px solid #9ca3af', padding: '0.5rem', textAlign: 'left', color: '#15803d' }}>
+                      <td colSpan={4} style={{ border: '1px solid #9ca3af', padding: '0.6rem', textAlign: 'right' }}>الإجمالي النهائي الشامل لتسليم وتأهيل النظام بالكامل</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '0.6rem', textAlign: 'left', color: '#15803d' }}>
                         {grandTotal.toLocaleString('ar-EG')} {currencySymbol}
                       </td>
                     </tr>
+
                   </tbody>
                 </table>
               </div>
