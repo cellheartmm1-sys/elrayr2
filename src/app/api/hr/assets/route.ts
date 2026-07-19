@@ -96,15 +96,21 @@ export async function POST(request: NextRequest) {
       notes,
     } = body;
 
-    if (!asset_name) return NextResponse.json({ error: 'asset_name is required' }, { status: 400 });
+    if (!asset_name) return NextResponse.json({ error: 'اسم العهدة مطلوب' }, { status: 400 });
+
+    const finalCode = asset_code || `AST-${Math.floor(1000 + Math.random() * 9000)}`;
 
     if (asset_code) {
       const existing = await query('SELECT id FROM personal_assets WHERE asset_code = $1', [asset_code]);
-      if (existing.rows.length > 0) return NextResponse.json({ error: 'Asset code already exists' }, { status: 409 });
+      if (existing.rows.length > 0) return NextResponse.json({ error: 'كود العهدة مستخدم مسبقاً' }, { status: 400 });
     }
 
-    const resolvedCost = purchase_cost ?? purchase_value ?? null;
-    const resolvedAssignmentDate = assignment_date ?? assigned_date ?? null;
+    const rawCost = purchase_cost ?? purchase_value;
+    const resolvedCost = (rawCost !== undefined && rawCost !== '' && rawCost !== null) ? Number(rawCost) : null;
+    const rawAssignDate = assignment_date ?? assigned_date;
+    const resolvedAssignmentDate = (rawAssignDate !== undefined && rawAssignDate !== '') ? rawAssignDate : null;
+    const resolvedPurchaseDate = (purchase_date !== undefined && purchase_date !== '') ? purchase_date : null;
+    const resolvedAssignedTo = (assigned_to !== undefined && assigned_to !== '') ? assigned_to : null;
 
     const result = await query(
       `INSERT INTO personal_assets (
@@ -113,18 +119,26 @@ export async function POST(request: NextRequest) {
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         RETURNING *`,
       [
-        asset_code ?? null, asset_name, asset_type ?? null,
-        brand ?? null, model ?? null, serial_number ?? null,
-        purchase_date ?? null, resolvedCost,
-        condition ?? null, status,
-        assigned_to ?? null, resolvedAssignmentDate, notes ?? null,
+        finalCode,
+        asset_name,
+        asset_type || null,
+        brand || null,
+        model || null,
+        serial_number || null,
+        resolvedPurchaseDate,
+        resolvedCost,
+        condition || null,
+        status || 'available',
+        resolvedAssignedTo,
+        resolvedAssignmentDate,
+        notes || null,
       ]
     );
 
     return NextResponse.json({ data: result.rows[0] }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[POST /api/hr/assets]', error);
-    return NextResponse.json({ error: 'Failed to create asset' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'فشل حفظ العهدة' }, { status: 500 });
   }
 }
 
