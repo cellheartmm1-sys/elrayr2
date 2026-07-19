@@ -98,7 +98,6 @@ export default function LoginPage() {
           <div className="lightning-divider">
             <span className="lightning-bolt">⚡</span>
           </div>
-          <p className="system-subtitle">بوابة الإدارة الذكية (ERP SYSTEM)</p>
         </div>
 
         {/* Error Alert */}
