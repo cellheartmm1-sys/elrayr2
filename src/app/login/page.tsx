@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +79,12 @@ export default function LoginPage() {
 
   return (
     <div className="login-page-container">
+      {/* Return to Landing Page Button */}
+      <Link href="/" className="back-to-home-btn">
+        <span>🏠</span>
+        <span>العودة إلى الصفحة الرئيسية</span>
+      </Link>
+
       {/* Background Animated Blobs */}
       <div className="blob blob-gold" />
       <div className="blob blob-amber" />
@@ -203,8 +211,15 @@ export default function LoginPage() {
               </span>
             )}
           </button>
+
+          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <Link href="/" style={{ color: '#94a3b8', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }}>
+              ← العودة إلى الصفحة الرئيسية للمؤسسة
+            </Link>
+          </div>
         </form>
       </div>
+
 
       {/* Styled JSX Scoped Block */}
       <style jsx>{`
@@ -221,6 +236,35 @@ export default function LoginPage() {
           direction: rtl;
           font-family: 'Cairo', sans-serif;
         }
+
+        :global(.back-to-home-btn) {
+          position: absolute;
+          top: 2rem;
+          right: 2rem;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.65rem 1.25rem;
+          background: rgba(10, 12, 18, 0.85);
+          border: 1px solid rgba(197, 155, 39, 0.35);
+          border-radius: 12px;
+          color: #f8fafc;
+          font-weight: 700;
+          font-size: 0.9rem;
+          text-decoration: none;
+          backdrop-filter: blur(12px);
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        :global(.back-to-home-btn:hover) {
+          background: rgba(197, 155, 39, 0.25);
+          border-color: #e5b83b;
+          color: #e5b83b;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(197, 155, 39, 0.3);
+        }
+
 
         /* Animated Glowing Blobs */
         .blob {
