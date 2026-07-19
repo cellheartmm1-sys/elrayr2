@@ -106,7 +106,23 @@ export async function POST(request: NextRequest) {
     const resolvedPreviousPayments = previous_payments ?? previous_amount ?? 0;
     const resolvedRetentionAmount = retention_amount ?? 0;
     const resolvedNetPayable = net_payable ?? net_amount ?? (resolvedItemsTotal - resolvedRetentionAmount);
-    const generatedNumber = ipc_number || `SIPC-${Math.floor(100000 + Math.random() * 900000)}`;
+    let generatedNumber = ipc_number;
+    if (!generatedNumber || generatedNumber.trim() === '') {
+      const lastIpc = await query(
+        "SELECT ipc_number FROM subcontractor_ipc WHERE ipc_number LIKE 'SC-IPC-%' ORDER BY id DESC LIMIT 1"
+      );
+      let nextNum = 1;
+      if (lastIpc.rows.length > 0) {
+        const matches = lastIpc.rows[0].ipc_number.match(/\d+/);
+        if (matches) {
+          const parsed = parseInt(matches[0], 10);
+          if (!isNaN(parsed)) {
+            nextNum = parsed + 1;
+          }
+        }
+      }
+      generatedNumber = `SC-IPC-${String(nextNum).padStart(4, '0')}`;
+    }
 
     // contract_id is NOT NULL in schema — if not provided, try to find the active contract
     let resolvedContractId = contract_id ?? null;

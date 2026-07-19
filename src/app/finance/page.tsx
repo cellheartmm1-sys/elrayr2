@@ -1206,8 +1206,8 @@ export default function FinancePage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label required">رقم المستخلص</label>
-                  <input className="form-control" required value={ipcForm.ipc_number} onChange={e => setIpcForm({...ipcForm, ipc_number: e.target.value})} placeholder="IPC-CL-001" />
+                  <label className="form-label">رقم المستخلص (اختياري)</label>
+                  <input className="form-control" value={ipcForm.ipc_number} onChange={e => setIpcForm({...ipcForm, ipc_number: e.target.value})} placeholder="توليد تلقائي تسلسلي (مثال: IPC-0001)" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">الفترة من</label>

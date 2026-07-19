@@ -103,7 +103,23 @@ export async function POST(request: NextRequest) {
     const resolvedVatAmount = vat_amount ?? (resolvedItemsTotal * (vat_percentage / 100));
     const resolvedRetentionAmount = retention_amount ?? (resolvedItemsTotal * (retention_percentage / 100));
     const resolvedNetPayable = net_payable ?? net_amount ?? (resolvedItemsTotal + resolvedVatAmount - resolvedRetentionAmount);
-    const generatedNumber = ipc_number || `IPC-${Math.floor(100000 + Math.random() * 900000)}`;
+    let generatedNumber = ipc_number;
+    if (!generatedNumber || generatedNumber.trim() === '') {
+      const lastIpc = await query(
+        "SELECT ipc_number FROM client_ipc WHERE ipc_number LIKE 'IPC-%' ORDER BY id DESC LIMIT 1"
+      );
+      let nextNum = 1;
+      if (lastIpc.rows.length > 0) {
+        const matches = lastIpc.rows[0].ipc_number.match(/\d+/);
+        if (matches) {
+          const parsed = parseInt(matches[0], 10);
+          if (!isNaN(parsed)) {
+            nextNum = parsed + 1;
+          }
+        }
+      }
+      generatedNumber = `IPC-${String(nextNum).padStart(4, '0')}`;
+    }
 
     const result = await query(
       `INSERT INTO client_ipc (
