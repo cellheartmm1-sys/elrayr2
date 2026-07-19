@@ -887,13 +887,11 @@ export default function LandingPage() {
         </ul>
 
         <div className="nav-actions">
-          <Link href="/dashboard" className="btn-nav-dashboard">
-            ⚡ الدخول السريع
-          </Link>
           <Link href="/login" className="btn-nav-login">
-            🔐 تسجيل الدخول
+            🔐 تسجيل الدخول للنظام
           </Link>
         </div>
+
       </nav>
 
       {/* Hero Carousel Section */}
