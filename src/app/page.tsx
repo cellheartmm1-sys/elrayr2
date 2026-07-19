@@ -3,12 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function LandingPage() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: '', company: '', phone: '', email: '', message: '' });
-
-  const slides = [
+const DEFAULT_LANDING_CONTENT = {
+  slides: [
     {
       title: "الرايق للمقاولات الكهروميكانيكية والأنظمة الشاملة",
       subtitle: "الرائد الإقليمي في تنفيذ المشاريع الكبرى، شبكات مكافحة الحريق، والتكييف المركزي وفق أعلى المعايير العالمية",
@@ -40,7 +36,131 @@ export default function LandingPage() {
       secondaryCta: "🏢 عن مؤسسة الرايق",
       secondaryHref: "#about"
     }
-  ];
+  ],
+  about: {
+    subtitle: "من نحن",
+    title: "مؤسسة الرايق للمقاولات الكهروميكانيكية",
+    desc1: "تأسست مؤسسة الرايق لتكون شريكاً استراتيجياً في نهضة البناء والتشييد، متخصصة في تقديم الحلول الهندسية المتكاملة للأنظمة الكهروميكانيكية (MEP). نحن فخورون بتنفيذ أضخم المشاريع من شبكات إطفاء الحريق المعتمدة، وأنظمة التكييف المركزي، وتغذية المياه، والقوى الكهربائية.",
+    desc2: "تضم المؤسسة نخبة من أكفأ المهندسين والكوادر الفنية المتخصصة، ونعتمد على أحدث التقنيات الهندسية ومطابقة الأكواد العالمية والمحلية مثل كود البناء السعودي والمصري والـ NFPA، لنضمن لعملائنا أعلى درجات الأمان والجودة والكفاءة التشغيلية.",
+    vision_title: "رؤيتنا",
+    vision_text: "أن نكون الوجهة الأولى والموثوقة هندسياً لتنفيذ وتأهيل البنية التحتية الكهروميكانيكية إقليمياً.",
+    values_title: "قيمنا",
+    values_text: "الالتزام التام بالجودة، الأمان المطلق، الابتكار المستمر، والشفافية الكاملة مع شركاء النجاح."
+  },
+  advantages: [
+    {
+      icon: "🏆",
+      title: "خبرة هندسية واسعة",
+      desc: "قمنا بتنفيذ وتصميم أنظمة كهروميكانيكية معقدة للمطارات، الأبراج، المجمعات السكنية، والمصانع على مدى أكثر من 15 عاماً من التميز."
+    },
+    {
+      icon: "📜",
+      title: "اعتماد رسمي وتراخيص معتمدة",
+      desc: "مؤسستنا مصنفة ومعتمدة رسمياً لدى الهيئات الحكومية والدفاع المدني، مما يضمن سرعة استصدار تراخيص التشغيل والسلامة لمشروعك."
+    },
+    {
+      icon: "⏱️",
+      title: "الالتزام التام بالجدول الزمني",
+      desc: "نعمل بمنهجيات التخطيط الحديثة لإدارة الجدول الزمني للمشاريع ومراقبة الإنجاز اليومي لضمان تسليم الأعمال في موعدها المحدد دون تأخير."
+    },
+    {
+      icon: "👷‍♂️",
+      title: "طاقم عمل وهندسي نخبة",
+      desc: "نمتلك فريقاً من المهندسين الاستشاريين والمشرفين والعمالة الماهرة المدربة على التعامل مع الحالات الصعبة والمواصفات الدقيقة بكفاءة عالية."
+    },
+    {
+      icon: "🛡️",
+      title: "معايير جودة وأمان صارمة",
+      desc: "نطبق أعلى معايير الصحة والسلامة المهنية (OSHA) ونستخدم خامات معتمدة ومطابقة لمواصفات الجودة لضمان أطول عمر افتراضي للأنظمة."
+    },
+    {
+      icon: "📞",
+      title: "دعم فني وصيانة ٢٤/٧",
+      desc: "نقدم صيانة وقائية دورية مع خط ساخن للطوارئ يعمل على مدار الساعة لحل أي أعطال طارئة وضمان عدم توقف عملياتك الحيوية."
+    }
+  ],
+  sectors: [
+    {
+      icon: "🧯",
+      title: "شبكات وأنظمة مكافحة الحريق",
+      desc: "تصميم وتوريد وتركيب شبكات الإطفاء المائي T-Sprinkler، الغازات الخاملة FM200/CO2، ومحضرات المضخات المركزية المعتمة.",
+      features: ["مطابقة كود البناء السعودي NFPA", "تركيب غرف مضخات الديزل والكهرباء", "استخراج تراخيص الدفاع المدني"]
+    },
+    {
+      icon: "❄️",
+      title: "التكييف المركزي والتهوية HVAC",
+      desc: "تنفيذ محطات المبردات المركزية Chilled Water Systems، أنظمة التدفق المتغير VRF، ومجاري الهواء المغلفة ضد الحريق.",
+      features: ["حسابات الأحمال الحرارية المتقدمة HAP", "تركيب المبردات الشيلر والمكثفات", "موازنة الهواء والماء TAB"]
+    },
+    {
+      icon: "⚡",
+      title: "الشبكات والقوى الكهربائية",
+      desc: "مد وتأمين شبكات الجهد المتوسط والمنخفض، لوحات التوزيع الرئيسية MDB، المولدات الاحتياطية، وأنظمة المؤرض والصواعق.",
+      features: ["محولات الطاقة الكهربائية الكبرى", "أنظمة عدم انقطاع التيار UPS", "الإضاءة الذكية والأنظمة الشمسية"]
+    },
+    {
+      icon: "🚰",
+      title: "شبكات التغذية والصرف والضخ",
+      desc: "تأسيس شبكات الصرف الصحي، المعالجة، خزانات مياه الشرب، ومحطات الضخ والرفع الهيدروليكي للمباني العالية.",
+      features: ["خزانات ومحطات ضخ مياه الشرب", "معالجة المياه الرمادية والصرف", "شبكات تصريف مياه الأمطار والسيول"]
+    }
+  ],
+  stats: [
+    { icon: "🏗️", number: "+٢.٥ مليار", label: "قيمة المشاريع المنجزة (ريال)" },
+    { icon: "👷‍♂️", number: "+٣,٥٠٠", label: "مهندس وفني وعامل مهاري" },
+    { icon: "⚙️", number: "+٤٥٠", label: "عقد تشغيل وصيانة شاملة" },
+    { icon: "🛡️", number: "١٠٠٪", label: "الالتزام بأكواد السلامة والدفاع المدني" }
+  ],
+  footer: {
+    copyright: "جميع الحقوق محفوظة © ٢٠٢٦ مؤسسة الرايق للمقاولات الكهروميكانيكية",
+    about_text: "مؤسسة الرايق للمقاولات الكهروميكانيكية والأنظمة الشاملة، الرائد الهندسي المعتمد لحلول شبكات مكافحة الحريق، أنظمة التكييف المركزي HVAC، والصرف والشبكات الكهربائية."
+  }
+};
+
+export default function LandingPage() {
+  const [landingContent, setLandingContent] = useState<any>(null);
+  const [editContent, setEditContent] = useState<any>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [activeEditorTab, setActiveEditorTab] = useState('slides');
+  const [savingEditor, setSavingEditor] = useState(false);
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', company: '', phone: '', email: '', message: '' });
+
+  const openEditor = () => {
+    setEditContent(JSON.parse(JSON.stringify(landingContent || DEFAULT_LANDING_CONTENT)));
+    setIsEditorOpen(true);
+  };
+
+  const updateSlide = (idx: number, key: string, val: string) => {
+    if (!editContent) return;
+    const updated = { ...editContent };
+    updated.slides[idx][key] = val;
+    setEditContent(updated);
+  };
+
+  const fetchLandingContent = async () => {
+    try {
+      const res = await fetch('/api/landing-page');
+      const data = await res.json();
+      if (data && !data.error) {
+        setLandingContent(data);
+      }
+    } catch (err) {
+      console.error('Failed to load landing content:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLandingContent();
+  }, []);
+
+  const content = landingContent || DEFAULT_LANDING_CONTENT;
+  const slides = content.slides || DEFAULT_LANDING_CONTENT.slides;
 
   // Auto Slider Interval
   useEffect(() => {
@@ -864,6 +984,154 @@ export default function LandingPage() {
           .section { padding: 4rem 1.5rem; }
           .footer-grid { grid-template-columns: 1fr; }
         }
+
+        .landing-admin-fab {
+          position: fixed;
+          bottom: 2rem;
+          left: 2rem;
+          z-index: 999;
+          background: rgba(245, 158, 11, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: #fff;
+          font-weight: 700;
+          font-size: 0.9rem;
+          padding: 0.75rem 1.25rem;
+          border-radius: 50px;
+          cursor: pointer;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+          backdrop-filter: blur(10px);
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .landing-admin-fab:hover {
+          background: #d97706;
+          transform: translateY(-3px);
+          box-shadow: 0 15px 30px rgba(0,0,0,0.7);
+        }
+
+        .landing-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(11, 15, 25, 0.85);
+          backdrop-filter: blur(15px);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1.5rem;
+          animation: fadeIn 0.3s ease;
+        }
+        .landing-modal-content {
+          background: rgba(15, 23, 42, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 24px;
+          padding: 2.5rem;
+          width: 100%;
+          max-width: 450px;
+          box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+          position: relative;
+          direction: rtl;
+        }
+        .landing-editor-modal {
+          max-width: 1000px;
+          height: 85vh;
+          display: flex;
+          flex-direction: column;
+          padding: 2rem;
+          overflow: hidden;
+        }
+        .editor-tabs {
+          display: flex;
+          gap: 0.5rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding-bottom: 0.75rem;
+          margin-bottom: 1.5rem;
+          overflow-x: auto;
+        }
+        .editor-tab-btn {
+          background: none;
+          border: none;
+          color: #94a3b8;
+          font-weight: 600;
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+          border-radius: 8px;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        .editor-tab-btn.active {
+          background: rgba(245, 158, 11, 0.15);
+          color: #f59e0b;
+        }
+        .editor-form-content {
+          flex: 1;
+          overflow-y: auto;
+          padding-left: 0.5rem;
+          margin-bottom: 1.5rem;
+        }
+        .editor-section-card {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 16px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+        .editor-section-title {
+          font-size: 1.1rem;
+          color: #f59e0b;
+          margin-bottom: 1.25rem;
+          font-weight: 700;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          padding-bottom: 0.5rem;
+        }
+        .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .form-group {
+          margin-bottom: 1rem;
+        }
+        .form-group label {
+          display: block;
+          color: #94a3b8;
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin-bottom: 0.4rem;
+        }
+        .editor-input, .editor-textarea {
+          width: 100%;
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+          color: #fff;
+          padding: 0.65rem 0.9rem;
+          font-family: inherit;
+          font-size: 0.9rem;
+          transition: all 0.2s ease;
+        }
+        .editor-input:focus, .editor-textarea:focus {
+          border-color: #f59e0b;
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        }
+        .editor-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          padding-top: 1rem;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
       ` }} />
 
       {/* Top Navbar Header */}
@@ -894,7 +1162,7 @@ export default function LandingPage() {
 
       {/* Hero Carousel Section */}
       <section id="hero" className="hero-section">
-        {slides.map((slide, index) => (
+        {slides.map((slide: any, index: number) => (
           <div key={index} className={`hero-slide ${index === currentSlide ? 'active' : ''}`}>
             <div className="slide-bg" style={{ backgroundImage: `url(${slide.image})` }} />
             <div className="slide-overlay" />
@@ -932,7 +1200,7 @@ export default function LandingPage() {
 
         {/* Slider Indicator Dots */}
         <div className="slider-controls">
-          {slides.map((_, idx) => (
+          {slides.map((_: any, idx: number) => (
             <button
               key={idx}
               className={`slider-dot ${idx === currentSlide ? 'active' : ''}`}
@@ -946,26 +1214,13 @@ export default function LandingPage() {
       {/* KPI Stats Counter Grid */}
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">🏗️</div>
-            <div className="stat-number">+٢.٥ مليار</div>
-            <div className="stat-label">قيمة المشاريع المنجزة (ريال)</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">👷‍♂️</div>
-            <div className="stat-number">+٣,٥٠٠</div>
-            <div className="stat-label">مهندس وفني وعامل مهاري</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">⚙️</div>
-            <div className="stat-number">+٤٥٠</div>
-            <div className="stat-label">عقد تشغيل وصيانة شاملة</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">🛡️</div>
-            <div className="stat-number">١٠٠٪</div>
-            <div className="stat-label">الالتزام بأكواد السلامة والدفاع المدني</div>
-          </div>
+          {(content.stats || DEFAULT_LANDING_CONTENT.stats).map((stat: any, idx: number) => (
+            <div key={idx} className="stat-card">
+              <div className="stat-icon">{stat.icon}</div>
+              <div className="stat-number">{stat.number}</div>
+              <div className="stat-label">{stat.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -973,24 +1228,24 @@ export default function LandingPage() {
       <section id="about" className="section" style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--glass-border)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' }}>
           <div>
-            <div className="section-subtitle">من نحن</div>
-            <h2 className="section-title" style={{ textAlign: 'right', marginBottom: '1.5rem' }}>مؤسسة الرايق للمقاولات الكهروميكانيكية</h2>
+            <div className="section-subtitle">{content.about?.subtitle || 'من نحن'}</div>
+            <h2 className="section-title" style={{ textAlign: 'right', marginBottom: '1.5rem' }}>{content.about?.title || 'مؤسسة الرايق للمقاولات الكهروميكانيكية'}</h2>
             <p style={{ color: '#cbd5e1', lineHeight: '1.8', marginBottom: '1.2rem', fontSize: '1.05rem' }}>
-              تأسست مؤسسة الرايق لتكون شريكاً استراتيجياً في نهضة البناء والتشييد، متخصصة في تقديم الحلول الهندسية المتكاملة للأنظمة الكهروميكانيكية (MEP). نحن فخورون بتنفيذ أضخم المشاريع من شبكات إطفاء الحريق المعتمدة، وأنظمة التكييف المركزي، وتغذية المياه، والقوى الكهربائية.
+              {content.about?.desc1}
             </p>
             <p style={{ color: '#cbd5e1', lineHeight: '1.8', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
-              تضم المؤسسة نخبة من أكفأ المهندسين والكوادر الفنية المتخصصة، ونعتمد على أحدث التقنيات الهندسية ومطابقة الأكواد العالمية والمحلية مثل كود البناء السعودي والمصري والـ NFPA، لنضمن لعملائنا أعلى درجات الأمان والجودة والكفاءة التشغيلية.
+              {content.about?.desc2}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '1rem', borderRadius: '12px' }}>
                 <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🎯</span>
-                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>رؤيتنا</strong>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.6' }}>أن نكون الوجهة الأولى والموثوقة هندسياً لتنفيذ وتأهيل البنية التحتية الكهروميكانيكية إقليمياً.</p>
+                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>{content.about?.vision_title || 'رؤيتنا'}</strong>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.6' }}>{content.about?.vision_text}</p>
               </div>
               <div style={{ background: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', padding: '1rem', borderRadius: '12px' }}>
                 <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>💎</span>
-                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>قيمنا</strong>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.6' }}>الالتزام التام بالجودة، الأمان المطلق، الابتكار المستمر، والشفافية الكاملة مع شركاء النجاح.</p>
+                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>{content.about?.values_title || 'قيمنا'}</strong>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.6' }}>{content.about?.values_text}</p>
               </div>
             </div>
           </div>
@@ -1020,158 +1275,47 @@ export default function LandingPage() {
       {/* Enterprise Engineering Sectors & Expertise */}
       <section id="services" className="section" style={{ background: 'rgba(15, 23, 42, 0.4)' }}>
         <div className="section-header">
-          <div className="section-subtitle">الخبرات والتخصصات الهندسية</div>
-          <h2 className="section-title">قطاعات الأعمال الكهروميكانيكية الكبرى</h2>
+          <div className="section-subtitle">{content.services_subtitle || 'الخبرات والتخصصات الهندسية'}</div>
+          <h2 className="section-title">{content.services_title || 'قطاعات الأعمال الكهروميكانيكية الكبرى'}</h2>
           <p className="section-description">
-            نقدم حزمة متكاملة من الخدمات والتنفيذ الهندسي لمرافق البنية التحتية، الأبراج، المجمعات التجارية والمنشآت الصناعية
+            {content.services_desc || 'نقدم حزمة متكاملة من الخدمات والتنفيذ الهندسي لمرافق البنية التحتية، الأبراج، المجمعات التجارية والمنشآت الصناعية'}
           </p>
         </div>
 
         <div className="services-grid">
-          {/* Card 1: Firefighting */}
-          <div className="service-card">
-            <div className="service-icon-box">🧯</div>
-            <h3 className="service-title">شبكات وأنظمة مكافحة الحريق</h3>
-            <p className="service-desc">
-              تصميم وتوريد وتركيب شبكات الإطفاء المائي T-Sprinkler، الغازات الخاملة FM200/CO2، ومحضرات المضخات المركزية المعتمة.
-            </p>
-            <ul className="service-features">
-              <li className="service-feature-item">✓ مطابقة كود البناء السعودي NFPA</li>
-              <li className="service-feature-item">✓ تركيب غرف مضخات الديزل والكهرباء</li>
-              <li className="service-feature-item">✓ استخراج تراخيص الدفاع المدني</li>
-            </ul>
-          </div>
-
-          {/* Card 2: HVAC */}
-          <div className="service-card">
-            <div className="service-icon-box">❄️</div>
-            <h3 className="service-title">التكييف المركزي والتهوية HVAC</h3>
-            <p className="service-desc">
-              تنفيذ محطات المبردات المركزية Chilled Water Systems، أنظمة التدفق المتغير VRF، ومجاري الهواء المغلفة ضد الحريق.
-            </p>
-            <ul className="service-features">
-              <li className="service-feature-item">✓ حسابات الأحمال الحرارية المتقدمة HAP</li>
-              <li className="service-feature-item">✓ تركيب المبردات الشيلر والمكثفات</li>
-              <li className="service-feature-item">✓ موازنة الهواء والماء TAB</li>
-            </ul>
-          </div>
-
-          {/* Card 3: Electrical */}
-          <div className="service-card">
-            <div className="service-icon-box">⚡</div>
-            <h3 className="service-title">الشبكات والقوى الكهربائية</h3>
-            <p className="service-desc">
-              مد وتأمين شبكات الجهد المتوسط والمنخفض، لوحات التوزيع الرئيسية MDB، المولدات الاحتياطية، وأنظمة المؤرض والصواعق.
-            </p>
-            <ul className="service-features">
-              <li className="service-feature-item">✓ محولات الطاقة الكهربائية الكبرى</li>
-              <li className="service-feature-item">✓ أنظمة عدم انقطاع التيار UPS</li>
-              <li className="service-feature-item">✓ الإضاءة الذكية والأنظمة الشمسية</li>
-            </ul>
-          </div>
-
-          {/* Card 4: Plumbing */}
-          <div className="service-card">
-            <div className="service-icon-box">🚰</div>
-            <h3 className="service-title">شبكات التغذية والصرف والضخ</h3>
-            <p className="service-desc">
-              تأسيس شبكات الصرف الصحي، المعالجة، خزانات مياه الشرب، ومحطات الضخ والرفع الهيدروليكي للمباني العالية.
-            </p>
-            <ul className="service-features">
-              <li className="service-feature-item">✓ معالجة وتحلية المياه الصناعية</li>
-              <li className="service-feature-item">✓ شبكات تصريف مياه الأمطار</li>
-              <li className="service-feature-item">✓ مضخات غاطسة وأنظمة الفلترة</li>
-            </ul>
-          </div>
-
-          {/* Card 5: BMS & Low Current */}
-          <div className="service-card">
-            <div className="service-icon-box">🏢</div>
-            <h3 className="service-title">الأنظمة الذكية والمنخفضة الجهد</h3>
-            <p className="service-desc">
-              إدارة المباني BMS، كاميرات مراقبة CCTV، التحكم بالدخول Access Control، والإنذار المبكر الذكي ضد الحريق والتسريب.
-            </p>
-            <ul className="service-features">
-              <li className="service-feature-item">✓ التحكم الآلي في استهلاك الطاقة</li>
-              <li className="service-feature-item">✓ ربط أجهزة الإنذار بشبكات ERP</li>
-              <li className="service-feature-item">✓ شبكات الألياف البصرية المتقدمة</li>
-            </ul>
-          </div>
-
-          {/* Card 6: Operation & Maintenance */}
-          <div className="service-card">
-            <div className="service-icon-box">🛠️</div>
-            <h3 className="service-title">التشغيل والصيانة الوقائية</h3>
-            <p className="service-desc">
-              عقود صيانة شاملة للمنشآت الحيوية مع تسيير فرق طوارئ متخصصة على مدار الساعة وإصدار بلاغات الأعطال فوراً.
-            </p>
-            <ul className="service-features">
-              <li className="service-feature-item">✓ استجابة فورية للأعطال خلال ٣٠ دقيقة</li>
-              <li className="service-feature-item">✓ قطع غيار أصلية وموثوقة</li>
-              <li className="service-feature-item">✓ تقارير فحص دوري معتمدة</li>
-            </ul>
-          </div>
+          {(content.sectors || DEFAULT_LANDING_CONTENT.sectors).map((sector: any, idx: number) => (
+            <div key={idx} className="service-card">
+              <div className="service-icon-box">{sector.icon}</div>
+              <h3 className="service-title">{sector.title}</h3>
+              <p className="service-desc">{sector.desc}</p>
+              <ul className="service-features">
+                {(sector.features || []).map((feat: string, fIdx: number) => (
+                  <li key={fIdx} className="service-feature-item">✓ {feat}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Company Features & Advantages Section */}
       <section id="features" className="section">
         <div className="section-header">
-          <div className="section-subtitle">لماذا مؤسسة الرايق؟</div>
-          <h2 className="section-title">مميزات تجعلنا شريكك الهندسي الأول</h2>
+          <div className="section-subtitle">{content.advantages_subtitle || 'لماذا مؤسسة الرايق؟'}</div>
+          <h2 className="section-title">{content.advantages_title || 'مميزات تجعلنا شريكك الهندسي الأول'}</h2>
           <p className="section-description">
-            نجمع بين الخبرة الطويلة، والكوادر الهندسية المحترفة، والالتزام الصارم بأعلى معايير السلامة والجودة لنحقق رؤيتك واقعاً ملموساً.
+            {content.advantages_desc || 'نجمع بين الخبرة الطويلة، والكوادر الهندسية المحترفة، والالتزام الصارم بأعلى معايير السلامة والجودة لنحقق رؤيتك واقعاً ملموساً.'}
           </p>
         </div>
 
         <div className="services-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
-          <div className="service-card" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🏆</div>
-            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>خبرة هندسية واسعة</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              قمنا بتنفيذ وتصميم أنظمة كهروميكانيكية معقدة للمطارات، الأبراج، المجمعات السكنية، والمصانع على مدى أكثر من 15 عاماً من التميز.
-            </p>
-          </div>
-          
-          <div className="service-card" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📜</div>
-            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>اعتماد رسمي وتراخيص معتمدة</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              مؤسستنا مصنفة ومعتمدة رسمياً لدى الهيئات الحكومية والدفاع المدني، مما يضمن سرعة استصدار تراخيص التشغيل والسلامة لمشروعك.
-            </p>
-          </div>
-
-          <div className="service-card" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⏱️</div>
-            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>الالتزام التام بالجدول الزمني</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              نعمل بمنهجيات التخطيط الحديثة لإدارة الجدول الزمني للمشاريع ومراقبة الإنجاز اليومي لضمان تسليم الأعمال في موعدها المحدد دون تأخير.
-            </p>
-          </div>
-
-          <div className="service-card" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>👷‍♂️</div>
-            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>طاقم عمل وهندسي نخبة</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              نمتلك فريقاً من المهندسين الاستشاريين والمشرفين والعمالة الماهرة المدربة على التعامل مع الحالات الصعبة والمواصفات الدقيقة بكفاءة عالية.
-            </p>
-          </div>
-
-          <div className="service-card" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🛡️</div>
-            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>معايير جودة وأمان صارمة</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              نطبق أعلى معايير الصحة والسلامة المهنية (OSHA) ونستخدم خامات معتمدة ومطابقة لمواصفات الجودة لضمان أطول عمر افتراضي للأنظمة.
-            </p>
-          </div>
-
-          <div className="service-card" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📞</div>
-            <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>دعم فني وصيانة ٢٤/٧</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>
-              نقدم صيانة وقائية دورية مع خط ساخن للطوارئ يعمل على مدار الساعة لحل أي أعطال طارئة وضمان عدم توقف عملياتك الحيوية.
-            </p>
-          </div>
+          {(content.advantages || DEFAULT_LANDING_CONTENT.advantages).map((adv: any, idx: number) => (
+            <div key={idx} className="service-card" style={{ padding: '2rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{adv.icon}</div>
+              <h3 className="service-title" style={{ fontSize: '1.2rem', marginBottom: '0.75rem' }}>{adv.title}</h3>
+              <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.8' }}>{adv.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1302,7 +1446,7 @@ export default function LandingPage() {
           <div>
             <div className="footer-brand">مؤسسة الرايق للمقاولات</div>
             <p className="footer-text">
-              الرائد الإقليمي في تنفيذ الأنظمة الكهروميكانيكية، شبكات مكافحة الحريق، والتكييف المركزي مع الالتزام بأعلى معايير الأمان والسلامة الهندسية.
+              {content.footer?.about_text || 'الرائد الإقليمي في تنفيذ الأنظمة الكهروميكانيكية، شبكات مكافحة الحريق، والتكييف المركزي مع الالتزام بأعلى معايير الأمان والسلامة الهندسية.'}
             </p>
             <div style={{ marginTop: '1rem', color: '#f59e0b', fontWeight: 700, fontSize: '0.9rem' }}>
               سجل تجاري: ١٠١٠١٢٣٤٥٦ | الرقم الضريبي: ٣٠٠٠١٢٣٤٥٦٠٠٠٠٣
@@ -1339,10 +1483,614 @@ export default function LandingPage() {
         </div>
 
         <div className="footer-bottom">
-          <div>جميع الحقوق محفوظة © {new Date().getFullYear()} مؤسسة الرايق للمقاولات الكهروميكانيكية.</div>
+          <div>{content.footer?.copyright || `جميع الحقوق محفوظة © ${new Date().getFullYear()} مؤسسة الرايق للمقاولات الكهروميكانيكية.`}</div>
           <div>موقع مؤسسة الرايق الرسمي</div>
         </div>
       </footer>
+
+      {/* Floating Action Button for Landing Page Dashboard */}
+      <button className="landing-admin-fab" onClick={() => setIsPasswordModalOpen(true)}>
+        ⚙️ لوحة تحكم الواجهة
+      </button>
+
+      {/* Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="landing-modal-overlay">
+          <div className="landing-modal-content">
+            <h3 style={{ fontSize: '1.25rem', color: '#fff', marginBottom: '1rem', fontWeight: 700, textAlign: 'center' }}>
+              🔐 دخول لوحة تحكم الصفحة الرئيسية
+            </h3>
+            <div className="form-group">
+              <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '0.5rem' }}>كلمة المرور</label>
+              <input
+                type="password"
+                className="editor-input"
+                value={passwordInput}
+                onChange={e => {
+                  setPasswordInput(e.target.value);
+                  setPasswordError('');
+                }}
+                placeholder="أدخل كلمة المرور..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    if (passwordInput === 'elraye2123') {
+                      setIsPasswordModalOpen(false);
+                      setPasswordInput('');
+                      openEditor();
+                    } else {
+                      setPasswordError('كلمة المرور غير صحيحة!');
+                    }
+                  }
+                }}
+              />
+              {passwordError && (
+                <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                  {passwordError}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <button
+                className="btn-hero-primary"
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={() => {
+                  if (passwordInput === 'elraye2123') {
+                    setIsPasswordModalOpen(false);
+                    setPasswordInput('');
+                    openEditor();
+                  } else {
+                    setPasswordError('كلمة المرور غير صحيحة!');
+                  }
+                }}
+              >
+                دخول
+              </button>
+              <button
+                className="btn-hero-secondary"
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={() => {
+                  setIsPasswordModalOpen(false);
+                  setPasswordInput('');
+                  setPasswordError('');
+                }}
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Editor Modal */}
+      {isEditorOpen && editContent && (
+        <div className="landing-modal-overlay">
+          <div className="landing-modal-content landing-editor-modal">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.4rem', color: '#fff', fontWeight: 800 }}>
+                ⚙️ لوحة تعديل الصفحة الرئيسية
+              </h2>
+              <button
+                style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.5rem', cursor: 'pointer' }}
+                onClick={() => setIsEditorOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="editor-tabs">
+              <button
+                className={`editor-tab-btn ${activeEditorTab === 'slides' ? 'active' : ''}`}
+                onClick={() => setActiveEditorTab('slides')}
+              >
+                السلايدر الرئيسي 🌌
+              </button>
+              <button
+                className={`editor-tab-btn ${activeEditorTab === 'about' ? 'active' : ''}`}
+                onClick={() => setActiveEditorTab('about')}
+              >
+                عن الشركة 🏢
+              </button>
+              <button
+                className={`editor-tab-btn ${activeEditorTab === 'sectors' ? 'active' : ''}`}
+                onClick={() => setActiveEditorTab('sectors')}
+              >
+                قطاعات الأعمال 🏗️
+              </button>
+              <button
+                className={`editor-tab-btn ${activeEditorTab === 'advantages' ? 'active' : ''}`}
+                onClick={() => setActiveEditorTab('advantages')}
+              >
+                مميزاتنا التنافسية 🏆
+              </button>
+              <button
+                className={`editor-tab-btn ${activeEditorTab === 'stats' ? 'active' : ''}`}
+                onClick={() => setActiveEditorTab('stats')}
+              >
+                أرقام وإحصائيات 📊
+              </button>
+              <button
+                className={`editor-tab-btn ${activeEditorTab === 'footer' ? 'active' : ''}`}
+                onClick={() => setActiveEditorTab('footer')}
+              >
+                التواصل والفوتر 📞
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <div className="editor-form-content">
+              {activeEditorTab === 'slides' && (
+                <div>
+                  {(editContent.slides || []).map((slide: any, idx: number) => (
+                    <div key={idx} className="editor-section-card">
+                      <div className="editor-section-title">الشريحة رقم {idx + 1}</div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>الشارة العلوية (Badge)</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={slide.badge || ''}
+                            onChange={e => updateSlide(idx, 'badge', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>العنوان الرئيسي (Title)</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={slide.title || ''}
+                            onChange={e => updateSlide(idx, 'title', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>العنوان الفرعي (Subtitle)</label>
+                        <textarea
+                          rows={2}
+                          className="editor-input"
+                          value={slide.subtitle || ''}
+                          onChange={e => updateSlide(idx, 'subtitle', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>رابط الصورة الخلفية</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={slide.image || ''}
+                            onChange={e => updateSlide(idx, 'image', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>نص الزر الأول</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={slide.primaryCta || ''}
+                            onChange={e => updateSlide(idx, 'primaryCta', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeEditorTab === 'about' && (
+                <div className="editor-section-card">
+                  <div className="editor-section-title">قسم من نحن والتعريف بالمؤسسة</div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>العنوان الجانبي</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.about?.subtitle || ''}
+                        onChange={e => setEditContent({
+                          ...editContent,
+                          about: { ...editContent.about, subtitle: e.target.value }
+                        })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>العنوان الرئيسي</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.about?.title || ''}
+                        onChange={e => setEditContent({
+                          ...editContent,
+                          about: { ...editContent.about, title: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>الوصف الفقرة الأولى</label>
+                    <textarea
+                      rows={3}
+                      className="editor-input"
+                      value={editContent.about?.desc1 || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        about: { ...editContent.about, desc1: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>الوصف الفقرة الثانية</label>
+                    <textarea
+                      rows={3}
+                      className="editor-input"
+                      value={editContent.about?.desc2 || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        about: { ...editContent.about, desc2: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>عنوان الرؤية</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.about?.vision_title || ''}
+                        onChange={e => setEditContent({
+                          ...editContent,
+                          about: { ...editContent.about, vision_title: e.target.value }
+                        })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>محتوى الرؤية</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.about?.vision_text || ''}
+                        onChange={e => setEditContent({
+                          ...editContent,
+                          about: { ...editContent.about, vision_text: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>عنوان القيم</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.about?.values_title || ''}
+                        onChange={e => setEditContent({
+                          ...editContent,
+                          about: { ...editContent.about, values_title: e.target.value }
+                        })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>محتوى القيم</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.about?.values_text || ''}
+                        onChange={e => setEditContent({
+                          ...editContent,
+                          about: { ...editContent.about, values_text: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeEditorTab === 'sectors' && (
+                <div>
+                  <div className="editor-section-card">
+                    <div className="editor-section-title">العناوين العامة للقطاعات</div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>العنوان الفرعي للقطاعات</label>
+                        <input
+                          type="text"
+                          className="editor-input"
+                          value={editContent.services_subtitle || ''}
+                          onChange={e => setEditContent({ ...editContent, services_subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>العنوان الرئيسي للقطاعات</label>
+                        <input
+                          type="text"
+                          className="editor-input"
+                          value={editContent.services_title || ''}
+                          onChange={e => setEditContent({ ...editContent, services_title: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>الوصف العام للقطاعات</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.services_desc || ''}
+                        onChange={e => setEditContent({ ...editContent, services_desc: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {(editContent.sectors || []).map((sector: any, idx: number) => (
+                    <div key={idx} className="editor-section-card">
+                      <div className="editor-section-title">القطاع الكهروميكانيكي رقم {idx + 1}</div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>الأيقونة (Emoji)</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={sector.icon || ''}
+                            onChange={e => {
+                              const updated = { ...editContent };
+                              updated.sectors[idx].icon = e.target.value;
+                              setEditContent(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>اسم القطاع</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={sector.title || ''}
+                            onChange={e => {
+                              const updated = { ...editContent };
+                              updated.sectors[idx].title = e.target.value;
+                              setEditContent(updated);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>وصف القطاع</label>
+                        <textarea
+                          rows={2}
+                          className="editor-input"
+                          value={sector.desc || ''}
+                          onChange={e => {
+                            const updated = { ...editContent };
+                            updated.sectors[idx].desc = e.target.value;
+                            setEditContent(updated);
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>المميزات (مفصولة بأسطر جديدة)</label>
+                        <textarea
+                          rows={3}
+                          className="editor-input"
+                          value={(sector.features || []).join('\n')}
+                          onChange={e => {
+                            const updated = { ...editContent };
+                            updated.sectors[idx].features = e.target.value.split('\n').filter((x: string) => x.trim() !== '');
+                            setEditContent(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeEditorTab === 'advantages' && (
+                <div>
+                  <div className="editor-section-card">
+                    <div className="editor-section-title">العناوين العامة للمميزات</div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>العنوان الفرعي</label>
+                        <input
+                          type="text"
+                          className="editor-input"
+                          value={editContent.advantages_subtitle || ''}
+                          onChange={e => setEditContent({ ...editContent, advantages_subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>العنوان الرئيسي</label>
+                        <input
+                          type="text"
+                          className="editor-input"
+                          value={editContent.advantages_title || ''}
+                          onChange={e => setEditContent({ ...editContent, advantages_title: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>الوصف العام للمميزات</label>
+                      <input
+                        type="text"
+                        className="editor-input"
+                        value={editContent.advantages_desc || ''}
+                        onChange={e => setEditContent({ ...editContent, advantages_desc: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {(editContent.advantages || []).map((adv: any, idx: number) => (
+                    <div key={idx} className="editor-section-card">
+                      <div className="editor-section-title">الميزة رقم {idx + 1}</div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>الأيقونة (Emoji)</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={adv.icon || ''}
+                            onChange={e => {
+                              const updated = { ...editContent };
+                              updated.advantages[idx].icon = e.target.value;
+                              setEditContent(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>عنوان الميزة</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={adv.title || ''}
+                            onChange={e => {
+                              const updated = { ...editContent };
+                              updated.advantages[idx].title = e.target.value;
+                              setEditContent(updated);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>شرح الميزة بالتفصيل</label>
+                        <textarea
+                          rows={2}
+                          className="editor-input"
+                          value={adv.desc || ''}
+                          onChange={e => {
+                            const updated = { ...editContent };
+                            updated.advantages[idx].desc = e.target.value;
+                            setEditContent(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeEditorTab === 'stats' && (
+                <div>
+                  {(editContent.stats || []).map((stat: any, idx: number) => (
+                    <div key={idx} className="editor-section-card">
+                      <div className="editor-section-title">الإحصائية رقم {idx + 1}</div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>الأيقونة</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={stat.icon || ''}
+                            onChange={e => {
+                              const updated = { ...editContent };
+                              updated.stats[idx].icon = e.target.value;
+                              setEditContent(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>الرقم أو النسبة</label>
+                          <input
+                            type="text"
+                            className="editor-input"
+                            value={stat.number || ''}
+                            onChange={e => {
+                              const updated = { ...editContent };
+                              updated.stats[idx].number = e.target.value;
+                              setEditContent(updated);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>الوصف أو التسمية</label>
+                        <input
+                          type="text"
+                          className="editor-input"
+                          value={stat.label || ''}
+                          onChange={e => {
+                            const updated = { ...editContent };
+                            updated.stats[idx].label = e.target.value;
+                            setEditContent(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeEditorTab === 'footer' && (
+                <div className="editor-section-card">
+                  <div className="editor-section-title">بيانات التواصل وحقوق الفوتر</div>
+                  <div className="form-group">
+                    <label>نص حقوق الملكية (Copyright)</label>
+                    <input
+                      type="text"
+                      className="editor-input"
+                      value={editContent.footer?.copyright || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        footer: { ...editContent.footer, copyright: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>نبذة المؤسسة في الفوتر</label>
+                    <textarea
+                      rows={3}
+                      className="editor-input"
+                      value={editContent.footer?.about_text || ''}
+                      onChange={e => setEditContent({
+                        ...editContent,
+                        footer: { ...editContent.footer, about_text: e.target.value }
+                      })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Editor Footer Actions */}
+            <div className="editor-footer">
+              <button
+                className="btn-hero-primary"
+                onClick={async () => {
+                  setSavingEditor(true);
+                  try {
+                    const res = await fetch('/api/landing-page', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ password: 'elraye2123', content: editContent })
+                    });
+                    const resData = await res.json();
+                    if (resData.success) {
+                      setLandingContent(editContent);
+                      setIsEditorOpen(false);
+                      alert('تم حفظ التغييرات ونشرها بنجاح! 🎉');
+                    } else {
+                      alert('حدث خطأ أثناء الحفظ: ' + resData.error);
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert('فشل الاتصال بالخادم لحفظ التعديلات.');
+                  } finally {
+                    setSavingEditor(false);
+                  }
+                }}
+                disabled={savingEditor}
+              >
+                {savingEditor ? 'جاري الحفظ والنشـر...' : '💾 حفظ التعديلات ونشرها'}
+              </button>
+              <button
+                className="btn-hero-secondary"
+                onClick={() => setIsEditorOpen(false)}
+                disabled={savingEditor}
+              >
+                إلغاء التغييرات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
