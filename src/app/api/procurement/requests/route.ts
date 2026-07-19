@@ -212,3 +212,49 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, status, priority, required_date, notes } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const result = await query(
+      `UPDATE material_requests
+       SET status = COALESCE($1, status),
+           priority = COALESCE($2, priority),
+           required_date = COALESCE($3, required_date),
+           notes = COALESCE($4, notes),
+           updated_at = NOW()
+       WHERE id = $5 RETURNING *`,
+      [status ?? null, priority ?? null, required_date ?? null, notes ?? null, id]
+    );
+
+    return NextResponse.json({ data: result.rows[0] });
+  } catch (error: any) {
+    console.error('[PUT /api/procurement/requests]', error);
+    return NextResponse.json({ error: error.message || 'Failed to update request' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = request.nextUrl;
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    await query(`DELETE FROM material_request_items WHERE request_id = $1`, [id]);
+    await query(`DELETE FROM material_requests WHERE id = $1`, [id]);
+
+    return NextResponse.json({ success: true, message: 'تم حذف طلب توريد المواد بنجاح' });
+  } catch (error: any) {
+    console.error('[DELETE /api/procurement/requests]', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete request' }, { status: 500 });
+  }
+}

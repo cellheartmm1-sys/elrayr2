@@ -100,6 +100,92 @@ export default function ProcurementPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [lowStockFilter, setLowStockFilter] = useState(false);
 
+  // Edit Request State
+  const [editingRequest, setEditingRequest] = useState<MaterialRequest | null>(null);
+  const [showEditRequestModal, setShowEditRequestModal] = useState(false);
+  const [requestEditForm, setRequestEditForm] = useState({
+    priority: 'normal',
+    status: 'pending',
+    required_date: '',
+    notes: ''
+  });
+
+  const handleOpenEditRequest = (req: any) => {
+    setEditingRequest(req);
+    setRequestEditForm({
+      priority: req.priority || 'normal',
+      status: req.status || 'pending',
+      required_date: req.required_date ? new Date(req.required_date).toISOString().split('T')[0] : '',
+      notes: req.notes || ''
+    });
+    setShowEditRequestModal(true);
+  };
+
+  const handleSaveRequestEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRequest) return;
+    try {
+      const res = await fetch('/api/procurement/requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingRequest.id,
+          ...requestEditForm
+        })
+      });
+      if (res.ok) {
+        setShowEditRequestModal(false);
+        alert('✅ تم تعديل طلب المواد بنجاح!');
+        fetchRequests();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل التعديل: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleQuickRequestStatusChange = async (req: MaterialRequest, newStatus: string) => {
+    try {
+      const res = await fetch('/api/procurement/requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: req.id, status: newStatus })
+      });
+      if (res.ok) {
+        alert('✅ تم تغيير حالة طلب المواد بنجاح!');
+        fetchRequests();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل تغيير الحالة: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleDeleteRequest = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف طلب توريد المواد هذا؟')) return;
+    try {
+      const res = await fetch(`/api/procurement/requests?id=${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        alert('✅ تم حذف طلب توريد المواد بنجاح!');
+        fetchRequests();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
   // Forms
   const [requestForm, setRequestForm] = useState({
     project_id: '', warehouse_id: '', required_date: '', priority: 'normal', requested_by: '', notes: ''
@@ -476,7 +562,8 @@ export default function ProcurementPage() {
                       <th>تاريخ الطلب</th>
                       <th>تاريخ الحاجة المتوقع</th>
                       <th>الأولوية</th>
-                      <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>تغيير الحالة</th>
+                      <th style={{ textAlign: 'center' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -485,10 +572,42 @@ export default function ProcurementPage() {
                         <td style={{ fontWeight: 700 }}>{r.request_number}</td>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{r.project_name}</td>
                         <td>{r.requested_by_name}</td>
-                        <td>{new Date(r.request_date).toLocaleDateString('ar-SA')}</td>
-                        <td>{new Date(r.required_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(r.request_date).toLocaleDateString('ar-EG')}</td>
+                        <td>{r.required_date ? new Date(r.required_date).toLocaleDateString('ar-EG') : '-'}</td>
                         <td><span className={`badge ${priorityBadge[r.priority] || 'badge-muted'}`}>{priorityLabels[r.priority] || r.priority}</span></td>
-                        <td><span className={`badge ${statusBadge[r.status] || 'badge-muted'}`}>{statusLabels[r.status] || r.status}</span></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <select
+                            className={`form-control form-control-sm ${statusBadge[r.status] || 'badge-muted'}`}
+                            style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', fontWeight: 600, cursor: 'pointer', borderRadius: '100px' }}
+                            value={r.status}
+                            onChange={(e) => handleQuickRequestStatusChange(r, e.target.value)}
+                            title="تغيير حالة طلب المواد فورياً"
+                          >
+                            <option value="pending">🟡 قيد المراجعة</option>
+                            <option value="approved">🟣 تمت الموافقة</option>
+                            <option value="purchased">🔵 تم الشراء</option>
+                            <option value="received">🟢 تم الاستلام بالموقع</option>
+                            <option value="rejected">🔴 مرفوض</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleOpenEditRequest(r)}
+                              title="تعديل طلب المواد"
+                            >
+                              ✏️ تعديل
+                            </button>
+                            <button
+                              className="btn btn-outline btn-sm text-danger"
+                              onClick={() => handleDeleteRequest(r.id)}
+                              title="حذف طلب المواد"
+                            >
+                              🗑️ حذف
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -984,6 +1103,71 @@ export default function ProcurementPage() {
                 <button type="submit" className="btn btn-primary">
                   {editingWarehouse ? '💾 حفظ التعديلات' : '💾 إضافة المستودع'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: EDIT REQUEST ======================== */}
+      {showEditRequestModal && editingRequest && (
+        <div className="modal-overlay" onClick={() => setShowEditRequestModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">✏️ تعديل طلب توريد مواد: {editingRequest.request_number}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditRequestModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveRequestEdit}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">حالة الطلب</label>
+                  <select
+                    className="form-control"
+                    value={requestEditForm.status}
+                    onChange={e => setRequestEditForm({ ...requestEditForm, status: e.target.value })}
+                  >
+                    <option value="pending">🟡 قيد المراجعة</option>
+                    <option value="approved">🟣 تمت الموافقة</option>
+                    <option value="purchased">🔵 تم الشراء</option>
+                    <option value="received">🟢 تم الاستلام بالموقع</option>
+                    <option value="rejected">🔴 مرفوض</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">الأولوية</label>
+                  <select
+                    className="form-control"
+                    value={requestEditForm.priority}
+                    onChange={e => setRequestEditForm({ ...requestEditForm, priority: e.target.value })}
+                  >
+                    <option value="normal">عادي</option>
+                    <option value="high">مرتفع</option>
+                    <option value="urgent">عاجل جداً 🚨</option>
+                    <option value="low">منخفض</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ الحاجة المتوقع</label>
+                  <input
+                    className="form-control"
+                    type="date"
+                    value={requestEditForm.required_date}
+                    onChange={e => setRequestEditForm({ ...requestEditForm, required_date: e.target.value })}
+                  />
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">ملاحظات إضافية</label>
+                  <textarea
+                    className="form-control"
+                    value={requestEditForm.notes}
+                    onChange={e => setRequestEditForm({ ...requestEditForm, notes: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowEditRequestModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 حفظ التعديلات</button>
               </div>
             </form>
           </div>
