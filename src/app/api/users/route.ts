@@ -3,21 +3,12 @@ import { query } from '@/lib/db';
 
 async function ensureAdminAccounts() {
   try {
-    // 1. Delete mahfouz account
-    await query("DELETE FROM users WHERE email = 'm.mahfouz1024@gmail.com' OR username = 'mahfouz'");
-
-    // 2. Ensure admin account
-    const check = await query("SELECT id FROM users WHERE email = 'admin@alrayeq.com' OR username = 'admin'");
+    // Ensure at least one active admin account exists in database
+    const check = await query("SELECT id FROM users WHERE role = 'admin' AND is_active = true");
     if (check.rows.length === 0) {
       await query(`
         INSERT INTO users (full_name, username, email, password, role, is_active)
         VALUES ('مدير النظام (Admin)', 'admin', 'admin@alrayeq.com', '123456', 'admin', true)
-      `);
-    } else {
-      await query(`
-        UPDATE users 
-        SET role = 'admin', password = '123456', is_active = true
-        WHERE email = 'admin@alrayeq.com' OR username = 'admin'
       `);
     }
   } catch (e) {

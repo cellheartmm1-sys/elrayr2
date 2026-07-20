@@ -95,16 +95,6 @@ export default function LoginPage() {
         }
 
         if (!matchedUser) {
-          // Fallback check
-          if (input === 'admin' || input === 'admin@alrayeq.com') {
-            matchedUser = { role: 'admin', full_name: 'مدير النظام (Admin)', email: 'admin@alrayeq.com', username: 'admin' };
-          } else if (input === 'supervisor' || input === 'supervisor1') {
-            matchedUser = { role: 'secondary', full_name: 'سالم الغامدي (المستخدم الثاني)', email: 'supervisor1@alrayeq.com' };
-          }
-        }
-
-
-        if (!matchedUser) {
           setError('اسم المستخدم أو البريد الإلكتروني غير مسجل بالنظام.');
           setLoading(false);
           return;
@@ -122,7 +112,6 @@ export default function LoginPage() {
           return;
         }
 
-
         localStorage.setItem('user_id', matchedUser.id || '');
         localStorage.setItem('user_role', matchedUser.role || 'secondary');
         localStorage.setItem('user_email', matchedUser.email || input);
@@ -131,11 +120,7 @@ export default function LoginPage() {
         router.push('/dashboard');
       })
       .catch(() => {
-        // Simple fallback
-        localStorage.setItem('user_id', input === 'admin' ? 'admin' : '');
-        localStorage.setItem('user_role', input === 'admin' ? 'admin' : 'secondary');
-        localStorage.setItem('user_name', input === 'admin' ? 'مدير النظام' : 'المستخدم الثاني');
-        router.push('/dashboard');
+        setError('حدث خطأ أثناء الاتصال بالخادم. يرجى إعادة المحاولة.');
       })
       .finally(() => setLoading(false));
   };
