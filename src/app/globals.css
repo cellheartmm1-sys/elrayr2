@@ -315,17 +315,18 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.6rem 0.875rem;
-  border-radius: var(--radius-sm);
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 500;
   transition: all var(--transition-fast);
   cursor: pointer;
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
+  margin: 0.15rem 0;
 }
 
 .nav-item::before {
@@ -340,16 +341,17 @@ body {
 
 .nav-item:hover {
   color: var(--text-primary);
-  background: rgba(59, 130, 246, 0.08);
-  border-color: var(--border-normal);
+  background: rgba(197, 155, 39, 0.05);
+  border-color: rgba(197, 155, 39, 0.15);
+  transform: translateX(-3px);
 }
 
 .nav-item.active {
   color: var(--sidebar-active-text);
   background: var(--sidebar-active-bg);
   border-color: var(--sidebar-active-border);
-  box-shadow: 0 4px 12px rgba(197, 155, 39, 0.06);
-  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(197, 155, 39, 0.15);
+  font-weight: 700;
 }
 
 .nav-item.active::after {
@@ -528,15 +530,19 @@ body {
 
 .card {
   background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-normal);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
-  transition: all var(--transition-normal);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .card:hover {
-  border-color: var(--border-normal);
-  box-shadow: var(--shadow-card);
+  transform: translateY(-4px) scale(1.002);
+  border-color: rgba(197, 155, 39, 0.35);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4), 0 0 15px rgba(197, 155, 39, 0.05);
 }
 
 .card-glass {
@@ -576,19 +582,22 @@ body {
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 1.25rem;
   margin-bottom: 1.5rem;
 }
 
 .stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(20, 25, 38, 0.9) 100%);
+  border: 1px solid var(--border-normal);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
+  padding: 1.5rem;
   position: relative;
   overflow: hidden;
-  transition: all var(--transition-normal);
-  cursor: default;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
 .stat-card::before {
@@ -608,9 +617,9 @@ body {
 .stat-card.purple::before { background: linear-gradient(135deg, #6d28d9, #8b5cf6); }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-normal);
-  box-shadow: var(--shadow-card);
+  transform: translateY(-5px);
+  border-color: rgba(197, 155, 39, 0.45);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 20px rgba(197, 155, 39, 0.1);
 }
 
 .stat-card-icon {
@@ -952,14 +961,11 @@ html[data-theme="light"] .stat-card.card-kpi-expenses .stat-value {
 
 .table-wrapper {
   overflow-x: auto;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none;  /* IE and Edge */
-}
-
-.table-wrapper::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-normal);
+  background: var(--bg-card);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  scrollbar-width: thin;
 }
 
 .data-table {
@@ -969,23 +975,22 @@ html[data-theme="light"] .stat-card.card-kpi-expenses .stat-value {
 }
 
 .data-table thead {
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-bottom: 2px solid var(--border-normal);
 }
 
 .data-table th {
-  padding: 0.875rem 1rem;
+  padding: 1rem 1.25rem;
   text-align: right;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .data-table td {
-  padding: 0.875rem 1rem;
+  padding: 1rem 1.25rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
@@ -1000,7 +1005,7 @@ html[data-theme="light"] .stat-card.card-kpi-expenses .stat-value {
 }
 
 .data-table tbody tr:hover {
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02) !important;
 }
 
 /* ============================================================
@@ -1035,8 +1040,8 @@ html[data-theme="light"] .stat-card.card-kpi-expenses .stat-value {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius-md);
   font-family: var(--font-arabic);
   font-size: 0.875rem;
   font-weight: 600;
@@ -1056,30 +1061,40 @@ html[data-theme="light"] .stat-card.card-kpi-expenses .stat-value {
 .btn-primary {
   background: var(--grad-primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(197, 155, 39, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.45);
-  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(197, 155, 39, 0.45);
+  transform: translateY(-2px);
 }
 
 .btn-accent {
   background: var(--grad-accent);
   color: #1a1000;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
 }
 
 .btn-success {
   background: var(--grad-success);
   color: white;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.btn-success:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+  transform: translateY(-2px);
 }
 
 .btn-danger {
   background: var(--grad-danger);
   color: white;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+  transform: translateY(-2px);
 }
 
 .btn-outline {
