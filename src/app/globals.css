@@ -1719,3 +1719,105 @@ textarea.form-control {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ============================================================
+   PROJECT DETAILS PAGE CUSTOM KPI CARDS (Solid Premium Style)
+   ============================================================ */
+.project-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .project-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .project-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.project-kpi-card {
+  position: relative;
+  border-radius: 12px;
+  padding: 1.5rem;
+  color: #ffffff !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 110px;
+  border: none !important;
+  direction: rtl;
+}
+
+.project-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.project-kpi-card .card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 2;
+  text-align: right;
+}
+
+.project-kpi-card .card-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.project-kpi-card .card-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.project-kpi-card .card-subtext {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.project-kpi-card .card-icon-watermark {
+  position: absolute;
+  left: 10px;
+  bottom: -10px;
+  font-size: 4.5rem;
+  opacity: 0.15;
+  user-select: none;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+
+.project-kpi-card:hover .card-icon-watermark {
+  transform: scale(1.1) rotate(-10deg);
+}
+
+/* Colors matching user's screenshot but styled premium and modern */
+.project-kpi-card.blue {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.25);
+}
+.project-kpi-card.red {
+  background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.25);
+}
+.project-kpi-card.orange {
+  background: linear-gradient(135deg, #c2410c 0%, #f97316 100%);
+  box-shadow: 0 4px 20px rgba(234, 88, 12, 0.25);
+}
+.project-kpi-card.green {
+  background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.25);
+}

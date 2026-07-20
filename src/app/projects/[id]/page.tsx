@@ -422,34 +422,50 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* ======================== TAB: OVERVIEW ======================== */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Summary Row */}
-          <div className="stat-grid">
-            <div className="stat-card card-kpi-contracts">
-              <div className="stat-card-icon">💰</div>
-              <div className="stat-value" style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', justifyContent: 'center' }}>
-                <span>{formatCurrency(project.contract_value)}</span>
+          {/* Summary Row (Solid Premium Style) */}
+          <div className="project-kpi-grid">
+            {/* قيمة العقد */}
+            <div className="project-kpi-card blue">
+              <div className="card-content">
+                <span className="card-value">{formatCurrency(project.contract_value)}</span>
+                <span className="card-label">قيمة العقد</span>
                 {project.payment_type && (
-                  <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>
+                  <span className="card-subtext">
                     ({project.payment_type === 'once' ? 'دفعة واحدة' : 'على دفعات'})
                   </span>
                 )}
               </div>
-              <div className="stat-label">القيمة التعاقدية للمشروع</div>
+              <div className="card-icon-watermark">📄</div>
             </div>
-            <div className="stat-card card-kpi-projects">
-              <div className="stat-card-icon">📈</div>
-              <div className="stat-value">{actualProgress.toFixed(1)}%</div>
-              <div className="stat-label">نسبة الإنجاز الإجمالية (الفنية)</div>
+
+            {/* إجمالي التكاليف */}
+            <div className="project-kpi-card red">
+              <div className="card-content">
+                <span className="card-value">{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</span>
+                <span className="card-label">إجمالي التكاليف</span>
+                <span className="card-subtext">مصاريف + مقاولين + عمال</span>
+              </div>
+              <div className="card-icon-watermark">💸</div>
             </div>
-            <div className="stat-card card-kpi-employees">
-              <div className="stat-card-icon">💼</div>
-              <div className="stat-value">{formatCurrency(earnedValue)}</div>
-              <div className="stat-label">قيمة الأعمال المنجزة (Earned Value)</div>
+
+            {/* يوميات العمال والمشرفين */}
+            <div className="project-kpi-card orange">
+              <div className="card-content">
+                <span className="card-value">{formatCurrency(totalDailyLaborCost)}</span>
+                <span className="card-label">يوميات العمال والمشرفين</span>
+                <span className="card-subtext">الحضور الفعلي للموقع</span>
+              </div>
+              <div className="card-icon-watermark">👥</div>
             </div>
-            <div className="stat-card card-kpi-tickets">
-              <div className="stat-card-icon">📊</div>
-              <div className="stat-value">{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</div>
-              <div className="stat-label">إجمالي التكاليف (مصاريف + مقاولين + عمال)</div>
+
+            {/* صافي الربح */}
+            <div className="project-kpi-card green">
+              <div className="card-content">
+                <span className="card-value">{formatCurrency(netProjectProfit)}</span>
+                <span className="card-label">صافي الربح</span>
+                <span className="card-subtext">المستخلصات المعتمدة - التكاليف</span>
+              </div>
+              <div className="card-icon-watermark">📈</div>
             </div>
           </div>
 
