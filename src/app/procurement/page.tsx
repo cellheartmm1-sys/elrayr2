@@ -19,6 +19,9 @@ interface MaterialSubmittal {
 interface InventoryItem {
   id: string; description: string; warehouse_name: string; unit: string;
   current_quantity: string; min_quantity: string; unit_cost: string; category: string;
+  warehouse_id?: string;
+  sale_price?: string;
+  location_in_warehouse?: string;
 }
 
 const statusLabels: Record<string, string> = {
