@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import PrintA4Template from '@/components/PrintA4Template';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { exportJsonToExcel } from '@/lib/exportUtils';
 
 interface Estimation {
   id: string;
@@ -247,6 +249,76 @@ export default function EstimationPage() {
     }
   };
 
+  const handleExportAllExcel = () => {
+    if (estimations.length === 0) {
+      alert('لا توجد عروض أسعار لتصديرها.');
+      return;
+    }
+    const exportData = estimations.map(est => ({
+      tender_number: est.tender_number || '-',
+      tender_name: est.tender_name,
+      client_name: est.client_name || '-',
+      submission_date: est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-SA') : '-',
+      material_cost: Number(est.total_material_cost || 0),
+      labor_cost: Number(est.total_labor_cost || 0),
+      overhead_percentage: est.overhead_percentage ? `${est.overhead_percentage}%` : '0%',
+      profit_percentage: est.profit_percentage ? `${est.profit_percentage}%` : '0%',
+      total_price: Number(est.total_price || 0),
+      status: statusLabels[est.status] || est.status
+    }));
+
+    exportJsonToExcel({
+      filename: `جدول_عروض_الأسعار_${new Date().toISOString().slice(0,10)}`,
+      sheetName: 'عروض الأسعار',
+      data: exportData,
+      headers: {
+        tender_number: 'رقم المناقصة / المرجع',
+        tender_name: 'اسم المناقصة / عرض السعر',
+        client_name: 'العميل',
+        submission_date: 'تاريخ التقديم',
+        material_cost: 'تكلفة المواد',
+        labor_cost: 'تكلفة المصنعية',
+        overhead_percentage: 'المصاريف الإدارية %',
+        profit_percentage: 'نسبة الربح %',
+        total_price: 'السعر النهائي الإجمالي',
+        status: 'حالة العرض'
+      }
+    });
+  };
+
+  const handleExportSingleExcel = (est: Estimation) => {
+    const singleData = [{
+      tender_number: est.tender_number || '-',
+      tender_name: est.tender_name,
+      client_name: est.client_name || '-',
+      submission_date: est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-SA') : '-',
+      material_cost: Number(est.total_material_cost || 0),
+      labor_cost: Number(est.total_labor_cost || 0),
+      overhead_percentage: est.overhead_percentage ? `${est.overhead_percentage}%` : '0%',
+      profit_percentage: est.profit_percentage ? `${est.profit_percentage}%` : '0%',
+      total_price: Number(est.total_price || 0),
+      status: statusLabels[est.status] || est.status
+    }];
+
+    exportJsonToExcel({
+      filename: `عرض_سعر_${est.tender_number || est.tender_name}_${new Date().toISOString().slice(0,10)}`,
+      sheetName: 'عرض سعر',
+      data: singleData,
+      headers: {
+        tender_number: 'رقم المناقصة / المرجع',
+        tender_name: 'اسم المناقصة / عرض السعر',
+        client_name: 'العميل',
+        submission_date: 'تاريخ التقديم',
+        material_cost: 'تكلفة المواد',
+        labor_cost: 'تكلفة المصنعية والعمالة',
+        overhead_percentage: 'المصاريف النثرية %',
+        profit_percentage: 'نسبة الربح %',
+        total_price: 'الإجمالي التقديري',
+        status: 'الحالة الحالية'
+      }
+    });
+  };
+
   return (
     <AppLayout title="الهندسة والتسعير" subtitle="إدخال مقايسات حصر الكميات (BOQ) وتحديد تكلفة المواد والمصنعيات لتقديم عروض الأسعار" icon="📐">
       <style dangerouslySetInnerHTML={{ __html: `
@@ -474,200 +546,75 @@ export default function EstimationPage() {
 
       {/* ======================== MODAL: PRINT PREVIEW ======================== */}
       {printingEstimation && (
-        <div className="print-modal-overlay" onClick={() => setPrintingEstimation(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: '2rem' }}>
-          <div className="print-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+        <div className="print-modal-overlay" onClick={() => setPrintingEstimation(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: '2rem' }}>
+          <div className="print-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '900px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
             
-            <div className="print-actions" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
+            <div className="print-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1rem', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button className="btn btn-outline" onClick={() => setPrintingEstimation(null)}>✕ إغلاق المعاينة</button>
-              <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة عرض السعر</button>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-secondary" onClick={() => handleExportSingleExcel(printingEstimation)}>📊 تصدير إلى Excel (.xlsx)</button>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة / حفظ كـ PDF</button>
+              </div>
             </div>
 
-            {/* The printable sheet */}
-            <div className="print-container" style={{ direction: 'rtl', padding: '1.5rem', background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minHeight: 'auto' }}>
-              {/* Style element inside to style print */}
-              <style dangerouslySetInnerHTML={{ __html: `
-                @page {
-                  size: A4;
-                  margin: 10mm;
-                }
-                @media print {
-                  html, body {
-                    height: 99%;
-                    overflow: hidden;
-                  }
-                  body * {
-                    visibility: hidden;
-                  }
-                  .print-container, .print-container * {
-                    visibility: visible !important;
-                  }
-                  .print-container {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    padding: 0 !important;
-                    margin: 0 !important;
-                    box-shadow: none !important;
-                    background: #fff !important;
-                    color: #000 !important;
-                  }
-                  .print-modal-overlay {
-                    position: static !important;
-                    background: transparent !important;
-                    padding: 0 !important;
-                    backdrop-filter: none !important;
-                    display: block !important;
-                  }
-                  .print-modal-content {
-                    max-height: none !important;
-                    overflow: visible !important;
-                    background: transparent !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    padding: 0 !important;
-                    max-width: 100% !important;
-                    animation: none !important;
-                  }
-                  .print-actions, .modal-header, .tabs, .sidebar, .header, .btn, .nav, .modal-overlay:not(.print-modal-overlay) {
-                    display: none !important;
-                  }
-                }
-                .print-header {
-                  display: flex;
-                  justify-content: space-between;
-                  border-bottom: 2px solid #000;
-                  padding-bottom: 0.5rem;
-                  margin-bottom: 1rem;
-                }
-                .print-company-info {
-                  text-align: right;
-                }
-                .print-company-title {
-                  font-size: 1.25rem;
-                  font-weight: bold;
-                  margin-bottom: 0.25rem;
-                }
-                .print-document-title {
-                  font-size: 1.5rem;
-                  font-weight: bold;
-                  text-align: center;
-                  margin: 1rem 0;
-                  text-decoration: underline;
-                }
-                .print-grid {
-                  display: grid;
-                  grid-template-columns: 1fr 1fr;
-                  gap: 0.75rem;
-                  margin-bottom: 1.25rem;
-                  font-size: 0.95rem;
-                }
-                .print-grid-item {
-                  display: flex;
-                  gap: 0.5rem;
-                }
-                .print-grid-label {
-                  font-weight: bold;
-                  min-width: 110px;
-                }
-                .print-table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-bottom: 1.25rem;
-                }
-                .print-table th, .print-table td {
-                  border: 1px solid #000;
-                  padding: 0.5rem 0.75rem;
-                  text-align: right;
-                  font-size: 0.95rem;
-                }
-                .print-table th {
-                  background-color: #f2f2f2;
-                  font-weight: bold;
-                }
-                .print-footer {
-                  margin-top: 2.5rem;
-                  display: flex;
-                  justify-content: space-between;
-                }
-                .print-signature-box {
-                  text-align: center;
-                  width: 200px;
-                  font-size: 0.95rem;
-                }
-                .print-signature-line {
-                  margin-top: 2.5rem;
-                  border-top: 1px dashed #000;
-                }
-              ` }} />
-
-              <div className="print-header">
-                <div className="print-company-info">
-                  <div className="print-company-title">{companyInfo?.name_ar || 'الرايق للمقاولات الكهروميكانيكية'}</div>
-                  <div>سجل تجاري: {companyInfo?.cr_number || '١٠١٠١٢٣٤٥٦'}</div>
-                  <div>الرقم الضريبي: {companyInfo?.vat_number || '٣٠٠٠١٢٣٤٥٦٠٠٠٠٣'}</div>
-                </div>
-                <div style={{ textAlign: 'left', fontSize: '0.9rem' }}>
-                  <div>العنوان: {companyInfo?.address || 'القاهرة، مصر'}</div>
-                  <div>الهاتف: {companyInfo?.phone || '+20-100-000-0000'}</div>
-                  <div>البريد: {companyInfo?.email || 'info@alrayeq.com'}</div>
-                </div>
-              </div>
-
-              <div className="print-document-title">
-                عرض سعر ومقايسة مالية تقديرية
-              </div>
-
-              <div className="print-grid">
-                <div className="print-grid-item">
-                  <span className="print-grid-label">اسم المناقصة:</span>
+            {/* The printable sheet with standard A4 Template */}
+            <PrintA4Template
+              companyInfo={companyInfo}
+              documentTitle="عرض سعر ومقايسة مالية تقديرية"
+              refNumber={printingEstimation.tender_number || '-'}
+              documentSubtitle={`مناقصة: ${printingEstimation.tender_name}`}
+              date={printingEstimation.submission_date ? new Date(printingEstimation.submission_date).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+            >
+              <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.95rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>اسم المناقصة:</span>
                   <span>{printingEstimation.tender_name}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">رقم المرجع:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>رقم المرجع:</span>
                   <span>{printingEstimation.tender_number || '-'}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">العميل المستهدف:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>العميل المستهدف:</span>
                   <span>{printingEstimation.client_name}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">تاريخ التقديم:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>تاريخ التقديم:</span>
                   <span>{printingEstimation.submission_date ? new Date(printingEstimation.submission_date).toLocaleDateString('ar-SA') : '-'}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">المشروع المرتبط:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>المشروع المرتبط:</span>
                   <span>{printingEstimation.project_name || 'غير مرتبط بمشروع منشأ'}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">حالة العرض:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>حالة العرض:</span>
                   <span>{statusLabels[printingEstimation.status] || printingEstimation.status}</span>
                 </div>
               </div>
 
-              <table className="print-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.25rem' }}>
                 <thead>
-                  <tr>
-                    <th>البند / الوصف المالي</th>
-                    <th style={{ width: '220px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', textAlign: 'right' }}>البند / الوصف المالي</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', width: '220px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>إجمالي قيمة التوريدات والمواد الإنشائية والكهروميكانيكية المباشرة</td>
-                    <td style={{ textAlign: 'left' }}>{formatCurrency(printingEstimation.total_material_cost || 0)}</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>إجمالي قيمة التوريدات والمواد الإنشائية والكهروميكانيكية المباشرة</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left' }}>{formatCurrency(printingEstimation.total_material_cost || 0)}</td>
                   </tr>
                   <tr>
-                    <td>إجمالي قيمة أعمال التركيب والمصنعيات والعمالة المباشرة في الموقع</td>
-                    <td style={{ textAlign: 'left' }}>{formatCurrency(printingEstimation.total_labor_cost || 0)}</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>إجمالي قيمة أعمال التركيب والمصنعيات والعمالة المباشرة في الموقع</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left' }}>{formatCurrency(printingEstimation.total_labor_cost || 0)}</td>
                   </tr>
                   <tr style={{ fontWeight: 'bold', backgroundColor: '#fafafa' }}>
-                    <td>التكلفة المباشرة الإجمالية (المواد + المصنعيات)</td>
-                    <td style={{ textAlign: 'left' }}>{formatCurrency(Number(printingEstimation.total_material_cost || 0) + Number(printingEstimation.total_labor_cost || 0))}</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>التكلفة المباشرة الإجمالية (المواد + المصنعيات)</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left' }}>{formatCurrency(Number(printingEstimation.total_material_cost || 0) + Number(printingEstimation.total_labor_cost || 0))}</td>
                   </tr>
                   <tr>
-                    <td>نسبة المصاريف الإدارية والعمومية الإضافية (Overhead) ({printingEstimation.overhead_percentage || 0}%)</td>
-                    <td style={{ textAlign: 'left', color: '#666' }}>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>نسبة المصاريف الإدارية والعمومية الإضافية (Overhead) ({printingEstimation.overhead_percentage || 0}%)</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#666' }}>
                       +{formatCurrency(
                         (Number(printingEstimation.total_material_cost || 0) + Number(printingEstimation.total_labor_cost || 0)) * 
                         (Number(printingEstimation.overhead_percentage || 0) / 100)
@@ -675,24 +622,24 @@ export default function EstimationPage() {
                     </td>
                   </tr>
                   <tr>
-                    <td>نسبة هامش الأرباح المستهدفة المقدرة (Profit) ({printingEstimation.profit_percentage || 0}%)</td>
-                    <td style={{ textAlign: 'left', color: '#666' }}>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>نسبة هامش الأرباح المستهدفة المقدرة (Profit) ({printingEstimation.profit_percentage || 0}%)</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#666' }}>
                       +{formatCurrency(
                         (Number(printingEstimation.total_material_cost || 0) + Number(printingEstimation.total_labor_cost || 0)) * 
                         (Number(printingEstimation.profit_percentage || 0) / 100)
                       )}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: 'bold', backgroundColor: '#f2f2f2', fontSize: '1.05rem' }}>
-                    <td>السعر النهائي المقترح لعرض السعر (شامل المصاريف والأرباح)</td>
-                    <td style={{ textAlign: 'left', border: '4px double #000' }}>{formatCurrency(printingEstimation.total_price || 0)}</td>
+                  <tr style={{ fontWeight: 'bold', backgroundColor: '#eff6ff', fontSize: '1.05rem', color: '#1e3a8a' }}>
+                    <td style={{ border: '2px solid #1e3a8a', padding: '0.625rem' }}>السعر النهائي المقترح لعرض السعر (شامل المصاريف والأرباح)</td>
+                    <td style={{ border: '2px solid #1e3a8a', padding: '0.625rem', textAlign: 'left' }}>{formatCurrency(printingEstimation.total_price || 0)}</td>
                   </tr>
                 </tbody>
               </table>
 
-              <div style={{ marginTop: '1.5rem', fontSize: '0.85rem', color: '#555', lineHeight: '1.4' }}>
-                <strong>شروط وأحكام عامة:</strong>
-                <ul>
+              <div style={{ marginTop: '1.5rem', fontSize: '0.85rem', color: '#4b5563', lineHeight: '1.5', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ color: '#1e293b' }}>شروط وأحكام عامة:</strong>
+                <ul style={{ paddingRight: '1.25rem', margin: '0.5rem 0 0 0' }}>
                   <li>يعتبر هذا العرض صالحاً لمدة 30 يوماً من تاريخ التقديم المذكور أعلاه.</li>
                   <li>الأسعار المذكورة أعلاه لا تشمل ضريبة القيمة المضافة ما لم يذكر خلاف ذلك في الشروط الخاصة.</li>
                   <li>تتم مراجعة الدفعات وطريقة التسليم والجدول الزمني للأعمال بالتوافق مع شروط المالك واستشاري المشروع.</li>
@@ -700,7 +647,7 @@ export default function EstimationPage() {
               </div>
 
               {printingDocs.length > 0 && (
-                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }} className="print-actions">
+                <div style={{ marginTop: '1.5rem', borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }} className="print-actions">
                   <strong style={{ fontSize: '0.95rem' }}>📎 الملفات والمستندات المرفقة لعرض السعر:</strong>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
                     {printingDocs.map((doc) => {
@@ -721,18 +668,7 @@ export default function EstimationPage() {
                   </div>
                 </div>
               )}
-
-              <div className="print-footer" style={{ display: 'flex', justifyContent: 'space-around' }}>
-                <div className="print-signature-box" style={{ width: '40%' }}>
-                  <div>توقيع المحاسب المالي</div>
-                  <div className="print-signature-line" />
-                </div>
-                <div className="print-signature-box" style={{ width: '40%' }}>
-                  <div>اعتماد المدير العام للمؤسسة</div>
-                  <div className="print-signature-line" />
-                </div>
-              </div>
-            </div>
+            </PrintA4Template>
 
           </div>
         </div>

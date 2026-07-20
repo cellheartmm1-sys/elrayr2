@@ -150,13 +150,17 @@ export default function LaborPage() {
 
   const handleCreateAttendance = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!attForm.project_id) {
+      alert('⚠️ إجبارياً: يرجى اختيار المشروع/الموقع المرتبط بهذه اليومية لقيد تكلفة العمالة المباشرة (Direct Labor Cost).');
+      return;
+    }
     try {
       const res = await fetch('/api/hr/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employee_id: attForm.worker_id,
-          project_id: attForm.project_id || null,
+          project_id: attForm.project_id,
           attendance_date: attForm.attendance_date,
           status: attForm.is_present ? 'present' : 'absent',
           hours_worked: attForm.is_present ? Number(attForm.hours_worked) || 8 : 0,
@@ -467,9 +471,9 @@ export default function LaborPage() {
                   </select>
                 </div>
                 <div className="form-group col-span-3">
-                  <label className="form-label required">الموقع / المشروع المستضيف</label>
+                  <label className="form-label required" style={{ color: 'var(--brand-primary, #2563eb)', fontWeight: 700 }}>الموقع / المشروع المستضيف (إجباري لقيد Direct Labor Cost)</label>
                   <select className="form-control" required value={attForm.project_id} onChange={e => setAttForm({...attForm, project_id: e.target.value})}>
-                    <option value="">اختر المشروع...</option>
+                    <option value="">-- اختر المشروع الإجباري --</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>

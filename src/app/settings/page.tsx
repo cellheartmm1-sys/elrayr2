@@ -15,6 +15,7 @@ interface CompanyProfile {
   address: string;
   phone: string;
   email: string;
+  logo_url?: string;
   r2_account_id?: string;
   r2_endpoint?: string;
   r2_bucket_name?: string;
@@ -328,6 +329,33 @@ export default function SettingsPage() {
     if (activeTab === 'defaults') fetchCurrencies();
   }, [activeTab]);
 
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const res = await fetch('/api/settings/upload-logo', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.logo_url) {
+        setCompany(prev => ({ ...prev, logo_url: data.logo_url }));
+        alert('✅ تم رفع وحديث شعار الشركة بنجاح!');
+      } else {
+        alert(`❌ فشل رفع الشعار: ${data.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ حدث خطأ أثناء رفع الشعار: ${err.message}`);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   // Save Company Info
   const handleSaveCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,6 +574,30 @@ export default function SettingsPage() {
             <div className="empty-state"><div className="loading-spinner" /></div>
           ) : (
             <form onSubmit={handleSaveCompany}>
+              {/* Logo Upload Section */}
+              <div style={{ background: 'var(--bg-card-hover, #f8fafc)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px dashed var(--border-color, #cbd5e1)', display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ width: '100px', height: '100px', borderRadius: '12px', border: '2px dashed var(--brand-primary, #3b82f6)', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                  {company.logo_url ? (
+                    <img src={company.logo_url} alt="شعار الشركة" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <span style={{ fontSize: '2rem' }}>🏢</span>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem', color: 'var(--text-main)' }}>شعار المؤسسة / اللوجو (Company Logo)</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>سيظهر هذا الشعار تلقائياً في جميع نماذج الطباعة المعتمدة $A4$ وعروض الأسعار والمستخلصات.</div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <label className="btn btn-primary" style={{ cursor: 'pointer', margin: 0 }}>
+                      {logoUploading ? 'جاري الرفع...' : '🖼️ اختيار لوجو جديد'}
+                      <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} disabled={logoUploading} />
+                    </label>
+                    {company.logo_url && (
+                      <button type="button" className="btn btn-secondary" onClick={() => setCompany({ ...company, logo_url: '' })}>🗑️ إزالة الشعار</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="form-grid form-grid-2">
                 <div className="form-group">
                   <label className="form-label required">اسم الشركة بالعربية</label>

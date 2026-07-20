@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
+import PrintA4Template from '@/components/PrintA4Template';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { exportJsonToExcel } from '@/lib/exportUtils';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -27,7 +29,7 @@ ChartJS.register(
   Filler
 );
 
-type TabType = 'ipc' | 'expenses' | 'cashflow' | 'debts' | 'reports';
+type TabType = 'ipc' | 'expenses' | 'cashflow' | 'debts' | 'reports' | 'petty_cash';
 
 interface IPC {
   id: string;
@@ -42,6 +44,10 @@ interface IPC {
   vat_amount: string;
   retention_percentage?: string;
   retention_amount: string;
+  advance_deduction_percentage?: string;
+  advance_deduction_amount?: string;
+  wht_percentage?: string;
+  wht_amount?: string;
   previous_payments?: string;
   net_payable: string;
   status: string;
@@ -106,7 +112,7 @@ export default function FinancePage() {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && tab !== lastTabRef.current && ['ipc', 'expenses', 'cashflow', 'debts', 'reports'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['ipc', 'expenses', 'cashflow', 'debts', 'reports', 'petty_cash'].includes(tab)) {
           lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
@@ -147,10 +153,26 @@ export default function FinancePage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
 
-  // Forms
+  const [pettyCustodies, setPettyCustodies] = useState<any[]>([]);
+  const [pettyClaims, setPettyClaims] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [showCustodyModal, setShowCustodyModal] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
+
+  const [custodyForm, setCustodyForm] = useState({
+    engineer_id: '', project_id: '', amount: '', issue_date: new Date().toISOString().split('T')[0], notes: ''
+  });
+
+  const [claimForm, setClaimForm] = useState({
+    custody_id: '', engineer_id: '', project_id: '', category: 'material',
+    description: '', amount: '', claim_date: new Date().toISOString().split('T')[0],
+    receipt_image_url: '', notes: ''
+  });
+
   const [ipcForm, setIpcForm] = useState({
     project_id: '', ipc_number: '', period_from: '', period_to: '',
-    items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+    items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
   });
 
   const [expenseForm, setExpenseForm] = useState({
@@ -160,6 +182,89 @@ export default function FinancePage() {
   const [debtForm, setDebtForm] = useState({
     creditor_name: '', debt_type: 'project_finance', project_id: '', amount: '', due_date: '', notes: ''
   });
+
+  const fetchPettyCashData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/finance/petty-cash');
+      const data = await res.json();
+      setPettyCustodies(data?.custodies || []);
+      setPettyClaims(data?.claims || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, []);
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const res = await fetch('/api/employees');
+      const data = await res.json();
+      setEmployees(Array.isArray(data) ? data : (data?.data || []));
+    } catch (e) { console.error(e); }
+  }, []);
+
+  const handleIssueCustody = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!custodyForm.engineer_id || !custodyForm.amount) {
+      alert('⚠️ يرجى اختيار المهندس وإدخال قيمة العُهدة النقدية');
+      return;
+    }
+    try {
+      const res = await fetch('/api/finance/petty-cash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'issue_custody', ...custodyForm })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowCustodyModal(false);
+        setCustodyForm({ engineer_id: '', project_id: '', amount: '', issue_date: new Date().toISOString().split('T')[0], notes: '' });
+        alert(`✅ ${data.message}`);
+        fetchPettyCashData();
+      } else { alert(`❌ فشل التسليم: ${data.error || 'حدث خطأ'}`); }
+    } catch (err) { console.error(err); alert('❌ حدث خطأ بالاتصال'); }
+  };
+
+  const handleSubmitClaim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!claimForm.engineer_id || !claimForm.description || !claimForm.amount) {
+      alert('⚠️ يرجى إدخال المهندس، الوصف، والمبلغ للفاتورة');
+      return;
+    }
+    try {
+      const res = await fetch('/api/finance/petty-cash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'submit_claim', ...claimForm })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowClaimModal(false);
+        setClaimForm({
+          custody_id: '', engineer_id: '', project_id: '', category: 'material',
+          description: '', amount: '', claim_date: new Date().toISOString().split('T')[0],
+          receipt_image_url: '', notes: ''
+        });
+        alert(`✅ ${data.message}`);
+        fetchPettyCashData();
+      } else { alert(`❌ فشل رفع الفاتورة: ${data.error || 'حدث خطأ'}`); }
+    } catch (err) { console.error(err); alert('❌ حدث خطأ بالاتصال'); }
+  };
+
+  const handleApproveOrRejectClaim = async (claimId: string, action: 'approve' | 'reject') => {
+    try {
+      const res = await fetch('/api/finance/petty-cash', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claim_id: claimId, action })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ ${data.message}`);
+        fetchPettyCashData();
+        fetchExpenses();
+      } else { alert(`❌ فشل العملية: ${data.error || 'حدث خطأ'}`); }
+    } catch (err) { console.error(err); }
+  };
 
 
   const fetchIPCs = useCallback(async () => {
@@ -280,7 +385,7 @@ export default function FinancePage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as TabType;
-      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow', 'debts', 'reports'];
+      const validTabs: TabType[] = ['ipc', 'expenses', 'cashflow', 'debts', 'reports', 'petty_cash'];
       if (tab && validTabs.includes(tab)) {
         setActiveTab(tab);
       }
@@ -293,7 +398,11 @@ export default function FinancePage() {
     if (activeTab === 'cashflow') fetchCashflow();
     if (activeTab === 'debts') fetchDebts();
     if (activeTab === 'reports') fetchFinancialReport();
-  }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow, fetchDebts, fetchFinancialReport]);
+    if (activeTab === 'petty_cash') {
+      fetchPettyCashData();
+      fetchEmployees();
+    }
+  }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow, fetchDebts, fetchFinancialReport, fetchPettyCashData, fetchEmployees]);
 
   const handleCreateIpc = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,7 +433,7 @@ export default function FinancePage() {
         setEditingIpc(null);
         setIpcForm({
           project_id: '', ipc_number: '', period_from: '', period_to: '',
-          items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+          items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
         });
         fetchIPCs();
       } else {
@@ -352,6 +461,74 @@ export default function FinancePage() {
       console.error(err);
       alert('❌ حدث خطأ في الاتصال بالخادم.');
     }
+  };
+
+  const handleExportIpcsExcel = () => {
+    if (ipcs.length === 0) {
+      alert('لا توجد مستخلصات لتصديرها.');
+      return;
+    }
+    const exportData = ipcs.map(i => ({
+      ipc_number: i.ipc_number,
+      project_name: i.project_name || '-',
+      period: `${i.period_from ? new Date(i.period_from).toLocaleDateString('ar-SA') : ''} إلى ${i.period_to ? new Date(i.period_to).toLocaleDateString('ar-SA') : ''}`,
+      items_total: Number(i.items_total || 0),
+      vat_amount: Number(i.vat_amount || 0),
+      retention_amount: Number(i.retention_amount || 0),
+      net_payable: Number(i.net_payable || 0),
+      status: statusLabels[i.status] || i.status
+    }));
+
+    exportJsonToExcel({
+      filename: `مستخلصات_العملاء_${new Date().toISOString().slice(0,10)}`,
+      sheetName: 'مستخلصات المالك',
+      data: exportData,
+      headers: {
+        ipc_number: 'رقم المستخلص',
+        project_name: 'اسم المشروع',
+        period: 'فترة المستخلص',
+        items_total: 'قيمة الأعمال المنجزة',
+        vat_amount: 'ضريبة القيمة المضافة',
+        retention_amount: 'استقطاع الضمان المالي',
+        net_payable: 'الصافي المستحق الصرف',
+        status: 'حالة المستخلص'
+      }
+    });
+  };
+
+  const handleExportSingleIpcExcel = (ipc: IPC) => {
+    const singleData = [{
+      ipc_number: ipc.ipc_number,
+      project_name: ipc.project_name || '-',
+      period_from: ipc.period_from ? new Date(ipc.period_from).toLocaleDateString('ar-SA') : '-',
+      period_to: ipc.period_to ? new Date(ipc.period_to).toLocaleDateString('ar-SA') : '-',
+      items_total: Number(ipc.items_total || 0),
+      vat_amount: Number(ipc.vat_amount || 0),
+      retention_amount: Number(ipc.retention_amount || 0),
+      previous_payments: Number(ipc.previous_payments || 0),
+      net_payable: Number(ipc.net_payable || 0),
+      status: statusLabels[ipc.status] || ipc.status,
+      notes: ipc.notes || '-'
+    }];
+
+    exportJsonToExcel({
+      filename: `مستخلص_مالك_${ipc.ipc_number}_${new Date().toISOString().slice(0,10)}`,
+      sheetName: 'مستخلص عميل',
+      data: singleData,
+      headers: {
+        ipc_number: 'رقم المستخلص',
+        project_name: 'اسم المشروع',
+        period_from: 'من تاريخ',
+        period_to: 'إلى تاريخ',
+        items_total: 'إجمالي قيمة الأعمال المنجزة',
+        vat_amount: 'ضريبة القيمة المضافة',
+        retention_amount: 'استقطاع الضمان المحتجز',
+        previous_payments: 'خصم دفعات سابقة',
+        net_payable: 'الصافي النهائي المستحق للمؤسسة',
+        status: 'الحالة الحالية',
+        notes: 'ملاحظات'
+      }
+    });
   };
 
   const handleOpenEditExpense = (expense: any) => {
@@ -530,6 +707,7 @@ export default function FinancePage() {
         <button className={`tab-btn ${activeTab === 'cashflow' ? 'active' : ''}`} onClick={() => handleTabChange('cashflow')}>📈 التدفق النقدي والربحية</button>
         <button className={`tab-btn ${activeTab === 'debts' ? 'active' : ''}`} onClick={() => handleTabChange('debts')}>🏛️ المديونيات وتمويل المشاريع</button>
         <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => handleTabChange('reports')}>📊 التقارير المالية والطباعة</button>
+        <button className={`tab-btn ${activeTab === 'petty_cash' ? 'active' : ''}`} onClick={() => handleTabChange('petty_cash')}>💵 العُهَد النقدية للمهندسين (Petty Cash)</button>
       </div>
 
 
@@ -541,7 +719,8 @@ export default function FinancePage() {
               <div className="page-title">📄 مستخلصات العميل المعتمدة</div>
               <div className="page-description">إصدار ومتابعة مستحقات الشركة لدى ملاك المشاريع بناءً على الكميات المعتمدة</div>
             </div>
-            <div className="page-header-actions">
+            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={handleExportIpcsExcel}>📊 تصدير إلى Excel (.xlsx)</button>
               <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ إصدار مستخلص جديد</button>
             </div>
           </div>
@@ -623,8 +802,10 @@ export default function FinancePage() {
                                   period_from: ipc.period_from ? new Date(ipc.period_from).toISOString().split('T')[0] : '',
                                   period_to: ipc.period_to ? new Date(ipc.period_to).toISOString().split('T')[0] : '',
                                   items_total: ipc.items_total,
-                                  vat_percentage: ipc.vat_percentage || '15',
+                                  vat_percentage: ipc.vat_percentage || '14',
                                   retention_percentage: ipc.retention_percentage || '10',
+                                  advance_deduction_percentage: ipc.advance_deduction_percentage || '0',
+                                  wht_percentage: ipc.wht_percentage || '1',
                                   notes: ipc.notes || '',
                                   previous_payments: ipc.previous_payments || ''
                                 });
@@ -1184,6 +1365,177 @@ export default function FinancePage() {
       )}
 
 
+      {/* ======================== TAB: PETTY CASH TRACKER ======================== */}
+      {activeTab === 'petty_cash' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">💵 إدارة العُهَد النقدية للمهندسين (Petty Cash Tracker)</div>
+              <div className="page-description">تسليم وتتبع العُهد النقدية لمهندسي المواقع، رفع صور الفواتير أونلاين بالموبايل، والاعتماد والتوزيع الآلي على ميزانيات المشاريع</div>
+            </div>
+            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => setShowClaimModal(true)}>📸 رفع فاتورة عُهدة من الموقع</button>
+              <button className="btn btn-primary" onClick={() => setShowCustodyModal(true)}>+ تسليم عُهدة نقدية لمهندس</button>
+            </div>
+          </div>
+
+          <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
+            <div className="stat-card primary">
+              <div className="stat-card-icon">💵</div>
+              <div className="stat-value">{formatCurrency(pettyCustodies.reduce((acc, c) => acc + Number(c.amount_given || 0), 0))}</div>
+              <div className="stat-label">إجمالي العُهَد النقدية المسلمة</div>
+            </div>
+            <div className="stat-card danger">
+              <div className="stat-card-icon">🧾</div>
+              <div className="stat-value">{formatCurrency(pettyCustodies.reduce((acc, c) => acc + Number(c.amount_spent || 0), 0))}</div>
+              <div className="stat-label">المصروف والمعتمد من العُهَد</div>
+            </div>
+            <div className="stat-card success">
+              <div className="stat-card-icon">🏦</div>
+              <div className="stat-value">{formatCurrency(pettyCustodies.reduce((acc, c) => acc + Number(c.amount_remaining || 0), 0))}</div>
+              <div className="stat-label">الرصيد الصافي المتبقي بعُهدة المهندسين</div>
+            </div>
+            <div className="stat-card warning">
+              <div className="stat-card-icon">⏳</div>
+              <div className="stat-value">{pettyClaims.filter(c => c.status === 'pending').length}</div>
+              <div className="stat-label">فواتير قيد مراجعة الاعتماد والترحيل</div>
+            </div>
+          </div>
+
+          {/* Table 1: Engineer Custodies Float */}
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <div style={{ padding: '1rem', fontWeight: 'bold', fontSize: '1.1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>👷‍♂️ رصيد العُهَد النقدية للمهندسين بالمواقف</span>
+              <button className="btn btn-outline btn-sm" onClick={() => setShowCustodyModal(true)}>+ صرف عُهدة جديدة</button>
+            </div>
+            {pettyCustodies.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">💵</div>
+                <div className="empty-state-title">لا توجد عُهد نقدية مسلمة لمهندسين حالياً</div>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>رقم العُهدة</th>
+                      <th>المهندس المستلم</th>
+                      <th>المشروع المرتبط</th>
+                      <th>تاريخ الصرف</th>
+                      <th>المبلغ المسلم</th>
+                      <th>المصروف المعتمد</th>
+                      <th>الرصيد المتبقي</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pettyCustodies.map((cust: any) => (
+                      <tr key={cust.id}>
+                        <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{cust.custody_number}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cust.engineer_name}</td>
+                        <td>{cust.project_name || 'عام / غير مرتبط بمشروع'}</td>
+                        <td>{new Date(cust.issue_date).toLocaleDateString('ar-EG')}</td>
+                        <td style={{ fontWeight: 700, color: '#1e3a8a' }}>{formatCurrency(cust.amount_given)}</td>
+                        <td style={{ color: '#dc2626' }}>{formatCurrency(cust.amount_spent)}</td>
+                        <td style={{ fontWeight: 700, color: '#16a34a' }}>{formatCurrency(cust.amount_remaining)}</td>
+                        <td><span className="badge badge-success">نشطة ومستمرة</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Table 2: Submitted Petty Cash Claims & Auditing */}
+          <div className="card">
+            <div style={{ padding: '1rem', fontWeight: 'bold', fontSize: '1.1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🧾 فواتير وإيصالات العُهَد المرفوعة بالموبايل (دورة الاعتماد وتوزيع الميزانية)</span>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowClaimModal(true)}>📸 رفع فاتورة جديدة</button>
+            </div>
+            {pettyClaims.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📸</div>
+                <div className="empty-state-title">لا توجد فواتير عُهد مرفوعة حالياً</div>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>رقم الفاتورة</th>
+                      <th>المهندس</th>
+                      <th>بيان الفاتورة والتكلفة</th>
+                      <th>المشروع الموزع عليه</th>
+                      <th>التاريخ</th>
+                      <th>صورة الإيصال الورقي</th>
+                      <th>المبلغ</th>
+                      <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>إجراء الاعتماد والتوزيع</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pettyClaims.map((claim: any) => (
+                      <tr key={claim.id}>
+                        <td style={{ fontWeight: 700 }}>{claim.claim_number}</td>
+                        <td style={{ fontWeight: 600 }}>{claim.engineer_name}</td>
+                        <td>{claim.description}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>{claim.project_name || 'غير محدد'}</td>
+                        <td>{new Date(claim.claim_date).toLocaleDateString('ar-EG')}</td>
+                        <td>
+                          {claim.receipt_image_url ? (
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => setSelectedReceiptUrl(claim.receipt_image_url)}
+                            >
+                              🖼️ معاينة الصورة
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>بدون صورة إيصال</span>
+                          )}
+                        </td>
+                        <td style={{ fontWeight: 700, color: '#1e3a8a' }}>{formatCurrency(claim.amount)}</td>
+                        <td>
+                          {claim.status === 'approved' ? (
+                            <span className="badge badge-success">✅ معتمدة وموزعة</span>
+                          ) : claim.status === 'rejected' ? (
+                            <span className="badge badge-danger">🔴 مرفوضة</span>
+                          ) : (
+                            <span className="badge badge-warning">⏳ قيد مراجعة الاعتماد</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {claim.status === 'pending' ? (
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                              <button
+                                className="btn btn-success btn-sm"
+                                onClick={() => handleApproveOrRejectClaim(claim.id, 'approve')}
+                                title="اعتماد الفاتورة وتخصيصها كـ مصروف مباشر في ميزانية المشروع"
+                              >
+                                ✅ اعتماد وتوزيع
+                              </button>
+                              <button
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleApproveOrRejectClaim(claim.id, 'reject')}
+                              >
+                                🔴 رفض
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>مكتملة</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+
       {/* ======================== MODAL: ADD DEBT ======================== */}
       {showDebtModal && (
         <div className="modal-overlay" onClick={() => setShowDebtModal(false)}>
@@ -1276,7 +1628,7 @@ export default function FinancePage() {
           setEditingIpc(null);
           setIpcForm({
             project_id: '', ipc_number: '', period_from: '', period_to: '',
-            items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+            items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
           });
         }}>
           <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
@@ -1287,7 +1639,7 @@ export default function FinancePage() {
                 setEditingIpc(null);
                 setIpcForm({
                   project_id: '', ipc_number: '', period_from: '', period_to: '',
-                  items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+                  items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
                 });
               }}>✕</button>
             </div>
@@ -1359,7 +1711,7 @@ export default function FinancePage() {
                   setEditingIpc(null);
                   setIpcForm({
                     project_id: '', ipc_number: '', period_from: '', period_to: '',
-                    items_total: '', vat_percentage: '15', retention_percentage: '10', notes: '', previous_payments: ''
+                    items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
                   });
                 }}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">{editingIpc ? '💾 حفظ التعديلات' : '💾 رفع المستخلص'}</button>
@@ -1420,239 +1772,156 @@ export default function FinancePage() {
 
       {/* ======================== PRINT MODAL ======================== */}
       {printIpc && (
-        <div className="modal-overlay print-modal-overlay" onClick={() => setPrintIpc(null)}>
-          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', background: 'var(--card-bg)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
-              <div className="modal-title">🖨️ معاينة طباعة المستخلص</div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة المستخلص</button>
-                <button className="btn btn-ghost" onClick={() => setPrintIpc(null)}>إغلاق</button>
+        <div className="modal-overlay print-modal-overlay" onClick={() => setPrintIpc(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: '2rem' }}>
+          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', background: '#fff', maxHeight: '92vh', overflowY: 'auto', borderRadius: '12px', padding: '2rem', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+            <div className="modal-header print-actions" style={{ borderBottom: '1px solid #eee', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button className="btn btn-outline" onClick={() => setPrintIpc(null)}>✕ إغلاق المعاينة</button>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-secondary" onClick={() => handleExportSingleIpcExcel(printIpc)}>📊 تصدير إلى Excel (.xlsx)</button>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة / حفظ كـ PDF</button>
               </div>
             </div>
             
-            {/* The printable sheet */}
-            <div className="print-container" style={{ direction: 'rtl', padding: '1.5rem', background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minHeight: 'auto' }}>
-              {/* Style element inside to style print */}
-              <style dangerouslySetInnerHTML={{ __html: `
-                @page {
-                  size: A4;
-                  margin: 10mm;
-                }
-                @media print {
-                  html, body {
-                    height: 99%;
-                    overflow: hidden;
-                  }
-                  body * {
-                    visibility: hidden;
-                  }
-                  .print-container, .print-container * {
-                    visibility: visible !important;
-                  }
-                  .print-container {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    padding: 0 !important;
-                    margin: 0 !important;
-                    box-shadow: none !important;
-                    background: #fff !important;
-                    color: #000 !important;
-                  }
-                  .print-modal-overlay {
-                    position: static !important;
-                    background: transparent !important;
-                    padding: 0 !important;
-                    backdrop-filter: none !important;
-                    display: block !important;
-                  }
-                  .print-modal-content {
-                    max-height: none !important;
-                    overflow: visible !important;
-                    background: transparent !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    padding: 0 !important;
-                    max-width: 100% !important;
-                    animation: none !important;
-                  }
-                  .print-actions, .modal-header, .tabs, .sidebar, .header, .btn, .nav, .modal-overlay:not(.print-modal-overlay) {
-                    display: none !important;
-                  }
-                }
-                .print-header {
-                  display: flex;
-                  justify-content: space-between;
-                  border-bottom: 2px solid #000;
-                  padding-bottom: 0.5rem;
-                  margin-bottom: 1rem;
-                }
-                .print-company-info {
-                  text-align: right;
-                }
-                .print-company-title {
-                  font-size: 1.25rem;
-                  font-weight: bold;
-                  margin-bottom: 0.25rem;
-                }
-                .print-document-title {
-                  font-size: 1.5rem;
-                  font-weight: bold;
-                  text-align: center;
-                  margin: 1rem 0;
-                  text-decoration: underline;
-                }
-                .print-grid {
-                  display: grid;
-                  grid-template-columns: 1fr 1fr;
-                  gap: 0.75rem;
-                  margin-bottom: 1.25rem;
-                  font-size: 0.95rem;
-                }
-                .print-grid-item {
-                  display: flex;
-                  gap: 0.5rem;
-                }
-                .print-grid-label {
-                  font-weight: bold;
-                  min-width: 110px;
-                }
-                .print-table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-bottom: 1.25rem;
-                }
-                .print-table th, .print-table td {
-                  border: 1px solid #000;
-                  padding: 0.5rem 0.75rem;
-                  text-align: right;
-                  font-size: 0.95rem;
-                }
-                .print-table th {
-                  background-color: #f2f2f2;
-                  font-weight: bold;
-                }
-                .print-footer {
-                  margin-top: 2.5rem;
-                  display: flex;
-                  justify-content: space-between;
-                }
-                .print-signature-box {
-                  text-align: center;
-                  width: 200px;
-                  font-size: 0.95rem;
-                }
-                .print-signature-line {
-                  margin-top: 2.5rem;
-                  border-top: 1px dashed #000;
-                }
-              ` }} />
-
-              <div className="print-header">
-                <div className="print-company-info">
-                  <div className="print-company-title">{companyInfo?.name_ar || 'الرايق للمقاولات الكهروميكانيكية'}</div>
-                  <div>سجل تجاري: {companyInfo?.cr_number || '١٠١٠١٢٣٤٥٦'}</div>
-                  <div>الرقم الضريبي: {companyInfo?.vat_number || '٣٠٠٠١٢٣٤٥٦٠٠٠٠٣'}</div>
-                </div>
-                <div style={{ textAlign: 'left', fontSize: '0.9rem' }}>
-                  <div>العنوان: {companyInfo?.address || 'القاهرة، مصر'}</div>
-                  <div>الهاتف: {companyInfo?.phone || '+20-100-000-0000'}</div>
-                  <div>البريد: {companyInfo?.email || 'info@alrayeq.com'}</div>
-                </div>
-              </div>
-
-              <div className="print-document-title">مستخلص مستحقات عميل</div>
-
-              <div className="print-grid">
-                <div className="print-grid-item">
-                  <span className="print-grid-label">رقم المستخلص:</span>
+            {/* The printable sheet with A4 Template */}
+            <PrintA4Template
+              companyInfo={companyInfo}
+              documentTitle="مستخلص مستحقات عميل (مالك المشروع)"
+              refNumber={printIpc.ipc_number}
+              documentSubtitle={`المشروع: ${printIpc.project_name}`}
+              date={printIpc.ipc_date ? new Date(printIpc.ipc_date).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+            >
+              <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.95rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>رقم المستخلص:</span>
                   <span>{printIpc.ipc_number}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">المشروع:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>اسم المشروع:</span>
                   <span>{printIpc.project_name}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">تاريخ الإصدار:</span>
-                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-EG')}</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>تاريخ الإصدار:</span>
+                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-SA')}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">الفترة المالية:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>الفترة المالية:</span>
                   <span>
                     {printIpc.period_from && printIpc.period_to 
-                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-EG')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-EG')}` 
+                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-SA')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-SA')}` 
                       : 'غير محددة'}
                   </span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">حالة المستخلص:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>حالة المستخلص:</span>
                   <span>{statusLabels[printIpc.status] || printIpc.status}</span>
                 </div>
               </div>
 
-              <table className="print-table">
-                <thead>
-                  <tr>
-                    <th>الوصف</th>
-                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>إجمالي قيمة الأعمال المنجزة خلال الفترة</td>
-                    <td style={{ textAlign: 'left', fontWeight: 'bold' }}>{formatCurrency(printIpc.items_total)}</td>
-                  </tr>
-                  <tr>
-                    <td>ضريبة القيمة المضافة ({printIpc.vat_percentage || 15}%)</td>
-                    <td style={{ textAlign: 'left' }}>{formatCurrency(printIpc.vat_amount)}</td>
-                  </tr>
-                  <tr>
-                    <td>استقطاع الضمان المالي ({printIpc.retention_percentage || 10}%)</td>
-                    <td style={{ textAlign: 'left', color: '#c00' }}>{formatCurrency(printIpc.retention_amount)}</td>
-                  </tr>
-                  {Number(printIpc.previous_payments) > 0 && (
-                    <tr>
-                      <td>خصم دفعات سابقة</td>
-                      <td style={{ textAlign: 'left', color: '#c00' }}>{formatCurrency(printIpc.previous_payments || 0)}</td>
-                    </tr>
-                  )}
-                  <tr style={{ backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>
-                    <td>الصافي المطلوب صرفه للمؤسسة</td>
-                    <td style={{ textAlign: 'left', fontSize: '1.2rem', color: '#080' }}>
-                      {formatCurrency(
-                        Number(printIpc.items_total) + 
-                        Number(printIpc.vat_amount) - 
-                        Number(printIpc.retention_amount) - 
-                        Number(printIpc.previous_payments || 0)
-                      )}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {(() => {
+                const totalWork = Number(printIpc.items_total || 0);
+                const prevPayments = Number(printIpc.previous_payments || 0);
+                const currentNetWork = totalWork > prevPayments ? (totalWork - prevPayments) : totalWork;
+                const advAmount = Number(printIpc.advance_deduction_amount || (currentNetWork * (Number(printIpc.advance_deduction_percentage || 0) / 100)));
+                const retAmount = Number(printIpc.retention_amount || (currentNetWork * (Number(printIpc.retention_percentage || 5) / 100)));
+                const whtAmount = Number(printIpc.wht_amount || (currentNetWork * (Number(printIpc.wht_percentage || 1) / 100)));
+                const totalDeductions = advAmount + retAmount + whtAmount;
+                const netBeforeVat = currentNetWork - totalDeductions;
+                const vatAmount = Number(printIpc.vat_amount || (currentNetWork * (Number(printIpc.vat_percentage || 14) / 100)));
+                const finalNetPayable = netBeforeVat + vatAmount;
+
+                return (
+                  <>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.25rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9' }}>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', textAlign: 'right' }}>بيان التسوية المالية والاستقطاعات</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', width: '120px', textAlign: 'center' }}>النسبة %</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', width: '200px', textAlign: 'left' }}>المبلغ ({currencySymbol})</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ backgroundColor: '#f8fafc', fontWeight: 'bold' }}>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>إجمالي قيمة الأعمال المنجزة حتى تاريخه تراكمياً</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>-</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left' }}>{formatCurrency(totalWork)}</td>
+                        </tr>
+                        {prevPayments > 0 && (
+                          <tr>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>(يطرح) إجمالي المستخلصات السابقة الصرف</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>-</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>({formatCurrency(prevPayments)})</td>
+                          </tr>
+                        )}
+                        <tr style={{ backgroundColor: '#eff6ff', fontWeight: 'bold' }}>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>صافي قيمة الأعمال للمستخلص الحالي (الخام)</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>-</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#1e3a8a' }}>{formatCurrency(currentNetWork)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>(يطرح) استرداد الدفعة المقدمة</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>{printIpc.advance_deduction_percentage || 0}%</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>({formatCurrency(advAmount)})</td>
+                        </tr>
+                        <tr>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>(يطرح) خصم ضمان أعمال (Retentions - تُرد عند التسليم)</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>{printIpc.retention_percentage || 5}%</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>({formatCurrency(retAmount)})</td>
+                        </tr>
+                        <tr>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>(يطرح) خصم ضريبة أرباح تجارية وصناعية (WHT)</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>{printIpc.wht_percentage || 1}%</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>({formatCurrency(whtAmount)})</td>
+                        </tr>
+                        <tr style={{ backgroundColor: '#fef2f2', fontWeight: 600 }}>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>إجمالي الخصومات والاستقطاعات المخصومة</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>-</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>({formatCurrency(totalDeductions)})</td>
+                        </tr>
+                        <tr style={{ fontWeight: 'bold' }}>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>الصافي المستحق قبل ضريبة القيمة المضافة</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>-</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left' }}>{formatCurrency(netBeforeVat)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>(يضاف) ضريبة القيمة المضافة (VAT)</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'center' }}>{printIpc.vat_percentage || 14}%</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#16a34a' }}>+{formatCurrency(vatAmount)}</td>
+                        </tr>
+                        <tr style={{ backgroundColor: '#1e3a8a', color: '#fff', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                          <td style={{ border: '2px solid #1e3a8a', padding: '0.75rem' }}>إجمالي المبلغ الصافي المطالب به لشركة الرايق (المبلغ النهائي)</td>
+                          <td style={{ border: '2px solid #1e3a8a', padding: '0.75rem', textAlign: 'center' }}>-</td>
+                          <td style={{ border: '2px solid #1e3a8a', padding: '0.75rem', textAlign: 'left' }}>{formatCurrency(finalNetPayable)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Official Triple Signatures */}
+                    <div style={{ marginTop: '2.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', textAlign: 'center', paddingTop: '1rem', borderTop: '1px solid #cbd5e1' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1e293b' }}>إعداد / شركة الرايق للمقاولات</div>
+                        <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #94a3b8' }}>التوقيع والتاريخ</div>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1e293b' }}>مراجعة / المهندس الاستشاري</div>
+                        <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #94a3b8' }}>التوقيع والتاريخ</div>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1e293b' }}>اعتماد / العميل (المالك)</div>
+                        <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #94a3b8' }}>التوقيع والتاريخ</div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               {printIpc.notes && (
-                <div style={{ marginTop: '1.5rem', border: '1px solid #ccc', padding: '1rem', borderRadius: '4px' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>ملاحظات:</div>
-                  <p style={{ margin: 0, fontSize: '0.95rem' }}>{printIpc.notes}</p>
+                <div style={{ marginTop: '1.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1rem', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem', color: '#1e293b' }}>ملاحظات وشروط المستخلص:</div>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#475569' }}>{printIpc.notes}</p>
                 </div>
               )}
+            </PrintA4Template>
 
-              <div className="print-footer">
-                <div className="print-signature-box">
-                  <div>المهندس المشرف</div>
-                  <div className="print-signature-line"></div>
-                </div>
-                <div className="print-signature-box">
-                  <div>المدير المالي</div>
-                  <div className="print-signature-line"></div>
-                </div>
-                <div className="print-signature-box">
-                  <div>اعتماد الاستشاري / العميل</div>
-                  <div className="print-signature-line"></div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -1800,6 +2069,142 @@ export default function FinancePage() {
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: ISSUE CUSTODY ======================== */}
+      {showCustodyModal && (
+        <div className="modal-overlay" onClick={() => setShowCustodyModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">💵 تسليم عُهدة نقدية لمهندس الموقع</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowCustodyModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleIssueCustody}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group col-span-2">
+                  <label className="form-label required">مهندس الموقع المستلم العُهدة</label>
+                  <select className="form-control" required value={custodyForm.engineer_id} onChange={e => setCustodyForm({...custodyForm, engineer_id: e.target.value})}>
+                    <option value="">-- اختر المهندس --</option>
+                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.job_title})</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">المبلغ النقدية المسلمة ({currencySymbol})</label>
+                  <input className="form-control" type="number" step="any" required value={custodyForm.amount} onChange={e => setCustodyForm({...custodyForm, amount: e.target.value})} placeholder="5000..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">المشروع المرتبط (اختياري)</label>
+                  <select className="form-control" value={custodyForm.project_id} onChange={e => setCustodyForm({...custodyForm, project_id: e.target.value})}>
+                    <option value="">عُهدة عامة (غير مخصصة لمشروع بعينه)</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">ملاحظات تسليم العُهدة</label>
+                  <textarea className="form-control" rows={2} value={custodyForm.notes} onChange={e => setCustodyForm({...custodyForm, notes: e.target.value})} placeholder="تسليم نقدية لمصاريف النثريات ومستلزمات الموقع طارئة..." />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowCustodyModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 تسليم العُهدة</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: SUBMIT CLAIM WITH RECEIPT PHOTO ======================== */}
+      {showClaimModal && (
+        <div className="modal-overlay" onClick={() => setShowClaimModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">📸 رفع فاتورة / إيصال عُهدة نقدية بالموبايل</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowClaimModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSubmitClaim}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">المهندس مقدم الفاتورة</label>
+                  <select className="form-control" required value={claimForm.engineer_id} onChange={e => setClaimForm({...claimForm, engineer_id: e.target.value})}>
+                    <option value="">-- اختر المهندس --</option>
+                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">المشروع المراد تحميل التكلفة عليه</label>
+                  <select className="form-control" required value={claimForm.project_id} onChange={e => setClaimForm({...claimForm, project_id: e.target.value})}>
+                    <option value="">-- اختر المشروع --</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label required">الوصف والبيان بالفاتورة</label>
+                  <input className="form-control" required value={claimForm.description} onChange={e => setClaimForm({...claimForm, description: e.target.value})} placeholder="شراء صمامات طارئة / نقل عمالة / أدوات حفر..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">مبلغ الفاتورة ({currencySymbol})</label>
+                  <input className="form-control" type="number" step="any" required value={claimForm.amount} onChange={e => setClaimForm({...claimForm, amount: e.target.value})} placeholder="250..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">بند المصروف</label>
+                  <select className="form-control" value={claimForm.category} onChange={e => setClaimForm({...claimForm, category: e.target.value})}>
+                    <option value="material">مواد وخامات مباشرة</option>
+                    <option value="transport">نقل وشحن ومواصلات</option>
+                    <option value="equipment">عَدَد وأدوات صيانة</option>
+                    <option value="labor">إعاشات ومكافآت عمالة</option>
+                    <option value="overhead">نثريات ومصروفات إدارية</option>
+                    <option value="other">مصروفات أخرى</option>
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">📷 صورة الفاتورة / الإيصال الورقي (من كاميرا الموبايل)</label>
+                  <input
+                    className="form-control"
+                    type="file"
+                    accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setClaimForm({...claimForm, receipt_image_url: reader.result as string});
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  {claimForm.receipt_image_url && (
+                    <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
+                      <img src={claimForm.receipt_image_url} alt="معاينة الإيصال" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowClaimModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">📸 إرسال الفاتورة للاعتماد والتوزيع</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: VIEW RECEIPT PHOTO ======================== */}
+      {selectedReceiptUrl && (
+        <div className="modal-overlay" onClick={() => setSelectedReceiptUrl(null)}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🖼️ معاينة صورة الإيصال الورقي للفاتورة</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setSelectedReceiptUrl(null)}>✕</button>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              <img src={selectedReceiptUrl} alt="صورة الفاتورة المرفوعة" style={{ maxWidth: '100%', maxHeight: '450px', borderRadius: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-primary" onClick={() => setSelectedReceiptUrl(null)}>إغلاق المعاينة</button>
             </div>
           </div>
         </div>

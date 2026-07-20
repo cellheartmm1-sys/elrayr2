@@ -54,7 +54,10 @@ export async function GET(request: NextRequest) {
       `, params),
 
       query(`
-        SELECT ci.id, ci.ipc_date as date, ci.net_payable as amount, ci.ipc_number, ci.status, p.name as project_name, 'revenue' as type
+        SELECT 
+          ci.id, ci.ipc_date as date, ci.net_payable as amount, ci.items_total, 
+          ci.vat_amount, ci.retention_amount, ci.advance_deduction_amount, ci.wht_amount,
+          ci.ipc_number, ci.status, p.name as project_name, 'revenue' as type
         FROM client_ipc ci
         LEFT JOIN projects p ON p.id = ci.project_id
         ${dateWhereIpc}
@@ -62,7 +65,10 @@ export async function GET(request: NextRequest) {
       `, params),
 
       query(`
-        SELECT si.id, si.ipc_date as date, si.net_payable as amount, si.ipc_number, si.status, s.name as subcontractor_name, p.name as project_name, 'subcontractor' as type
+        SELECT 
+          si.id, si.ipc_date as date, si.net_payable as amount, si.items_total,
+          si.vat_amount, si.retention_amount, si.advance_deduction_amount, si.wht_amount,
+          si.ipc_number, si.status, s.name as subcontractor_name, p.name as project_name, 'subcontractor' as type
         FROM subcontractor_ipc si
         LEFT JOIN projects p ON p.id = si.project_id
         LEFT JOIN subcontractors s ON s.id = si.subcontractor_id
@@ -88,6 +94,11 @@ export async function GET(request: NextRequest) {
     const totalSubcontractor = subIpcs.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const totalDebts = debts.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
+    const totalVat = clientIpcs.reduce((sum, item) => sum + Number(item.vat_amount || 0), 0);
+    const totalRetention = clientIpcs.reduce((sum, item) => sum + Number(item.retention_amount || 0), 0);
+    const totalAdvanceRecoveries = clientIpcs.reduce((sum, item) => sum + Number(item.advance_deduction_amount || 0), 0);
+    const totalWht = clientIpcs.reduce((sum, item) => sum + Number(item.wht_amount || 0), 0);
+
     const netCashFlow = totalRevenues - (totalExpenses + totalSubcontractor);
 
     // Merge transactions sorted by date
@@ -100,18 +111,22 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       summary: {
-        total_revenues: totalRevenues,
-        total_expenses: totalExpenses,
-        total_subcontractor: totalSubcontractor,
-        total_debts: totalDebts,
-        net_cash_flow: netCashFlow,
-        transaction_count: transactions.length
+        totalRevenues,
+        totalExpenses,
+        totalSubcontractor,
+        totalDebts,
+        totalVat,
+        totalRetention,
+        totalAdvanceRecoveries,
+        totalWht,
+        netCashFlow,
+        grossProfit: totalRevenues - totalSubcontractor,
+        netProfit: netCashFlow
       },
       transactions
     });
-
   } catch (error: any) {
-    console.error('Financial report error:', error);
-    return NextResponse.json({ error: error.message || 'فشل توليد التقرير المالي' }, { status: 500 });
+    console.error('[GET /api/finance/reports]', error);
+    return NextResponse.json({ error: error?.message || 'Failed to generate financial report' }, { status: 500 });
   }
 }

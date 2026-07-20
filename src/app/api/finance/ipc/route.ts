@@ -1,8 +1,23 @@
 import { query } from '@/lib/db';
 import { NextResponse, NextRequest } from 'next/server';
 
+async function ensureClientIpcSchema() {
+  try {
+    await query(`
+      ALTER TABLE client_ipc
+        ADD COLUMN IF NOT EXISTS advance_deduction_percentage NUMERIC(5,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS advance_deduction_amount NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS wht_percentage NUMERIC(5,2) DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS wht_amount NUMERIC(15,2) DEFAULT 0;
+    `);
+  } catch (err) {
+    console.error('Failed to alter client_ipc schema:', err);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureClientIpcSchema();
     const { searchParams } = request.nextUrl;
     const status = searchParams.get('status') ?? '';
     const projectId = searchParams.get('project_id') ?? '';
@@ -41,6 +56,10 @@ export async function GET(request: NextRequest) {
           i.vat_amount,
           i.retention_percentage,
           i.retention_amount,
+          i.advance_deduction_percentage,
+          i.advance_deduction_amount,
+          i.wht_percentage,
+          i.wht_amount,
           i.previous_payments,
           i.net_payable,
           i.status,
@@ -71,6 +90,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureClientIpcSchema();
     const body = await request.json();
     const {
       ipc_number,
@@ -81,10 +101,14 @@ export async function POST(request: NextRequest) {
       // Accept both old and new field names
       items_total,
       current_amount,   // legacy alias → items_total
-      vat_percentage = 0,
+      vat_percentage = 14,
       vat_amount,
-      retention_percentage = 0,
+      retention_percentage = 10,
       retention_amount,
+      advance_deduction_percentage = 0,
+      advance_deduction_amount,
+      wht_percentage = 1,
+      wht_amount,
       previous_payments,
       previous_amount,  // legacy alias → previous_payments
       net_payable,
@@ -98,11 +122,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'project_id and ipc_date are required' }, { status: 400 });
     }
 
-    const resolvedItemsTotal = items_total ?? current_amount ?? 0;
-    const resolvedPreviousPayments = previous_payments ?? previous_amount ?? 0;
-    const resolvedVatAmount = vat_amount ?? (resolvedItemsTotal * (vat_percentage / 100));
-    const resolvedRetentionAmount = retention_amount ?? (resolvedItemsTotal * (retention_percentage / 100));
-    const resolvedNetPayable = net_payable ?? net_amount ?? (resolvedItemsTotal + resolvedVatAmount - resolvedRetentionAmount);
+    const resolvedItemsTotal = Number(items_total ?? current_amount ?? 0);
+    const resolvedPreviousPayments = Number(previous_payments ?? previous_amount ?? 0);
+    
+    // Calculate current period work net value
+    const currentWorkValue = resolvedItemsTotal > resolvedPreviousPayments 
+      ? (resolvedItemsTotal - resolvedPreviousPayments) 
+      : resolvedItemsTotal;
+
+    const resolvedVatAmount = vat_amount !== undefined ? Number(vat_amount) : (currentWorkValue * (vat_percentage / 100));
+    const resolvedRetentionAmount = retention_amount !== undefined ? Number(retention_amount) : (currentWorkValue * (retention_percentage / 100));
+    const resolvedAdvanceAmount = advance_deduction_amount !== undefined ? Number(advance_deduction_amount) : (currentWorkValue * (advance_deduction_percentage / 100));
+    const resolvedWhtAmount = wht_amount !== undefined ? Number(wht_amount) : (currentWorkValue * (wht_percentage / 100));
+
+    const resolvedNetPayable = net_payable ?? net_amount ?? (
+      currentWorkValue - resolvedAdvanceAmount - resolvedRetentionAmount - resolvedWhtAmount + resolvedVatAmount
+    );
+
     let generatedNumber = ipc_number;
     if (!generatedNumber || generatedNumber.trim() === '') {
       const lastIpc = await query(
@@ -125,14 +161,17 @@ export async function POST(request: NextRequest) {
       `INSERT INTO client_ipc (
           ipc_number, project_id, ipc_date, period_from, period_to,
           items_total, vat_percentage, vat_amount, retention_percentage, retention_amount,
+          advance_deduction_percentage, advance_deduction_amount, wht_percentage, wht_amount,
           previous_payments, net_payable, status, submitted_date, notes
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
         RETURNING *`,
       [
         generatedNumber, project_id, ipc_date,
         period_from ?? null, period_to ?? null,
         resolvedItemsTotal, vat_percentage, resolvedVatAmount,
         retention_percentage, resolvedRetentionAmount,
+        advance_deduction_percentage, resolvedAdvanceAmount,
+        wht_percentage, resolvedWhtAmount,
         resolvedPreviousPayments, resolvedNetPayable,
         status, submitted_date ?? null, notes ?? null,
       ]
@@ -147,6 +186,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await ensureClientIpcSchema();
     const body = await request.json();
     const {
       id,
@@ -156,10 +196,14 @@ export async function PUT(request: NextRequest) {
       period_from,
       period_to,
       items_total,
-      vat_percentage = 0,
+      vat_percentage = 14,
       vat_amount,
-      retention_percentage = 0,
+      retention_percentage = 10,
       retention_amount,
+      advance_deduction_percentage = 0,
+      advance_deduction_amount,
+      wht_percentage = 1,
+      wht_amount,
       previous_payments,
       net_payable,
       status,
@@ -185,13 +229,24 @@ export async function PUT(request: NextRequest) {
     const finalStatus = status ?? current.status;
 
     const resolvedItemsTotal = items_total !== undefined ? Number(items_total) : Number(current.items_total);
-    const resolvedVatPercentage = vat_percentage !== undefined ? Number(vat_percentage) : Number(current.vat_percentage);
-    const resolvedRetentionPercentage = retention_percentage !== undefined ? Number(retention_percentage) : Number(current.retention_percentage);
+    const resolvedVatPercentage = vat_percentage !== undefined ? Number(vat_percentage) : Number(current.vat_percentage || 14);
+    const resolvedRetentionPercentage = retention_percentage !== undefined ? Number(retention_percentage) : Number(current.retention_percentage || 10);
+    const resolvedAdvancePercentage = advance_deduction_percentage !== undefined ? Number(advance_deduction_percentage) : Number(current.advance_deduction_percentage || 0);
+    const resolvedWhtPercentage = wht_percentage !== undefined ? Number(wht_percentage) : Number(current.wht_percentage || 1);
     const resolvedPreviousPayments = previous_payments !== undefined ? Number(previous_payments) : Number(current.previous_payments);
 
-    const resolvedVatAmount = vat_amount !== undefined ? Number(vat_amount) : (resolvedItemsTotal * (resolvedVatPercentage / 100));
-    const resolvedRetentionAmount = retention_amount !== undefined ? Number(retention_amount) : (resolvedItemsTotal * (resolvedRetentionPercentage / 100));
-    const resolvedNetPayable = net_payable !== undefined ? Number(net_payable) : (resolvedItemsTotal + resolvedVatAmount - resolvedRetentionAmount);
+    const currentWorkValue = resolvedItemsTotal > resolvedPreviousPayments 
+      ? (resolvedItemsTotal - resolvedPreviousPayments) 
+      : resolvedItemsTotal;
+
+    const resolvedVatAmount = vat_amount !== undefined ? Number(vat_amount) : (currentWorkValue * (resolvedVatPercentage / 100));
+    const resolvedRetentionAmount = retention_amount !== undefined ? Number(retention_amount) : (currentWorkValue * (resolvedRetentionPercentage / 100));
+    const resolvedAdvanceAmount = advance_deduction_amount !== undefined ? Number(advance_deduction_amount) : (currentWorkValue * (resolvedAdvancePercentage / 100));
+    const resolvedWhtAmount = wht_amount !== undefined ? Number(wht_amount) : (currentWorkValue * (resolvedWhtPercentage / 100));
+
+    const resolvedNetPayable = net_payable !== undefined ? Number(net_payable) : (
+      currentWorkValue - resolvedAdvanceAmount - resolvedRetentionAmount - resolvedWhtAmount + resolvedVatAmount
+    );
 
     const result = await query(
       `UPDATE client_ipc SET
@@ -205,17 +260,23 @@ export async function PUT(request: NextRequest) {
         vat_amount = $8,
         retention_percentage = $9,
         retention_amount = $10,
-        previous_payments = $11,
-        net_payable = $12,
-        status = $13,
-        notes = $14
-      WHERE id = $15
+        advance_deduction_percentage = $11,
+        advance_deduction_amount = $12,
+        wht_percentage = $13,
+        wht_amount = $14,
+        previous_payments = $15,
+        net_payable = $16,
+        status = $17,
+        notes = $18
+      WHERE id = $19
       RETURNING *`,
       [
         finalIpcNumber, finalProjectId, finalIpcDate,
         finalPeriodFrom, finalPeriodTo,
         resolvedItemsTotal, resolvedVatPercentage, resolvedVatAmount,
         resolvedRetentionPercentage, resolvedRetentionAmount,
+        resolvedAdvancePercentage, resolvedAdvanceAmount,
+        resolvedWhtPercentage, resolvedWhtAmount,
         resolvedPreviousPayments, resolvedNetPayable,
         finalStatus, finalNotes, id
       ]

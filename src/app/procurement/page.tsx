@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 
-type TabType = 'requests' | 'submittals' | 'inventory' | 'warehouses';
+type TabType = 'requests' | 'submittals' | 'inventory' | 'warehouses' | 'material_issues' | 'transfers';
 
 interface MaterialRequest {
   id: string; request_number: string; project_name: string; requested_by_name: string;
@@ -63,7 +63,7 @@ export default function ProcurementPage() {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab && tab !== lastTabRef.current && ['requests', 'submittals', 'inventory', 'warehouses'].includes(tab)) {
+        if (tab && tab !== lastTabRef.current && ['requests', 'submittals', 'inventory', 'warehouses', 'material_issues', 'transfers'].includes(tab)) {
           lastTabRef.current = tab;
           setActiveTab(tab as TabType);
         }
@@ -272,6 +272,45 @@ export default function ProcurementPage() {
     }
   };
 
+  const [materialIssues, setMaterialIssues] = useState<any[]>([]);
+  const [warehouseTransfers, setWarehouseTransfers] = useState<any[]>([]);
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+
+  const [issueForm, setIssueForm] = useState({
+    project_id: '',
+    warehouse_id: '',
+    notes: '',
+    items: [{ inventory_item_id: '', item_description: '', quantity: 1, unit: 'وحدة', unit_cost: 0 }]
+  });
+
+  const [transferForm, setTransferForm] = useState({
+    from_warehouse_id: '',
+    to_warehouse_id: '',
+    notes: '',
+    items: [{ inventory_item_id: '', item_description: '', quantity: 1, unit: 'وحدة', unit_cost: 0 }]
+  });
+
+  const fetchMaterialIssues = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/procurement/material-issues');
+      const data = await res.json();
+      setMaterialIssues(data?.data || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, []);
+
+  const fetchWarehouseTransfers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/procurement/transfers');
+      const data = await res.json();
+      setWarehouseTransfers(data?.data || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, []);
+
   useEffect(() => {
     fetchFiltersData();
   }, []);
@@ -281,7 +320,97 @@ export default function ProcurementPage() {
     if (activeTab === 'submittals') fetchSubmittals();
     if (activeTab === 'inventory') fetchInventory();
     if (activeTab === 'warehouses') fetchWarehouses();
-  }, [activeTab, fetchRequests, fetchSubmittals, fetchInventory]);
+    if (activeTab === 'material_issues') fetchMaterialIssues();
+    if (activeTab === 'transfers') fetchWarehouseTransfers();
+  }, [activeTab, fetchRequests, fetchSubmittals, fetchInventory, fetchMaterialIssues, fetchWarehouseTransfers]);
+
+  const handleCreateMaterialIssue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!issueForm.project_id || !issueForm.warehouse_id) {
+      alert('⚠️ إجبارياً: يرجى اختيار المشروع والمخزن المورد الخامات منه');
+      return;
+    }
+    const validItems = issueForm.items.filter(i => i.item_description.trim() !== '' && Number(i.quantity) > 0);
+    if (validItems.length === 0) {
+      alert('⚠️ يرجى إدخال صنف واحد على الأقل بكمية صحيحة');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/procurement/material-issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: issueForm.project_id,
+          warehouse_id: issueForm.warehouse_id,
+          notes: issueForm.notes,
+          items: validItems
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowIssueModal(false);
+        setIssueForm({
+          project_id: '', warehouse_id: '', notes: '',
+          items: [{ inventory_item_id: '', item_description: '', quantity: 1, unit: 'وحدة', unit_cost: 0 }]
+        });
+        alert(`✅ ${data.message}`);
+        fetchMaterialIssues();
+        fetchInventory();
+      } else {
+        alert(`❌ فشل إصدار إذن الصرف: ${data.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleCreateTransferOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferForm.from_warehouse_id || !transferForm.to_warehouse_id) {
+      alert('⚠️ يرجى اختيار المخزن المصدر والمخزن المستهدف للتحويل');
+      return;
+    }
+    if (transferForm.from_warehouse_id === transferForm.to_warehouse_id) {
+      alert('⚠️ لا يمكن التحويل لنفس المخزن');
+      return;
+    }
+    const validItems = transferForm.items.filter(i => i.item_description.trim() !== '' && Number(i.quantity) > 0);
+    if (validItems.length === 0) {
+      alert('⚠️ يرجى اختيار أو كتابة صنف واحد على الأقل بكمية صحيحة');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/procurement/transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_warehouse_id: transferForm.from_warehouse_id,
+          to_warehouse_id: transferForm.to_warehouse_id,
+          notes: transferForm.notes,
+          items: validItems
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowTransferModal(false);
+        setTransferForm({
+          from_warehouse_id: '', to_warehouse_id: '', notes: '',
+          items: [{ inventory_item_id: '', item_description: '', quantity: 1, unit: 'وحدة', unit_cost: 0 }]
+        });
+        alert(`✅ ${data.message}`);
+        fetchWarehouseTransfers();
+        fetchInventory();
+      } else {
+        alert(`❌ فشل تنفيذ التحويل: ${data.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -516,7 +645,9 @@ export default function ProcurementPage() {
         <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => handleTabChange('requests')}>📋 طلبات توريد المواد</button>
         <button className={`tab-btn ${activeTab === 'submittals' ? 'active' : ''}`} onClick={() => handleTabChange('submittals')}>📜 اعتمادات الاستشاريين</button>
         <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => handleTabChange('inventory')}>📦 مخازن وجرد المواقع</button>
-        <button className={`tab-btn ${activeTab === 'warehouses' ? 'active' : ''}`} onClick={() => handleTabChange('warehouses')}>🏢 إدارة المستودعات والمخازن ({warehouses.length})</button>
+        <button className={`tab-btn ${activeTab === 'warehouses' ? 'active' : ''}`} onClick={() => handleTabChange('warehouses')}>🏢 إدارة المستودعات ({warehouses.length})</button>
+        <button className={`tab-btn ${activeTab === 'material_issues' ? 'active' : ''}`} onClick={() => handleTabChange('material_issues')}>🏗️ إذون صرف خامات لموقع</button>
+        <button className={`tab-btn ${activeTab === 'transfers' ? 'active' : ''}`} onClick={() => handleTabChange('transfers')}>🔄 تحويل خامات وعَدَد (Transfers)</button>
       </div>
 
       {/* ======================== TAB: REQUESTS ======================== */}
@@ -811,6 +942,116 @@ export default function ProcurementPage() {
                             <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteWarehouse(wh.id)}>🗑️ حذف</button>
                           </div>
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ======================== TAB: MATERIAL ISSUES ======================== */}
+      {activeTab === 'material_issues' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">🏗️ إذون صرف خامات ومواد للمواقف والأنشطة</div>
+              <div className="page-description">صرف الخامات المسحوبة للمواقع وقيد التكلفة المباشرة وتنبيهات تجاوز كميات المقايسة التقديرية (BOQ)</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={() => setShowIssueModal(true)}>+ إصدار إذن صرف خامات لموقع</button>
+            </div>
+          </div>
+
+          <div className="card">
+            {materialIssues.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🏗️</div>
+                <div className="empty-state-title">لا توجد إذون صرف خامات مسجلة حالياً</div>
+                <button className="btn btn-primary" onClick={() => setShowIssueModal(true)} style={{ marginTop: '1rem' }}>إصدار أول إذن صرف لموقع</button>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>رقم إذن الصرف</th>
+                      <th>المشروع المستلم</th>
+                      <th>المخزن المورد</th>
+                      <th>التاريخ</th>
+                      <th>إجمالي تكلفة الخامات المسحوبة</th>
+                      <th>حالة المقايسة التقديرية (BOQ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {materialIssues.map((mi: any) => (
+                      <tr key={mi.id}>
+                        <td style={{ fontWeight: 700 }}>{mi.issue_number}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mi.project_name}</td>
+                        <td>{mi.warehouse_name}</td>
+                        <td>{new Date(mi.issue_date).toLocaleDateString('ar-SA')}</td>
+                        <td style={{ fontWeight: 700, color: '#1e3a8a' }}>{formatCurrency(mi.total_cost)}</td>
+                        <td>
+                          {mi.boq_warning ? (
+                            <span className="badge badge-danger" title={mi.warning_message}>🚨 تنبيه: تجاوز كميات المقايسة</span>
+                          ) : (
+                            <span className="badge badge-success">✅ ضمن حدود المقايسة التقديرية</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ======================== TAB: TRANSFERS ======================== */}
+      {activeTab === 'transfers' && (
+        <>
+          <div className="page-header">
+            <div className="page-header-left">
+              <div className="page-title">🔄 أوامر تحويل الخامات والعَدَد بين المخازن (Transfer Orders)</div>
+              <div className="page-description">تحويل الخامات والأدوات والمعدات بين المستودع الرئيسي ومخازن المواقع وتحديث الأرصدة فوراً</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={() => setShowTransferModal(true)}>+ أمر تحويل جديد بين المخازن</button>
+            </div>
+          </div>
+
+          <div className="card">
+            {warehouseTransfers.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🔄</div>
+                <div className="empty-state-title">لا توجد أوامر تحويل خامات وعَدَد مسجلة حالياً</div>
+                <button className="btn btn-primary" onClick={() => setShowTransferModal(true)} style={{ marginTop: '1rem' }}>تنفيذ أول أمر تحويل</button>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>رقم أمر التحويل</th>
+                      <th>من المخزن (المصدر)</th>
+                      <th>إلى المخزن (المستهدف)</th>
+                      <th>تاريخ التحويل</th>
+                      <th>عدد الأصناف المحولة</th>
+                      <th>حالة أمر التحويل</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {warehouseTransfers.map((wt: any) => (
+                      <tr key={wt.id}>
+                        <td style={{ fontWeight: 700 }}>{wt.transfer_number}</td>
+                        <td style={{ color: '#dc2626', fontWeight: 600 }}>{wt.from_warehouse_name}</td>
+                        <td style={{ color: '#16a34a', fontWeight: 600 }}>{wt.to_warehouse_name}</td>
+                        <td>{new Date(wt.transfer_date).toLocaleDateString('ar-SA')}</td>
+                        <td style={{ fontWeight: 600 }}>{wt.items_count} صنف</td>
+                        <td><span className="badge badge-success">تم التحويل وتحديث الأرصدة بنجاح</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -1168,6 +1409,214 @@ export default function ProcurementPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowEditRequestModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">💾 حفظ التعديلات</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: CREATE MATERIAL ISSUE ======================== */}
+      {showIssueModal && (
+        <div className="modal-overlay" onClick={() => setShowIssueModal(false)}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🏗️ إصدار إذن صرف خامات ومواد لموقع / مشروع</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowIssueModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreateMaterialIssue}>
+              <div className="form-grid form-grid-3" style={{ marginBottom: '1.25rem' }}>
+                <div className="form-group col-span-2">
+                  <label className="form-label required">المشروع المستلم للخامات</label>
+                  <select className="form-control" required value={issueForm.project_id} onChange={e => setIssueForm({...issueForm, project_id: e.target.value})}>
+                    <option value="">-- اختر المشروع المستهدف --</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">المخزن المورد (مصدر الصرف)</label>
+                  <select className="form-control" required value={issueForm.warehouse_id} onChange={e => setIssueForm({...issueForm, warehouse_id: e.target.value})}>
+                    <option value="">-- اختر المخزن --</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>📦 بنود الأصناف والخامات المسحوبة:</span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => {
+                  setIssueForm({
+                    ...issueForm,
+                    items: [...issueForm.items, { inventory_item_id: '', item_description: '', quantity: 1, unit: 'وحدة', unit_cost: 0 }]
+                  });
+                }}>+ إضافة صنف إضافي</button>
+              </div>
+
+              {issueForm.items.map((item, idx) => (
+                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>اختر من رصيد المخزن أو اكتب الوصف:</label>
+                    <select
+                      className="form-control"
+                      value={item.inventory_item_id}
+                      onChange={e => {
+                        const invItem = inventory.find(i => i.id === e.target.value);
+                        const newItems = [...issueForm.items];
+                        newItems[idx] = {
+                          ...newItems[idx],
+                          inventory_item_id: e.target.value,
+                          item_description: invItem ? invItem.description : newItems[idx].item_description,
+                          unit: invItem ? invItem.unit : newItems[idx].unit,
+                          unit_cost: invItem ? Number(invItem.unit_cost || 0) : newItems[idx].unit_cost
+                        };
+                        setIssueForm({...issueForm, items: newItems});
+                      }}
+                    >
+                      <option value="">-- اختر من مخزون الجرد الحالي --</option>
+                      {inventory.map(inv => (
+                        <option key={inv.id} value={inv.id}>{inv.description} (متوفر: {inv.current_quantity} {inv.unit} - {formatCurrency(inv.unit_cost)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>الكمية المسحوبة:</label>
+                    <input className="form-control" type="number" step="any" required value={item.quantity} onChange={e => {
+                      const newItems = [...issueForm.items];
+                      newItems[idx].quantity = Number(e.target.value);
+                      setIssueForm({...issueForm, items: newItems});
+                    }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>سعر الوحدة ({currencySymbol}):</label>
+                    <input className="form-control" type="number" step="any" value={item.unit_cost} onChange={e => {
+                      const newItems = [...issueForm.items];
+                      newItems[idx].unit_cost = Number(e.target.value);
+                      setIssueForm({...issueForm, items: newItems});
+                    }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>إجمالي الصنف:</label>
+                    <div style={{ padding: '0.5rem', fontWeight: 'bold', color: '#1e3a8a' }}>
+                      {formatCurrency(Number(item.quantity || 0) * Number(item.unit_cost || 0))}
+                    </div>
+                  </div>
+                  {issueForm.items.length > 1 && (
+                    <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => {
+                      const newItems = issueForm.items.filter((_, i) => i !== idx);
+                      setIssueForm({...issueForm, items: newItems});
+                    }}>🗑️</button>
+                  )}
+                </div>
+              ))}
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label className="form-label">ملاحظات وقيد الصرف</label>
+                <textarea className="form-control" rows={2} value={issueForm.notes} onChange={e => setIssueForm({...issueForm, notes: e.target.value})} placeholder="بيانات سائق النقل، ملاحظات الجودة والمقايسة..." />
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowIssueModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 إذن الصرف وقيد التكلفة المباشرة</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: CREATE TRANSFER ORDER ======================== */}
+      {showTransferModal && (
+        <div className="modal-overlay" onClick={() => setShowTransferModal(false)}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🔄 أمر تحويل خامات وعَدَد بين المخازن (Transfer Order)</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowTransferModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreateTransferOrder}>
+              <div className="form-grid form-grid-2" style={{ marginBottom: '1.25rem' }}>
+                <div className="form-group">
+                  <label className="form-label required">من المخزن (المصدر)</label>
+                  <select className="form-control" required value={transferForm.from_warehouse_id} onChange={e => setTransferForm({...transferForm, from_warehouse_id: e.target.value})}>
+                    <option value="">-- اختر المخزن المصدر --</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">إلى المخزن (المستهدف)</label>
+                  <select className="form-control" required value={transferForm.to_warehouse_id} onChange={e => setTransferForm({...transferForm, to_warehouse_id: e.target.value})}>
+                    <option value="">-- اختر المخزن المستهدف --</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>📦 الخامات والأدوات والعَدَد المراد تحويلها:</span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => {
+                  setTransferForm({
+                    ...transferForm,
+                    items: [...transferForm.items, { inventory_item_id: '', item_description: '', quantity: 1, unit: 'وحدة', unit_cost: 0 }]
+                  });
+                }}>+ إضافة صنف إضافي</button>
+              </div>
+
+              {transferForm.items.map((item, idx) => (
+                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>اختر الصنف المراد تحويله:</label>
+                    <select
+                      className="form-control"
+                      value={item.inventory_item_id}
+                      onChange={e => {
+                        const invItem = inventory.find(i => i.id === e.target.value);
+                        const newItems = [...transferForm.items];
+                        newItems[idx] = {
+                          ...newItems[idx],
+                          inventory_item_id: e.target.value,
+                          item_description: invItem ? invItem.description : newItems[idx].item_description,
+                          unit: invItem ? invItem.unit : newItems[idx].unit,
+                          unit_cost: invItem ? Number(invItem.unit_cost || 0) : newItems[idx].unit_cost
+                        };
+                        setTransferForm({...transferForm, items: newItems});
+                      }}
+                    >
+                      <option value="">-- اختر من مخزون الجرد الحالي --</option>
+                      {inventory.map(inv => (
+                        <option key={inv.id} value={inv.id}>{inv.description} (مخزن: {inv.warehouse_name} - رصيد: {inv.current_quantity} {inv.unit})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>الكمية المحولة:</label>
+                    <input className="form-control" type="number" step="any" required value={item.quantity} onChange={e => {
+                      const newItems = [...transferForm.items];
+                      newItems[idx].quantity = Number(e.target.value);
+                      setTransferForm({...transferForm, items: newItems});
+                    }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>الوحدة:</label>
+                    <input className="form-control" value={item.unit} onChange={e => {
+                      const newItems = [...transferForm.items];
+                      newItems[idx].unit = e.target.value;
+                      setTransferForm({...transferForm, items: newItems});
+                    }} />
+                  </div>
+                  {transferForm.items.length > 1 && (
+                    <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => {
+                      const newItems = transferForm.items.filter((_, i) => i !== idx);
+                      setTransferForm({...transferForm, items: newItems});
+                    }}>🗑️</button>
+                  )}
+                </div>
+              ))}
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label className="form-label">ملاحظات أمر التحويل</label>
+                <textarea className="form-control" rows={2} value={transferForm.notes} onChange={e => setTransferForm({...transferForm, notes: e.target.value})} placeholder="بيانات سيارة النقل والمسؤول عن الاستلام..." />
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowTransferModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 تنفيذ أمر التحويل وتحديث الأرصدة</button>
               </div>
             </form>
           </div>

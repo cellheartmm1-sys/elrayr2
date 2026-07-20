@@ -11,13 +11,14 @@ export async function GET() {
     const res = await query('SELECT * FROM companies ORDER BY created_at ASC LIMIT 1');
     if (res.rows.length === 0) {
       return NextResponse.json({
-        name_ar: 'الرايق للمقاولات الكهروميكانيكية',
-        name_en: 'Al-Rayeq Electromechanical Contracting',
+        name_ar: 'شركة الرايق للمقاولات الكهروميكانيكية وأنظمة الحريق',
+        name_en: 'Al-Rayeq Electromechanical & Firefighting Contracting',
         cr_number: '1010123456',
         vat_number: '300012345600003',
         address: 'القاهرة، مصر / الرياض، المملكة العربية السعودية',
         phone: '+20-100-000-0000',
         email: 'info@alrayeq.com',
+        logo_url: '',
         r2_env_configured: isR2EnvSet
       });
     }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      name_ar, name_en, cr_number, vat_number, address, phone, email,
+      name_ar, name_en, cr_number, vat_number, address, phone, email, logo_url,
       r2_account_id, r2_endpoint, r2_bucket_name, r2_access_key_id, r2_secret_access_key,
       r2_backup_interval_hours
     } = body;
@@ -47,13 +48,13 @@ export async function POST(request: NextRequest) {
     if (check.rows.length === 0) {
       result = await query(`
         INSERT INTO companies (
-          name_ar, name_en, cr_number, vat_number, address, phone, email,
+          name_ar, name_en, cr_number, vat_number, address, phone, email, logo_url,
           r2_account_id, r2_endpoint, r2_bucket_name, r2_access_key_id, r2_secret_access_key,
           r2_backup_interval_hours
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *
       `, [
-        name_ar, name_en, cr_number, vat_number, address, phone, email,
+        name_ar, name_en, cr_number, vat_number, address, phone, email, logo_url || null,
         r2_account_id || null, r2_endpoint || null, r2_bucket_name || null,
         r2_access_key_id || null, r2_secret_access_key || null,
         r2_backup_interval_hours === undefined || r2_backup_interval_hours === '' ? 8 : Number(r2_backup_interval_hours)
@@ -62,12 +63,12 @@ export async function POST(request: NextRequest) {
       const companyId = check.rows[0].id;
       result = await query(`
         UPDATE companies SET
-          name_ar = $1, name_en = $2, cr_number = $3, vat_number = $4, address = $5, phone = $6, email = $7,
-          r2_account_id = $8, r2_endpoint = $9, r2_bucket_name = $10, r2_access_key_id = $11, r2_secret_access_key = $12,
-          r2_backup_interval_hours = $13
-        WHERE id = $14 RETURNING *
+          name_ar = $1, name_en = $2, cr_number = $3, vat_number = $4, address = $5, phone = $6, email = $7, logo_url = $8,
+          r2_account_id = $9, r2_endpoint = $10, r2_bucket_name = $11, r2_access_key_id = $12, r2_secret_access_key = $13,
+          r2_backup_interval_hours = $14
+        WHERE id = $15 RETURNING *
       `, [
-        name_ar, name_en, cr_number, vat_number, address, phone, email,
+        name_ar, name_en, cr_number, vat_number, address, phone, email, logo_url || null,
         r2_account_id || null, r2_endpoint || null, r2_bucket_name || null,
         r2_access_key_id || null, r2_secret_access_key || null,
         r2_backup_interval_hours === undefined || r2_backup_interval_hours === '' ? 8 : Number(r2_backup_interval_hours),

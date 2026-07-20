@@ -98,7 +98,7 @@ interface ProjectDetails {
   }>;
 }
 
-type TabType = 'overview' | 'phases' | 'progress' | 'financials' | 'documents' | 'reports';
+type TabType = 'overview' | 'phases' | 'progress' | 'financials' | 'documents' | 'reports' | 'inspections';
 
 const statusLabels: Record<string, string> = {
   active: 'نشط', completed: 'مكتمل', suspended: 'متوقف', tender: 'مناقصة'
@@ -128,6 +128,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [uploading, setUploading] = useState(false);
+
+  // Inspections & Commissioning state
+  const [inspectionReports, setInspectionReports] = useState<any[]>([]);
+  const [showInspectionModal, setShowInspectionModal] = useState(false);
+  const [selectedInspectionPhoto, setSelectedInspectionPhoto] = useState<string | null>(null);
+  const [inspectionForm, setInspectionForm] = useState({
+    category: 'testing_commissioning', title: '', description: '', inspector_name: '', file_url: '', report_date: new Date().toISOString().split('T')[0]
+  });
 
   // Print modal states
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -241,6 +249,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   };
 
+  const fetchInspectionReports = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/projects/inspections?project_id=${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInspectionReports(data?.data || []);
+      }
+    } catch (e) { console.error(e); }
+  }, [id]);
+
   const fetchDetails = useCallback(async () => {
     try {
       const res = await fetch(`/api/projects/${id}`);
@@ -256,7 +275,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   useEffect(() => {
     fetchDetails();
-  }, [fetchDetails]);
+    fetchInspectionReports();
+  }, [fetchDetails, fetchInspectionReports]);
+
+  const handleSaveInspectionReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inspectionForm.title || !inspectionForm.file_url) {
+      alert('⚠️ يرجى إدخال عنوان التقرير وإرفاق الصورة/الملف');
+      return;
+    }
+    try {
+      const res = await fetch('/api/projects/inspections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: id, ...inspectionForm })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowInspectionModal(false);
+        setInspectionForm({ category: 'testing_commissioning', title: '', description: '', inspector_name: '', file_url: '', report_date: new Date().toISOString().split('T')[0] });
+        alert(`✅ ${data.message}`);
+        fetchInspectionReports();
+      } else { alert(`❌ فشل الحفظ: ${data.error || 'حدث خطأ'}`); }
+    } catch (err) { console.error(err); alert('❌ حدث خطأ بالاتصال'); }
+  };
 
   if (loading) {
     return (
@@ -345,6 +387,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         <button className={`tab-btn ${activeTab === 'progress' ? 'active' : ''}`} onClick={() => setActiveTab('progress')}>📋 تقارير الإنجاز</button>
         <button className={`tab-btn ${activeTab === 'financials' ? 'active' : ''}`} onClick={() => setActiveTab('financials')}>💰 الحسابات والمصروفات</button>
         <button className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>📁 المرفقات والمخططات ({documents.length})</button>
+        <button className={`tab-btn ${activeTab === 'inspections' ? 'active' : ''}`} onClick={() => setActiveTab('inspections')}>📑 المعاينات واختبارات التشغيل ({inspectionReports.length})</button>
         <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>📊 تقارير الأرباح والإنجاز</button>
       </div>
 
@@ -1081,6 +1124,107 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         </div>
       )}
 
+      {/* ======================== TAB: INSPECTIONS & COMMISSIONING ======================== */}
+      {activeTab === 'inspections' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="page-header" style={{ marginBottom: 0 }}>
+            <div className="page-header-left">
+              <div className="page-title">📑 التقارير الفنية واختبارات التشغيل والدفاع المدني</div>
+              <div className="page-description">إرفاق وتصفح صور المعاينة الميدانية بالموقع، تقارير الضغط والتشغيل والتسليم (Testing & Commissioning)، واعتمادات الدفاع المدني</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={() => setShowInspectionModal(true)}>+ إرفاق تقرير / شهادة جديدة</button>
+            </div>
+          </div>
+
+          <div className="stat-grid">
+            <div className="stat-card primary">
+              <div className="stat-card-icon">📸</div>
+              <div className="stat-value">{inspectionReports.filter(r => r.category === 'site_photos').length}</div>
+              <div className="stat-label">صور ومعاينات الموقع</div>
+            </div>
+            <div className="stat-card success">
+              <div className="stat-card-icon">🧪</div>
+              <div className="stat-value">{inspectionReports.filter(r => r.category === 'testing_commissioning').length}</div>
+              <div className="stat-label">تقارير الاختبارات والتشغيل (Testing)</div>
+            </div>
+            <div className="stat-card danger">
+              <div className="stat-card-icon">🚒</div>
+              <div className="stat-value">{inspectionReports.filter(r => r.category === 'civil_defense_cert').length}</div>
+              <div className="stat-label">شهادات واعتمادات الدفاع المدني</div>
+            </div>
+            <div className="stat-card info">
+              <div className="stat-card-icon">📑</div>
+              <div className="stat-value">{inspectionReports.length}</div>
+              <div className="stat-label">إجمالي الملفات المرفقة للمشروع</div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ padding: '1rem', fontWeight: 'bold', fontSize: '1.1rem', borderBottom: '1px solid #e2e8f0' }}>
+              📁 السجل الفني والشهادات المعتمدة للمشروع
+            </div>
+            {inspectionReports.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📑</div>
+                <div className="empty-state-title">لا توجد تقارير معاينة أو شهادات اختبارات مرفقة للمشروع بعد</div>
+                <button className="btn btn-primary btn-sm" style={{ marginTop: '0.75rem' }} onClick={() => setShowInspectionModal(true)}>+ إرفاق تقرير معاينة جديد</button>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>نوع التقرير</th>
+                      <th>العنوان والوصف</th>
+                      <th>التاريخ</th>
+                      <th>المهندس / الفاحص</th>
+                      <th>الملف المرفق / الصورة</th>
+                      <th style={{ textAlign: 'center' }}>إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inspectionReports.map((report: any) => (
+                      <tr key={report.id}>
+                        <td>
+                          {report.category === 'testing_commissioning' ? (
+                            <span className="badge badge-success">🧪 اختبارات وتعديل (Testing & Commissioning)</span>
+                          ) : report.category === 'civil_defense_cert' ? (
+                            <span className="badge badge-danger">🚒 شهادة دفاع مدني معتمدة</span>
+                          ) : report.category === 'site_photos' ? (
+                            <span className="badge badge-primary">📸 معاينة وصور موقع</span>
+                          ) : (
+                            <span className="badge badge-muted">📄 تقرير آخر</span>
+                          )}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>
+                          <div>{report.title}</div>
+                          {report.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{report.description}</div>}
+                        </td>
+                        <td>{new Date(report.report_date).toLocaleDateString('ar-EG')}</td>
+                        <td style={{ fontWeight: 600 }}>{report.inspector_name || 'مهندس الموقع'}</td>
+                        <td>
+                          <button className="btn btn-outline btn-sm" onClick={() => setSelectedInspectionPhoto(report.file_url)}>
+                            🖼️ معاينة التقرير / الصورة
+                          </button>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button className="btn btn-ghost text-danger btn-sm" onClick={async () => {
+                            if (!confirm('⚠️ هل أنت متأكد من حذف هذا التقرير؟')) return;
+                            await fetch(`/api/projects/inspections?id=${report.id}`, { method: 'DELETE' });
+                            fetchInspectionReports();
+                          }}>🗑️ حذف</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ======================== MODAL: ADD / EDIT PROJECT PHASE ======================== */}
       {showPhaseModal && (
         <div className="modal-overlay" onClick={() => setShowPhaseModal(false)}>
@@ -1532,6 +1676,92 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: UPLOAD INSPECTION REPORT / CERTIFICATE ======================== */}
+      {showInspectionModal && (
+        <div className="modal-overlay" onClick={() => setShowInspectionModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">📑 إرفاق تقرير معاينة أو شهادة اختبارات وتأهيل</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowInspectionModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveInspectionReport}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">تصنيف التقرير / الملف</label>
+                  <select className="form-control" value={inspectionForm.category} onChange={e => setInspectionForm({...inspectionForm, category: e.target.value})}>
+                    <option value="testing_commissioning">🧪 تقارير ضغط واختبارات تشغيل وتعديل (Testing & Commissioning)</option>
+                    <option value="civil_defense_cert">🚒 شهادة وإعتماد الدفاع المدني للمشروع</option>
+                    <option value="site_photos">📸 صور واختبارات المعاينة الميدانية بالموقع</option>
+                    <option value="other_reports">📄 تقارير فنية واستشارية أخرى</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">اسم / عنوان التقرير والشهادة</label>
+                  <input className="form-control" required value={inspectionForm.title} onChange={e => setInspectionForm({...inspectionForm, title: e.target.value})} placeholder="تقرير ضغط شبكة الإطفاء بالهواء، شهادة استلام..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">اسم المهندس / الفاحص المعتمد</label>
+                  <input className="form-control" value={inspectionForm.inspector_name} onChange={e => setInspectionForm({...inspectionForm, inspector_name: e.target.value})} placeholder="م. أحمد علي - استشاري المشروع..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ التقرير / الاعتماد</label>
+                  <input className="form-control" type="date" value={inspectionForm.report_date} onChange={e => setInspectionForm({...inspectionForm, report_date: e.target.value})} />
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">الوصف والملحوظات الفنية</label>
+                  <textarea className="form-control" rows={2} value={inspectionForm.description} onChange={e => setInspectionForm({...inspectionForm, description: e.target.value})} placeholder="نتيجة الاختبار: ضغط 12 بار لمدة 24 ساعة بدون انخفاض..." />
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label required">📷 صورة التقرير / الشهادة / المعاينة الورقية</label>
+                  <input
+                    className="form-control"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setInspectionForm({...inspectionForm, file_url: reader.result as string});
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  {inspectionForm.file_url && (
+                    <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
+                      <img src={inspectionForm.file_url} alt="معاينة الملف" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowInspectionModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 إرفاق التقرير بالسجل الفني</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: VIEW INSPECTION FILE ======================== */}
+      {selectedInspectionPhoto && (
+        <div className="modal-overlay" onClick={() => setSelectedInspectionPhoto(null)}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🖼️ معاينة التقرير / الصورة المرفقة للمشروع</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setSelectedInspectionPhoto(null)}>✕</button>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              <img src={selectedInspectionPhoto} alt="صورة التقرير الفني" style={{ maxWidth: '100%', maxHeight: '450px', borderRadius: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-primary" onClick={() => setSelectedInspectionPhoto(null)}>إغلاق المعاينة</button>
             </div>
           </div>
         </div>

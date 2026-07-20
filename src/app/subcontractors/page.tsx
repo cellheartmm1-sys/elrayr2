@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
+import PrintA4Template from '@/components/PrintA4Template';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { exportJsonToExcel } from '@/lib/exportUtils';
 
 type TabType = 'contractors' | 'contracts' | 'ipc';
 
@@ -22,7 +24,14 @@ interface SubcontractorIPC {
   period_from?: string;
   period_to?: string;
   items_total: string;
+  vat_percentage?: string;
+  vat_amount?: string;
+  retention_percentage?: string;
   retention_amount: string;
+  advance_deduction_percentage?: string;
+  advance_deduction_amount?: string;
+  wht_percentage?: string;
+  wht_amount?: string;
   previous_payments?: string;
   net_payable: string;
   status: string;
@@ -236,6 +245,71 @@ export default function SubcontractorsPage() {
     }
   };
 
+  const handleExportSubIpcsExcel = () => {
+    if (ipcs.length === 0) {
+      alert('لا توجد مستخلصات باطن لتصديرها.');
+      return;
+    }
+    const exportData = ipcs.map(i => ({
+      ipc_number: i.ipc_number,
+      subcontractor_name: i.subcontractor_name || '-',
+      items_total: Number(i.items_total || 0),
+      retention_amount: Number(i.retention_amount || 0),
+      previous_payments: Number(i.previous_payments || 0),
+      net_payable: Number(i.net_payable || 0),
+      status: ipcStatusLabels[i.status] || i.status,
+      ipc_date: i.ipc_date ? new Date(i.ipc_date).toLocaleDateString('ar-SA') : '-'
+    }));
+
+    exportJsonToExcel({
+      filename: `مستخلصات_مقاولي_الباطن_${new Date().toISOString().slice(0,10)}`,
+      sheetName: 'مستخلصات الباطن',
+      data: exportData,
+      headers: {
+        ipc_number: 'رقم المستخلص',
+        subcontractor_name: 'اسم مقاول الباطن',
+        items_total: 'قيمة الأعمال الإجمالية',
+        retention_amount: 'الضمان المالي المحتجز',
+        previous_payments: 'الدفعات السابقة',
+        net_payable: 'الصافي المستحق للمقاول',
+        status: 'حالة المستخلص',
+        ipc_date: 'تاريخ المستخلص'
+      }
+    });
+  };
+
+  const handleExportSingleSubIpcExcel = (ipc: SubcontractorIPC) => {
+    const singleData = [{
+      ipc_number: ipc.ipc_number,
+      subcontractor_name: ipc.subcontractor_name || '-',
+      ipc_date: ipc.ipc_date ? new Date(ipc.ipc_date).toLocaleDateString('ar-SA') : '-',
+      period: `${ipc.period_from ? new Date(ipc.period_from).toLocaleDateString('ar-SA') : ''} إلى ${ipc.period_to ? new Date(ipc.period_to).toLocaleDateString('ar-SA') : ''}`,
+      items_total: Number(ipc.items_total || 0),
+      retention_amount: Number(ipc.retention_amount || 0),
+      previous_payments: Number(ipc.previous_payments || 0),
+      net_payable: Number(ipc.net_payable || 0),
+      status: ipcStatusLabels[ipc.status] || ipc.status,
+      notes: ipc.notes || '-'
+    }];
+
+    exportJsonToExcel({
+      filename: `مستخلص_باطن_${ipc.subcontractor_name}_${ipc.ipc_number}_${new Date().toISOString().slice(0,10)}`,
+      sheetName: 'مستخلص مقاول باطن',
+      data: singleData,
+      headers: {
+        ipc_number: 'رقم المستخلص',
+        subcontractor_name: 'اسم مقاول الباطن',
+        ipc_date: 'تاريخ المستخلص',
+        period: 'الفترة المالية',
+        items_total: 'إجمالي قيمة الأعمال المنجزة',
+        retention_amount: 'استقطاع الضمان المحتجز',
+        previous_payments: 'خصم دفعات سابقة',
+        net_payable: 'الصافي النهائي المستحق للمقاول',
+        status: 'حالة المستخلص',
+        notes: 'ملاحظات'
+      }
+    });
+  };
 
   const handleCreateIPC = async () => {
     try {
@@ -424,7 +498,8 @@ export default function SubcontractorsPage() {
               <div className="page-title">📄 مستخلصات مقاولي الباطن</div>
               <div className="page-description">Interim Payment Certificates للمقاولين</div>
             </div>
-            <div className="page-header-actions">
+            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={handleExportSubIpcsExcel}>📊 تصدير إلى Excel (.xlsx)</button>
               <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ مستخلص جديد</button>
             </div>
           </div>
@@ -680,234 +755,103 @@ export default function SubcontractorsPage() {
 
       {/* ======================== PRINT MODAL ======================== */}
       {printIpc && (
-        <div className="modal-overlay print-modal-overlay" onClick={() => setPrintIpc(null)}>
-          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', background: 'var(--card-bg)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
-              <div className="modal-title">🖨️ معاينة طباعة مستخلص الباطن</div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة المستخلص</button>
-                <button className="btn btn-ghost" onClick={() => setPrintIpc(null)}>إغلاق</button>
+        <div className="modal-overlay print-modal-overlay" onClick={() => setPrintIpc(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: '2rem' }}>
+          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', background: '#fff', maxHeight: '92vh', overflowY: 'auto', borderRadius: '12px', padding: '2rem', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+            <div className="modal-header print-actions" style={{ borderBottom: '1px solid #eee', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button className="btn btn-outline" onClick={() => setPrintIpc(null)}>✕ إغلاق المعاينة</button>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-secondary" onClick={() => handleExportSingleSubIpcExcel(printIpc)}>📊 تصدير إلى Excel (.xlsx)</button>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة / حفظ كـ PDF</button>
               </div>
             </div>
             
-            {/* The printable sheet */}
-            <div className="print-container" style={{ direction: 'rtl', padding: '1.5rem', background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minHeight: 'auto' }}>
-              {/* Style element inside to style print */}
-              <style dangerouslySetInnerHTML={{ __html: `
-                @page {
-                  size: A4;
-                  margin: 10mm;
-                }
-                @media print {
-                  html, body {
-                    height: 99%;
-                    overflow: hidden;
-                  }
-                  body * {
-                    visibility: hidden;
-                  }
-                  .print-container, .print-container * {
-                    visibility: visible !important;
-                  }
-                  .print-container {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    padding: 0 !important;
-                    margin: 0 !important;
-                    box-shadow: none !important;
-                    background: #fff !important;
-                    color: #000 !important;
-                  }
-                  .print-modal-overlay {
-                    position: static !important;
-                    background: transparent !important;
-                    padding: 0 !important;
-                    backdrop-filter: none !important;
-                    display: block !important;
-                  }
-                  .print-modal-content {
-                    max-height: none !important;
-                    overflow: visible !important;
-                    background: transparent !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    padding: 0 !important;
-                    max-width: 100% !important;
-                    animation: none !important;
-                  }
-                  .print-actions, .modal-header, .tabs, .sidebar, .header, .btn, .nav, .modal-overlay:not(.print-modal-overlay) {
-                    display: none !important;
-                  }
-                }
-                .print-header {
-                  display: flex;
-                  justify-content: space-between;
-                  border-bottom: 2px solid #000;
-                  padding-bottom: 0.5rem;
-                  margin-bottom: 1rem;
-                }
-                .print-company-info {
-                  text-align: right;
-                }
-                .print-company-title {
-                  font-size: 1.25rem;
-                  font-weight: bold;
-                  margin-bottom: 0.25rem;
-                }
-                .print-document-title {
-                  font-size: 1.5rem;
-                  font-weight: bold;
-                  text-align: center;
-                  margin: 1rem 0;
-                  text-decoration: underline;
-                }
-                .print-grid {
-                  display: grid;
-                  grid-template-columns: 1fr 1fr;
-                  gap: 0.75rem;
-                  margin-bottom: 1.25rem;
-                  font-size: 0.95rem;
-                }
-                .print-grid-item {
-                  display: flex;
-                  gap: 0.5rem;
-                }
-                .print-grid-label {
-                  font-weight: bold;
-                  min-width: 110px;
-                }
-                .print-table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-bottom: 1.25rem;
-                }
-                .print-table th, .print-table td {
-                  border: 1px solid #000;
-                  padding: 0.5rem 0.75rem;
-                  text-align: right;
-                  font-size: 0.95rem;
-                }
-                .print-table th {
-                  background-color: #f2f2f2;
-                  font-weight: bold;
-                }
-                .print-footer {
-                  margin-top: 2.5rem;
-                  display: flex;
-                  justify-content: space-between;
-                }
-                .print-signature-box {
-                  text-align: center;
-                  width: 200px;
-                  font-size: 0.95rem;
-                }
-                .print-signature-line {
-                  margin-top: 2.5rem;
-                  border-top: 1px dashed #000;
-                }
-              ` }} />
-
-              <div className="print-header">
-                <div className="print-company-info">
-                  <div className="print-company-title">{companyInfo?.name_ar || 'الرايق للمقاولات الكهروميكانيكية'}</div>
-                  <div>سجل تجاري: {companyInfo?.cr_number || '١٠١٠١٢٣٤٥٦'}</div>
-                  <div>الرقم الضريبي: {companyInfo?.vat_number || '٣٠٠٠١٢٣٤٥٦٠٠٠٠٣'}</div>
-                </div>
-                <div style={{ textAlign: 'left', fontSize: '0.9rem' }}>
-                  <div>العنوان: {companyInfo?.address || 'القاهرة، مصر'}</div>
-                  <div>الهاتف: {companyInfo?.phone || '+20-100-000-0000'}</div>
-                  <div>البريد: {companyInfo?.email || 'info@alrayeq.com'}</div>
-                </div>
-              </div>
-
-              <div className="print-document-title">مستخلص مقاول باطن</div>
-
-              <div className="print-grid">
-                <div className="print-grid-item">
-                  <span className="print-grid-label">رقم المستخلص:</span>
+            {/* The printable sheet with A4 Template */}
+            <PrintA4Template
+              companyInfo={companyInfo}
+              documentTitle="مستخلص مستحقات مقاول باطن"
+              refNumber={printIpc.ipc_number}
+              documentSubtitle={`المقاول: ${printIpc.subcontractor_name}`}
+              date={printIpc.ipc_date ? new Date(printIpc.ipc_date).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+            >
+              <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.95rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>رقم المستخلص:</span>
                   <span>{printIpc.ipc_number}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">اسم المقاول:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>اسم المقاول:</span>
                   <span>{printIpc.subcontractor_name}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">تاريخ المستخلص:</span>
-                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-EG')}</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>تاريخ المستخلص:</span>
+                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-SA')}</span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">الفترة المالية:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>الفترة المالية:</span>
                   <span>
                     {printIpc.period_from && printIpc.period_to 
-                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-EG')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-EG')}` 
+                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-SA')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-SA')}` 
                       : 'غير محددة'}
                   </span>
                 </div>
-                <div className="print-grid-item">
-                  <span className="print-grid-label">حالة المستخلص:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', minWidth: '110px' }}>حالة المستخلص:</span>
                   <span>{ipcStatusLabels[printIpc.status] || printIpc.status}</span>
                 </div>
               </div>
 
-              <table className="print-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.25rem' }}>
                 <thead>
-                  <tr>
-                    <th>الوصف</th>
-                    <th style={{ width: '200px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', textAlign: 'right' }}>الوصف المالي</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', width: '220px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>إجمالي الأعمال المنفذة والمعتمدة</td>
-                    <td style={{ textAlign: 'left', fontWeight: 'bold' }}>{formatCurrency(printIpc.items_total)}</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>إجمالي الأعمال المنفذة والمعتمدة في الموقع</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 'bold' }}>{formatCurrency(printIpc.items_total)}</td>
                   </tr>
                   <tr>
-                    <td>خصم نسبة الضمان المالي المقتطع</td>
-                    <td style={{ textAlign: 'left', color: '#c00' }}>{formatCurrency(printIpc.retention_amount)}</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>ضريبة القيمة المضافة ({printIpc.vat_percentage || 14}%)</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left' }}>+{formatCurrency(printIpc.vat_amount || (Number(printIpc.items_total || 0) * 0.14))}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>خصم نسبة الضمان المالي المقتطع ({printIpc.retention_percentage || 10}%)</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>-{formatCurrency(printIpc.retention_amount)}</td>
+                  </tr>
+                  {Number(printIpc.advance_deduction_amount || 0) > 0 && (
+                    <tr>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>تصفية وحسم الدفعة المقدمة ({printIpc.advance_deduction_percentage || 0}%)</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>-{formatCurrency(printIpc.advance_deduction_amount || 0)}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>خصم ضريبة الأرباح التجارية والصناعية ({printIpc.wht_percentage || 1}%)</td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>-{formatCurrency(printIpc.wht_amount || (Number(printIpc.items_total || 0) * 0.01))}</td>
                   </tr>
                   {Number(printIpc.previous_payments) > 0 && (
                     <tr>
-                      <td>خصم مدفوعات سابقة مستلمة</td>
-                      <td style={{ textAlign: 'left', color: '#c00' }}>{formatCurrency(printIpc.previous_payments || 0)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem' }}>خصم مدفوعات سابقة مستلمة</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem 0.75rem', textAlign: 'left', color: '#dc2626' }}>-{formatCurrency(printIpc.previous_payments || 0)}</td>
                     </tr>
                   )}
-                  <tr style={{ backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>
-                    <td>الصافي المستحق الصرف للمقاول</td>
-                    <td style={{ textAlign: 'left', fontSize: '1.2rem', color: '#080' }}>
-                      {formatCurrency(
-                        Number(printIpc.items_total) - 
-                        Number(printIpc.retention_amount) - 
-                        Number(printIpc.previous_payments || 0)
-                      )}
+                  <tr style={{ backgroundColor: '#eff6ff', fontWeight: 'bold', fontSize: '1.05rem', color: '#1e3a8a' }}>
+                    <td style={{ border: '2px solid #1e3a8a', padding: '0.625rem' }}>الصافي المستحق الصرف للمقاول</td>
+                    <td style={{ border: '2px solid #1e3a8a', padding: '0.625rem', textAlign: 'left' }}>
+                      {formatCurrency(printIpc.net_payable)}
                     </td>
                   </tr>
                 </tbody>
               </table>
 
               {printIpc.notes && (
-                <div style={{ marginTop: '1.5rem', border: '1px solid #ccc', padding: '1rem', borderRadius: '4px' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>ملاحظات:</div>
-                  <p style={{ margin: 0, fontSize: '0.95rem' }}>{printIpc.notes}</p>
+                <div style={{ marginTop: '1.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1rem', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem', color: '#1e293b' }}>ملاحظات وشروط المستخلص:</div>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#475569' }}>{printIpc.notes}</p>
                 </div>
               )}
-
-              <div className="print-footer">
-                <div className="print-signature-box">
-                  <div>المقاول المستلم</div>
-                  <div className="print-signature-line"></div>
-                </div>
-                <div className="print-signature-box">
-                  <div>مهندس الموقع</div>
-                  <div className="print-signature-line"></div>
-                </div>
-                <div className="print-signature-box">
-                  <div>المدير الفني للمشروع</div>
-                  <div className="print-signature-line"></div>
-                </div>
-              </div>
-            </div>
+            </PrintA4Template>
           </div>
         </div>
       )}
