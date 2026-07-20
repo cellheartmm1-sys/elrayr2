@@ -1373,7 +1373,7 @@ export default function HRPage() {
             notes: ''
           });
         }}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">📍 تسجيل حضور ويومية عمالة وموقع جديد</div>
               <button className="btn btn-ghost btn-icon" onClick={() => {
@@ -1391,7 +1391,8 @@ export default function HRPage() {
                 });
               }}>✕</button>
             </div>
-            <form onSubmit={handleCreateAttendance}>
+            <form onSubmit={handleCreateAttendance} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.5rem' }}>
               <div className="form-grid form-grid-2">
                 <div className="form-group">
                   <label className="form-label required">الموظف / المشرف / العامل</label>
@@ -1527,8 +1528,9 @@ export default function HRPage() {
                   })()}
                 </div>
               )}
-
-              <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
+              </div>
+              
+              <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid var(--border-normal)', padding: '1rem 1.5rem', marginTop: 0 }}>
                 <button type="button" className="btn btn-outline" onClick={() => {
                   setShowAttendanceModal(false);
                   setAttendanceForm({
