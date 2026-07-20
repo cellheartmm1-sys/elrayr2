@@ -30,7 +30,10 @@ interface OvertimeRequest {
 
 interface PersonalAsset {
   id: string; asset_code: string; asset_name: string; asset_type: string;
-  brand: string; employee_name: string; project_name: string; condition: string; status: string;
+  brand: string; model?: string; serial_number?: string; purchase_cost?: number;
+  assigned_to?: string; employee_name: string; assigned_to_name?: string;
+  assigned_to_job?: string; assignment_date?: string; project_name: string;
+  condition: string; status: string; notes?: string;
 }
 
 interface DocumentAlert {
@@ -162,7 +165,8 @@ export default function HRPage() {
 
   const [assetForm, setAssetForm] = useState({
     asset_code: '', asset_name: '', asset_type: 'tool', brand: '', model: '',
-    serial_number: '', purchase_cost: '', condition: 'good', status: 'available'
+    serial_number: '', purchase_cost: '', condition: 'good', status: 'available',
+    assigned_to: '', assignment_date: new Date().toISOString().split('T')[0], notes: ''
   });
 
   const [loanForm, setLoanForm] = useState({
@@ -375,7 +379,8 @@ export default function HRPage() {
         setShowAssetModal(false);
         setAssetForm({
           asset_code: '', asset_name: '', asset_type: 'tool', brand: '', model: '',
-          serial_number: '', purchase_cost: '', condition: 'good', status: 'available'
+          serial_number: '', purchase_cost: '', condition: 'good', status: 'available',
+          assigned_to: '', assignment_date: new Date().toISOString().split('T')[0], notes: ''
         });
         fetchAssets();
       } else {
@@ -905,11 +910,11 @@ export default function HRPage() {
                   <thead>
                     <tr>
                       <th>كود العهدة</th>
-                      <th>اسم العهدة</th>
-                      <th>النوع</th>
-                      <th>الماركة</th>
-                      <th>المستلم الحالي</th>
-                      <th>الموقع الحالي</th>
+                      <th>اسم العهدة / المعدة</th>
+                      <th>النوع والماركة</th>
+                      <th>المستلم الحالي (الموظف)</th>
+                      <th>تاريخ التسليم</th>
+                      <th>الرقم التسلسلي (S/N)</th>
                       <th>الحالة الفنية</th>
                       <th>حالة العهدة</th>
                       <th style={{ textAlign: 'center' }}>العمليات</th>
@@ -918,15 +923,23 @@ export default function HRPage() {
                   <tbody>
                     {assets.map(a => (
                       <tr key={a.id}>
-                        <td style={{ fontWeight: 700 }}>{a.asset_code}</td>
+                        <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{a.asset_code}</td>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{a.asset_name}</td>
-                        <td>{a.asset_type}</td>
-                        <td>{a.brand || '-'}</td>
-                        <td style={{ color: 'var(--brand-primary-light)' }}>{a.employee_name || 'بالمخزن الرئيسي'}</td>
-                        <td>{a.project_name || '-'}</td>
-                        <td>{a.condition}</td>
+                        <td>{a.asset_type} {a.brand ? `(${a.brand})` : ''}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {a.employee_name || a.assigned_to_name ? (
+                            <span style={{ color: 'var(--brand-primary-light)' }}>
+                              👤 {a.employee_name || a.assigned_to_name} {a.assigned_to_job ? `(${a.assigned_to_job})` : ''}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>🏛️ بالمخزن الرئيسي (غير مسندة)</span>
+                          )}
+                        </td>
+                        <td>{a.assignment_date ? new Date(a.assignment_date).toLocaleDateString('ar-SA') : '-'}</td>
+                        <td style={{ fontFamily: 'monospace' }}>{a.serial_number || '-'}</td>
+                        <td><span className="badge badge-muted">{a.condition}</span></td>
                         <td>
-                          <span className={`badge ${a.status === 'available' ? 'badge-success' : a.status === 'assigned' ? 'badge-primary' : 'badge-warning'}`}>
+                          <span className={`badge ${a.status === 'available' ? 'badge-success' : 'badge-primary'}`}>
                             {a.status === 'available' ? 'متوفرة بالمخزن' : 'مُسلمة للموظف'}
                           </span>
                         </td>
@@ -1309,48 +1322,117 @@ export default function HRPage() {
       {/* ======================== MODAL: ADD ASSET ======================== */}
       {showAssetModal && (
         <div className="modal-overlay" onClick={() => setShowAssetModal(false)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
-              <div className="modal-title">🔨 إضافة عهدة جديدة</div>
+              <div className="modal-title">🔨 تسجيل عهدة جديدة وتسليمها لموظف</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowAssetModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleCreateAsset}>
-              <div className="form-grid form-grid-3">
-                <div className="form-group">
-                  <label className="form-label required">كود العهدة</label>
-                  <input className="form-control" required value={assetForm.asset_code} onChange={e => setAssetForm({...assetForm, asset_code: e.target.value})} placeholder="AST-100" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label required">اسم العهدة / المعدة</label>
-                  <input className="form-control" required value={assetForm.asset_name} onChange={e => setAssetForm({...assetForm, asset_name: e.target.value})} placeholder="شنيور هيلتي / لابتوب لينوفو" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">نوع العهدة</label>
-                  <select className="form-control" value={assetForm.asset_type} onChange={e => setAssetForm({...assetForm, asset_type: e.target.value})}>
-                    <option value="tool">عدة يدوية/كهربائية</option>
-                    <option value="vehicle">سيارة/معدة كبيرة</option>
-                    <option value="laptop">جهاز كمبيوتر</option>
-                    <option value="phone">هاتف محمول</option>
-                    <option value="equipment">جهاز اختبار حريق</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">الماركة (Brand)</label>
-                  <input className="form-control" value={assetForm.brand} onChange={e => setAssetForm({...assetForm, brand: e.target.value})} placeholder="Bosch / Makita" />
-                </div>
-                <div className="form-group col-span-2">
-                  <label className="form-label">حالة المعدة</label>
-                  <select className="form-control" value={assetForm.condition} onChange={e => setAssetForm({...assetForm, condition: e.target.value})}>
-                    <option value="new">جديدة</option>
-                    <option value="good">ممتازة</option>
-                    <option value="fair">مستعملة بحالة جيدة</option>
-                    <option value="poor">تحتاج صيانة</option>
-                  </select>
+            <form onSubmit={handleCreateAsset} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.5rem' }}>
+                <div className="form-grid form-grid-2" style={{ gap: '1.25rem' }}>
+                  {/* Select Employee to link custody */}
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label required" style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>
+                      👤 الموظف المستلم للعهدة (اختر الموظف)
+                    </label>
+                    <select
+                      className="form-control"
+                      value={assetForm.assigned_to}
+                      onChange={e => {
+                        const empId = e.target.value;
+                        setAssetForm({
+                          ...assetForm,
+                          assigned_to: empId,
+                          status: empId ? 'assigned' : 'available'
+                        });
+                      }}
+                      style={{ fontSize: '0.95rem', fontWeight: 600 }}
+                    >
+                      <option value="">-- بدون موظف (متوفرة بالمخزن الرئيسي) --</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.full_name} ({emp.job_title || 'موظف'} - {emp.employee_number})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label required">كود العهدة</label>
+                    <input className="form-control" required value={assetForm.asset_code} onChange={e => setAssetForm({...assetForm, asset_code: e.target.value})} placeholder="AST-100" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label required">اسم العهدة / المعدة</label>
+                    <input className="form-control" required value={assetForm.asset_name} onChange={e => setAssetForm({...assetForm, asset_name: e.target.value})} placeholder="شنيور هيلتي / لابتوب / سيارة" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">نوع العهدة</label>
+                    <select className="form-control" value={assetForm.asset_type} onChange={e => setAssetForm({...assetForm, asset_type: e.target.value})}>
+                      <option value="tool">عدة يدوية/كهربائية</option>
+                      <option value="vehicle">سيارة/معدة كبيرة</option>
+                      <option value="laptop">جهاز كمبيوتر/لابتوب</option>
+                      <option value="phone">هاتف محمول</option>
+                      <option value="equipment">جهاز اختبار حريق/موقع</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">تاريخ التسليم</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={assetForm.assignment_date}
+                      onChange={e => setAssetForm({ ...assetForm, assignment_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الماركة (Brand)</label>
+                    <input className="form-control" value={assetForm.brand} onChange={e => setAssetForm({...assetForm, brand: e.target.value})} placeholder="Bosch / Makita / DeWalt" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الموديل (Model)</label>
+                    <input className="form-control" value={assetForm.model} onChange={e => setAssetForm({...assetForm, model: e.target.value})} placeholder="مثال: GBH 2-26" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الرقم التسلسلي (Serial Number / S/N)</label>
+                    <input className="form-control" value={assetForm.serial_number} onChange={e => setAssetForm({...assetForm, serial_number: e.target.value})} placeholder="SN-12345678" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">قيمة / تكلفة الشراء ({currencySymbol})</label>
+                    <input className="form-control" type="number" value={assetForm.purchase_cost} onChange={e => setAssetForm({...assetForm, purchase_cost: e.target.value})} placeholder="0.00" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الحالة الفنية للمعدة</label>
+                    <select className="form-control" value={assetForm.condition} onChange={e => setAssetForm({...assetForm, condition: e.target.value})}>
+                      <option value="new">جديدة</option>
+                      <option value="good">ممتازة</option>
+                      <option value="fair">مستعملة بحالة جيدة</option>
+                      <option value="poor">تحتاج صيانة</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label">ملاحظات وحالة تسليم العهدة</label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      value={assetForm.notes}
+                      onChange={e => setAssetForm({...assetForm, notes: e.target.value})}
+                      placeholder="تفاصيل الشنطة أو الملحقات المسلمة مع العهدة..."
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', padding: '1rem 1.5rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setShowAssetModal(false)}>إلغاء</button>
-                <button type="submit" className="btn btn-primary">💾 حفظ العهدة</button>
+                <button type="submit" className="btn btn-primary" style={{ fontWeight: 600 }}>💾 حفظ العهدة وتسليمها</button>
               </div>
             </form>
           </div>
