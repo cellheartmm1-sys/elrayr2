@@ -5,7 +5,9 @@ export async function POST(request: NextRequest) {
   try {
     // Run schema migration to ensure weight_percentage column exists
     await query(`
-      ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0;
+      ALTER TABLE project_phases 
+        ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS phase_value NUMERIC(12,2) DEFAULT 0;
     `);
 
     const body = await request.json();
@@ -21,6 +23,7 @@ export async function POST(request: NextRequest) {
       planned_progress = 0, 
       actual_progress = 0, 
       weight_percentage = 0,
+      phase_value = 0,
       order_index = 0
     } = body;
 
@@ -32,8 +35,8 @@ export async function POST(request: NextRequest) {
       `INSERT INTO project_phases (
         project_id, phase_name, phase_type, description, 
         planned_start, planned_end, actual_start, actual_end, 
-        planned_progress, actual_progress, weight_percentage, order_index
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        planned_progress, actual_progress, weight_percentage, phase_value, order_index
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         project_id, 
         phase_name, 
@@ -46,6 +49,7 @@ export async function POST(request: NextRequest) {
         Number(planned_progress), 
         Number(actual_progress), 
         Number(weight_percentage),
+        Number(phase_value),
         Number(order_index)
       ]
     );
@@ -62,7 +66,9 @@ export async function PUT(request: NextRequest) {
   try {
     // Run schema migration to ensure weight_percentage column exists
     await query(`
-      ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0;
+      ALTER TABLE project_phases 
+        ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS phase_value NUMERIC(12,2) DEFAULT 0;
     `);
 
     const body = await request.json();
@@ -78,6 +84,7 @@ export async function PUT(request: NextRequest) {
       planned_progress, 
       actual_progress, 
       weight_percentage,
+      phase_value,
       order_index
     } = body;
 
@@ -103,8 +110,9 @@ export async function PUT(request: NextRequest) {
         planned_progress = $8,
         actual_progress = $9,
         weight_percentage = $10,
-        order_index = $11
-      WHERE id = $12 RETURNING *`,
+        phase_value = $11,
+        order_index = $12
+      WHERE id = $13 RETURNING *`,
       [
         phase_name ?? current.phase_name,
         phase_type ?? current.phase_type,
@@ -116,6 +124,7 @@ export async function PUT(request: NextRequest) {
         planned_progress !== undefined ? Number(planned_progress) : Number(current.planned_progress),
         actual_progress !== undefined ? Number(actual_progress) : Number(current.actual_progress),
         weight_percentage !== undefined ? Number(weight_percentage) : Number(current.weight_percentage),
+        phase_value !== undefined ? Number(phase_value) : Number(current.phase_value || 0),
         order_index !== undefined ? Number(order_index) : Number(current.order_index),
         id
       ]

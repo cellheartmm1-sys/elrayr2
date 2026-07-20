@@ -99,6 +99,7 @@ export default function ProcurementPage() {
   const [projectFilter, setProjectFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [lowStockFilter, setLowStockFilter] = useState(false);
+  const [inventoryWarehouseFilter, setInventoryWarehouseFilter] = useState('');
 
   // Edit Request State
   const [editingRequest, setEditingRequest] = useState<MaterialRequest | null>(null);
@@ -197,7 +198,7 @@ export default function ProcurementPage() {
   });
 
   const [inventoryForm, setInventoryForm] = useState({
-    warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: ''
+    warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: '', sale_price: ''
   });
 
   // Warehouse CRUD states
@@ -209,6 +210,114 @@ export default function ProcurementPage() {
 
   // Inventory editing states
   const [editingInventoryItem, setEditingInventoryItem] = useState<any | null>(null);
+  
+  // Selected Warehouse detailed view state
+  const [selectedWarehouse, setSelectedWarehouse] = useState<any | null>(null);
+  const [warehouseSubTab, setWarehouseSubTab] = useState<'items' | 'supply' | 'history' | 'audit' | 'report'>('items');
+
+  const [supplyForm, setSupplyForm] = useState({
+    project_id: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    notes: '',
+    items: [] as Array<{ inventory_item_id: string, description: string, quantity: number, unit_cost: number, unit: string }>
+  });
+
+  const [auditForm, setAuditForm] = useState({
+    inventory_item_id: '',
+    new_quantity: '',
+    reason: ''
+  });
+
+  const handleSaveSupply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supplyForm.project_id || supplyForm.items.length === 0) {
+      alert('⚠️ يرجى اختيار المشروع وإضافة صنف واحد على الأقل.');
+      return;
+    }
+    // Validate quantities are available
+    for (const item of supplyForm.items) {
+      const invItem = inventory.find(i => i.id === item.inventory_item_id);
+      if (invItem && Number(invItem.current_quantity) < item.quantity) {
+        alert(`❌ الكمية المطلوبة من "${item.description}" غير متوفرة بالمستودع. (المتاح: ${invItem.current_quantity})`);
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch('/api/procurement/material-issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: supplyForm.project_id,
+          warehouse_id: selectedWarehouse.id,
+          issue_date: supplyForm.issue_date,
+          notes: supplyForm.notes,
+          items: supplyForm.items.map(i => ({
+            inventory_item_id: i.inventory_item_id,
+            item_description: i.description,
+            quantity: i.quantity,
+            unit_cost: i.unit_cost,
+            unit: i.unit
+          }))
+        })
+      });
+      if (res.ok) {
+        alert('✅ تم توريد وصرف الخامات للمشروع وقيد التكلفة بنجاح!');
+        // Refresh inventory & close/reset supply form
+        fetchInventory();
+        setSupplyForm({
+          project_id: '',
+          issue_date: new Date().toISOString().split('T')[0],
+          notes: '',
+          items: []
+        });
+        setWarehouseSubTab('items');
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل صرف المواد: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ: ${err.message}`);
+    }
+  };
+
+  const handleSaveAudit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auditForm.inventory_item_id || auditForm.new_quantity === '') {
+      alert('⚠️ يرجى اختيار الصنف وتحديد الكمية الجديدة.');
+      return;
+    }
+    const itemToUpdate = inventory.find(i => i.id === auditForm.inventory_item_id);
+    if (!itemToUpdate) return;
+
+    try {
+      const res = await fetch('/api/procurement/inventory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: itemToUpdate.id,
+          warehouse_id: itemToUpdate.warehouse_id,
+          description: itemToUpdate.description,
+          unit: itemToUpdate.unit,
+          current_quantity: Number(auditForm.new_quantity),
+          min_quantity: itemToUpdate.min_quantity,
+          unit_cost: itemToUpdate.unit_cost,
+          sale_price: itemToUpdate.sale_price,
+          location_in_warehouse: itemToUpdate.location_in_warehouse
+        })
+      });
+      if (res.ok) {
+        alert('✅ تم تعديل الكمية وإثبات حركة الجرد بنجاح!');
+        fetchInventory();
+        setAuditForm({ inventory_item_id: '', new_quantity: '', reason: '' });
+        setWarehouseSubTab('items');
+      } else {
+        alert('❌ فشل تعديل الكمية.');
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ: ${err.message}`);
+    }
+  };
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -238,13 +347,14 @@ export default function ProcurementPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (lowStockFilter) params.set('low_stock', 'true');
+    if (inventoryWarehouseFilter) params.set('warehouse_id', inventoryWarehouseFilter);
     try {
       const res = await fetch(`/api/procurement/inventory?${params}`);
       const data = await res.json();
       // inventory API returns array directly (not wrapped in {data:[]})
       setInventory(Array.isArray(data) ? data : (data?.data ?? []));
     } finally { setLoading(false); }
-  }, [lowStockFilter]);
+  }, [lowStockFilter, inventoryWarehouseFilter]);
 
   const fetchWarehouses = async () => {
     try {
@@ -502,7 +612,8 @@ export default function ProcurementPage() {
         unit: inventoryForm.unit || 'قطعة',
         current_quantity: Number(inventoryForm.current_quantity) || 0,
         min_quantity: Number(inventoryForm.min_quantity) || 0,
-        unit_cost: Number(inventoryForm.unit_cost) || 0
+        unit_cost: Number(inventoryForm.unit_cost) || 0,
+        sale_price: Number(inventoryForm.sale_price) || 0
       };
 
       const res = await fetch(url, {
@@ -514,7 +625,7 @@ export default function ProcurementPage() {
       if (res.ok) {
         setShowInventoryModal(false);
         setInventoryForm({
-          warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: ''
+          warehouse_id: '', description: '', unit: 'قطعة', current_quantity: '', min_quantity: '', unit_cost: '', sale_price: ''
         });
         setEditingInventoryItem(null);
         fetchInventory();
@@ -596,7 +707,8 @@ export default function ProcurementPage() {
       unit: item.unit || 'قطعة',
       current_quantity: String(item.current_quantity || '0'),
       min_quantity: String(item.min_quantity || '10'),
-      unit_cost: String(item.unit_cost || '0')
+      unit_cost: String(item.unit_cost || '0'),
+      sale_price: String(item.sale_price || '0')
     });
     setShowInventoryModal(true);
   };
@@ -609,7 +721,8 @@ export default function ProcurementPage() {
       unit: 'قطعة',
       current_quantity: '',
       min_quantity: '',
-      unit_cost: ''
+      unit_cost: '',
+      sale_price: ''
     });
     setShowInventoryModal(true);
   };
@@ -820,20 +933,24 @@ export default function ProcurementPage() {
           </div>
 
           <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
-            <div className="stat-card">
+            <div className="stat-card card-kpi-projects">
               <div className="stat-card-icon">📦</div>
               <div className="stat-value">{totalItemsCount}</div>
               <div className="stat-label">أصناف مسجلة بالمخازن</div>
             </div>
-            <div className="stat-card danger">
+            <div className="stat-card card-kpi-tickets">
               <div className="stat-card-icon">⚠️</div>
               <div className="stat-value">{lowStockCount}</div>
               <div className="stat-label">أصناف مخزونها منخفض (تحت الحد الأدنى)</div>
             </div>
           </div>
 
-          <div className="filter-bar">
-            <label className="flex items-center gap-2" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>
+          <div className="filter-bar" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <select className="form-control" style={{ width: 'auto', minWidth: '220px' }} value={inventoryWarehouseFilter} onChange={e => setInventoryWarehouseFilter(e.target.value)}>
+              <option value="">كل المستودعات والمخازن</option>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            <label className="flex items-center gap-2" style={{ cursor: 'pointer', fontSize: '0.875rem', margin: 0, display: 'flex', alignItems: 'center' }}>
               <input type="checkbox" checked={lowStockFilter} onChange={e => setLowStockFilter(e.target.checked)} />
               <span>إظهار المواد منخفضة المخزون فقط ⚠️</span>
             </label>
@@ -855,9 +972,10 @@ export default function ProcurementPage() {
                       <th>اسم المادة</th>
                       <th>المخزن / الموقع</th>
                       <th>الوحدة</th>
-                      <th>الكمية المتوفرة حالياً</th>
-                      <th>الحد الأدنى للطلب</th>
-                      <th>التكلفة التقريبية للوحدة</th>
+                      <th>الكمية</th>
+                      <th>الحد الأدنى</th>
+                      <th>سعر الشراء</th>
+                      <th>سعر البيع</th>
                       <th>الحالة</th>
                       <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                     </tr>
@@ -866,18 +984,30 @@ export default function ProcurementPage() {
                     {inventory.map(i => {
                       const isLow = Number(i.current_quantity) <= Number(i.min_quantity);
                       return (
-                        <tr key={i.id}>
+                        <tr key={i.id} style={{ backgroundColor: isLow ? 'rgba(239, 68, 68, 0.02)' : undefined, borderRight: isLow ? '3px solid var(--status-danger)' : undefined }}>
                           <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{i.description}</td>
                           <td>{i.warehouse_name}</td>
                           <td>{i.unit}</td>
-                          <td style={{ fontWeight: 700, color: isLow ? 'var(--status-danger)' : 'var(--text-primary)' }}>
-                            {formatNumber(i.current_quantity)}
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '95px' }}>
+                              <span style={{ fontWeight: 700, color: isLow ? 'var(--status-danger)' : 'var(--text-primary)' }}>
+                                {formatNumber(i.current_quantity)}
+                              </span>
+                              <div style={{ width: '100%', height: '4px', background: 'var(--border-subtle)', borderRadius: '100px', overflow: 'hidden' }}>
+                                <div style={{ 
+                                  width: `${Math.min(100, (Number(i.current_quantity) / Math.max(1, Number(i.min_quantity))) * 100)}%`, 
+                                  height: '100%', 
+                                  background: isLow ? 'var(--status-danger)' : 'var(--status-success)' 
+                                }} />
+                              </div>
+                            </div>
                           </td>
                           <td>{formatNumber(i.min_quantity)}</td>
                           <td>{formatCurrency(i.unit_cost)}</td>
+                          <td>{formatCurrency(i.sale_price || 0)}</td>
                           <td>
-                            <span className={`badge ${isLow ? 'badge-danger' : 'badge-success'}`}>
-                              {isLow ? 'مخزون منخفض ⚠️' : 'كافٍ'}
+                            <span className={`badge ${isLow ? 'badge-danger' : 'badge-success'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              {isLow ? '🚨 تنبيه: مخزون منخفض وتحت حد الطلب' : '✅ كافٍ'}
                             </span>
                           </td>
                           <td style={{ textAlign: 'center' }}>
@@ -897,58 +1027,546 @@ export default function ProcurementPage() {
         </>
       )}
 
-      {/* ======================== TAB: WAREHOUSES ======================== */}
       {activeTab === 'warehouses' && (
         <>
-          <div className="page-header">
-            <div className="page-header-left">
-              <div className="page-title">🏢 إدارة المستودعات ومخازن الشركة</div>
-              <div className="page-description">تعريف وتعديل المستودعات المركزية ومخازن المواقع وربطها بالمشاريع</div>
-            </div>
-            <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={handleOpenCreateWarehouse}>+ إضافة مستودع جديد</button>
-            </div>
-          </div>
+          {selectedWarehouse ? (
+            <>
+              {/* Back to warehouses list button & Title */}
+              <div className="page-header" style={{ marginBottom: '1rem' }}>
+                <div className="page-header-left">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => setSelectedWarehouse(null)}>
+                      ← العودة للمستودعات
+                    </button>
+                    <div className="page-title" style={{ margin: 0 }}>🏢 مستودع: {selectedWarehouse.name}</div>
+                  </div>
+                  <div className="page-description" style={{ marginTop: '0.4rem' }}>
+                    📍 العنوان: {selectedWarehouse.location || '-'} | 📌 المشروع المرتبط: {selectedWarehouse.project_name || 'مستودع مركزي عام'}
+                  </div>
+                </div>
+                <div className="page-header-actions">
+                  <button className="btn btn-primary" onClick={() => {
+                    setEditingInventoryItem(null);
+                    setInventoryForm({
+                      warehouse_id: selectedWarehouse.id,
+                      description: '',
+                      unit: 'قطعة',
+                      current_quantity: '',
+                      min_quantity: '10',
+                      unit_cost: '',
+                      sale_price: ''
+                    });
+                    setShowInventoryModal(true);
+                  }}>
+                    ➕ تكويد صنف جديد بالمستودع
+                  </button>
+                </div>
+              </div>
 
-          <div className="card">
-            {warehouses.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">🏢</div>
-                <div className="empty-state-title">لا توجد مستودعات مسجلة حالياً</div>
-                <button className="btn btn-primary" onClick={handleOpenCreateWarehouse} style={{ marginTop: '1rem' }}>إضافة أول مستودع</button>
+              {/* Warehouse KPI Stats */}
+              {(() => {
+                const whItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.id);
+                const totalCoded = whItems.length;
+                const totalCostVal = whItems.reduce((acc, curr) => acc + (Number(curr.current_quantity) * Number(curr.unit_cost || 0)), 0);
+                const totalSaleVal = whItems.reduce((acc, curr) => acc + (Number(curr.current_quantity) * Number(curr.sale_price || 0)), 0);
+                const netProfitExpected = totalSaleVal - totalCostVal;
+
+                return (
+                  <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+                    <div className="stat-card card-kpi-projects">
+                      <div className="stat-card-icon">📦</div>
+                      <div className="stat-value">{totalCoded}</div>
+                      <div className="stat-label">عدد الأصناف المكودة</div>
+                    </div>
+                    <div className="stat-card card-kpi-contracts">
+                      <div className="stat-card-icon">💰</div>
+                      <div className="stat-value">{formatCurrency(totalCostVal)}</div>
+                      <div className="stat-label">صافي قيمة المشتريات (التكلفة)</div>
+                    </div>
+                    <div className="stat-card card-kpi-maintenance">
+                      <div className="stat-card-icon">📈</div>
+                      <div className="stat-value">{formatCurrency(totalSaleVal)}</div>
+                      <div className="stat-label">صافي قيمة المبيعات المتوقعة</div>
+                    </div>
+                    <div className="stat-card card-kpi-employees">
+                      <div className="stat-card-icon">📊</div>
+                      <div className="stat-value" style={{ color: netProfitExpected >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                        {formatCurrency(netProfitExpected)}
+                      </div>
+                      <div className="stat-label">العائد التقديري المتوقع للأرباح</div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Warehouse Sub-Tabs Navigation */}
+              <div className="tabs" style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                <button className={`tab-btn ${warehouseSubTab === 'items' ? 'active' : ''}`} onClick={() => setWarehouseSubTab('items')}>📦 الأصناف المبرمجة وأسعارها</button>
+                <button className={`tab-btn ${warehouseSubTab === 'supply' ? 'active' : ''}`} onClick={() => setWarehouseSubTab('supply')}>🏗️ صرف وتوريد لمشروع</button>
+                <button className={`tab-btn ${warehouseSubTab === 'history' ? 'active' : ''}`} onClick={() => setWarehouseSubTab('history')}>🔄 حركة وسجل صرف الخامات</button>
+                <button className={`tab-btn ${warehouseSubTab === 'audit' ? 'active' : ''}`} onClick={() => setWarehouseSubTab('audit')}>📐 حركة الجرد والتسوية</button>
+                <button className={`tab-btn ${warehouseSubTab === 'report' ? 'active' : ''}`} onClick={() => setWarehouseSubTab('report')}>📊 تقرير المخزون والقيمة</button>
               </div>
-            ) : (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>اسم المستودع</th>
-                      <th>موقع المستودع / العنوان</th>
-                      <th>المشروع المرتبط</th>
-                      <th style={{ textAlign: 'center', width: '150px' }}>العمليات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {warehouses.map((wh: any) => (
-                      <tr key={wh.id}>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wh.name}</td>
-                        <td>{wh.location || '-'}</td>
-                        <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>
-                          {wh.project_name || 'مستودع مركزي (غير مرتبط بمشروع)'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                            <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditWarehouse(wh)}>✏️ تعديل</button>
-                            <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteWarehouse(wh.id)}>🗑️ حذف</button>
+
+              {/* Warehouse sub-tab content */}
+              <div className="card" style={{ padding: '1.25rem' }}>
+                {warehouseSubTab === 'items' && (() => {
+                  const whItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.id);
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h4 style={{ margin: 0, fontWeight: 700 }}>الأصناف المتوفرة بـ {selectedWarehouse.name}</h4>
+                      </div>
+                      {whItems.length === 0 ? (
+                        <div className="empty-state">
+                          <div className="empty-state-icon">📦</div>
+                          <div className="empty-state-title">لا توجد أصناف مكودة حالياً في هذا المستودع</div>
+                        </div>
+                      ) : (
+                        <div className="table-wrapper">
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>اسم الصنف / الكود</th>
+                                <th>الوحدة</th>
+                                <th>الكمية المتوفرة</th>
+                                <th>الحد الأدنى للطلب</th>
+                                <th>سعر الشراء (التكلفة)</th>
+                                <th>سعر البيع المقدر</th>
+                                <th>إجمالي قيمة التكلفة</th>
+                                <th>إجمالي قيمة البيع</th>
+                                <th style={{ textAlign: 'center', width: '100px' }}>العمليات</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {whItems.map(item => (
+                                <tr key={item.id}>
+                                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.description}</td>
+                                  <td>{item.unit}</td>
+                                  <td style={{ fontWeight: 700, color: Number(item.current_quantity) <= Number(item.min_quantity) ? 'var(--status-danger)' : 'var(--text-primary)' }}>
+                                    {formatNumber(item.current_quantity)}
+                                  </td>
+                                  <td>{formatNumber(item.min_quantity)}</td>
+                                  <td>{formatCurrency(item.unit_cost)}</td>
+                                  <td>{formatCurrency(item.sale_price || 0)}</td>
+                                  <td style={{ fontWeight: 600 }}>{formatCurrency(Number(item.current_quantity) * Number(item.unit_cost))}</td>
+                                  <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>{formatCurrency(Number(item.current_quantity) * Number(item.sale_price || 0))}</td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                                      <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditInventory(item)} title="تعديل">✏️</button>
+                                      <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteInventory(item.id)} title="حذف">🗑️</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {warehouseSubTab === 'supply' && (() => {
+                  const whItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.id);
+                  return (
+                    <form onSubmit={handleSaveSupply}>
+                      <h4 style={{ marginBottom: '1rem', fontWeight: 700 }}>🏗️ صرف وتوريد خامات لمشروع متعاقد عليه</h4>
+                      
+                      <div className="form-grid form-grid-3" style={{ marginBottom: '1.25rem' }}>
+                        <div className="form-group col-span-2">
+                          <label className="form-label required">المشروع المستهدف (المتعاقد عليه)</label>
+                          <select className="form-control" required value={supplyForm.project_id} onChange={e => setSupplyForm({ ...supplyForm, project_id: e.target.value })}>
+                            <option value="">اختر المشروع...</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label required">تاريخ صرف الخامات</label>
+                          <input className="form-control" type="date" required value={supplyForm.issue_date} onChange={e => setSupplyForm({ ...supplyForm, issue_date: e.target.value })} />
+                        </div>
+                      </div>
+
+                      <div style={{ border: '1px solid var(--border-normal)', padding: '1rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.01)', marginBottom: '1.25rem' }}>
+                        <h5 style={{ marginTop: 0, marginBottom: '0.75rem', fontWeight: 600 }}>➕ إضافة أصناف لصرفها وتوريدها للمشروع</h5>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                          <div className="form-group" style={{ margin: 0, flex: '2 1 200px' }}>
+                            <label className="form-label">اختر الصنف المتوفر بالمستودع</label>
+                            <select id="supply_item_select" className="form-control" defaultValue="">
+                              <option value="">اختر صنفاً...</option>
+                              {whItems.map(i => <option key={i.id} value={i.id}>{i.description} (المتاح: {i.current_quantity})</option>)}
+                            </select>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <div className="form-group" style={{ margin: 0, flex: '1 1 80px' }}>
+                            <label className="form-label">الكمية الصادرة</label>
+                            <input id="supply_qty_input" className="form-control" type="number" min="0.001" step="any" placeholder="10" />
+                          </div>
+                          <button type="button" className="btn btn-outline" style={{ height: '38px' }} onClick={() => {
+                            const selectEl = document.getElementById('supply_item_select') as HTMLSelectElement;
+                            const qtyEl = document.getElementById('supply_qty_input') as HTMLInputElement;
+                            if (!selectEl || !qtyEl || !selectEl.value || !qtyEl.value) {
+                              alert('يرجى تحديد الصنف والكمية');
+                              return;
+                            }
+                            const itemId = selectEl.value;
+                            const qty = Number(qtyEl.value);
+                            const selectedItem = whItems.find(i => i.id === itemId);
+                            if (!selectedItem) return;
+                            if (Number(selectedItem.current_quantity) < qty) {
+                              alert('الكمية المطلوبة أكبر من المتاحة في المستودع!');
+                              return;
+                            }
+                            
+                            // Check if already in list
+                            if (supplyForm.items.some(i => i.inventory_item_id === itemId)) {
+                              alert('هذا الصنف مضاف مسبقاً في القائمة');
+                              return;
+                            }
+
+                            setSupplyForm({
+                              ...supplyForm,
+                              items: [...supplyForm.items, {
+                                inventory_item_id: selectedItem.id,
+                                description: selectedItem.description,
+                                quantity: qty,
+                                unit_cost: Number(selectedItem.unit_cost || 0),
+                                unit: selectedItem.unit
+                              }]
+                            });
+                            // Reset inputs
+                            selectEl.value = '';
+                            qtyEl.value = '';
+                          }}>
+                            إضافة صنف للقائمة
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Items table */}
+                      <table className="data-table" style={{ width: '100%', marginBottom: '1.25rem' }}>
+                        <thead>
+                          <tr>
+                            <th>الصنف</th>
+                            <th>الكمية</th>
+                            <th>الوحدة</th>
+                            <th>تكلفة الوحدة</th>
+                            <th>إجمالي التكلفة</th>
+                            <th>إلغاء</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {supplyForm.items.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>لا توجد أصناف في القائمة حالياً. أضف بعض الأصناف أعلاه.</td>
+                            </tr>
+                          ) : (
+                            supplyForm.items.map((item, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: 600 }}>{item.description}</td>
+                                <td>{formatNumber(item.quantity)}</td>
+                                <td>{item.unit}</td>
+                                <td>{formatCurrency(item.unit_cost)}</td>
+                                <td style={{ fontWeight: 600 }}>{formatCurrency(item.quantity * item.unit_cost)}</td>
+                                <td>
+                                  <button type="button" className="btn btn-ghost text-danger btn-sm" onClick={() => {
+                                    setSupplyForm({
+                                      ...supplyForm,
+                                      items: supplyForm.items.filter((_, idx) => idx !== index)
+                                    });
+                                  }}>✕</button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+
+                      <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                        <label className="form-label">ملاحظات الصرف والتوريد</label>
+                        <textarea className="form-control" rows={3} value={supplyForm.notes} onChange={e => setSupplyForm({ ...supplyForm, notes: e.target.value })} placeholder="اكتب أية ملاحظات تفصيلية أو إذن الصرف اليدوي..." />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn btn-outline" onClick={() => setWarehouseSubTab('items')}>إلغاء</button>
+                        <button type="submit" className="btn btn-primary" disabled={supplyForm.items.length === 0}>
+                          💾 اعتماد الصرف وتوريد المواد للمشروع
+                        </button>
+                      </div>
+                    </form>
+                  );
+                })()}
+
+                {warehouseSubTab === 'history' && (() => {
+                  const whIssues = materialIssues.filter((mi: any) => mi.warehouse_id === selectedWarehouse.id);
+                  return (
+                    <div>
+                      <h4 style={{ marginBottom: '1rem', fontWeight: 700 }}>🔄 حركة وسجل صرف المواد (Material Issues Log)</h4>
+                      {whIssues.length === 0 ? (
+                        <div className="empty-state">
+                          <div className="empty-state-icon">🔄</div>
+                          <div className="empty-state-title">لا توجد عمليات صرف أو توريد مسجلة من هذا المستودع</div>
+                        </div>
+                      ) : (
+                        <div className="table-wrapper">
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>رقم إذن الصرف</th>
+                                <th>المشروع المستلم</th>
+                                <th>تاريخ الصرف</th>
+                                <th>عدد الأصناف</th>
+                                <th>إجمالي تكلفة الخامات</th>
+                                <th>حالة مقايسة BOQ</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {whIssues.map((mi: any) => (
+                                <tr key={mi.id}>
+                                  <td style={{ fontWeight: 700 }}>{mi.issue_number}</td>
+                                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mi.project_name}</td>
+                                  <td>{new Date(mi.issue_date).toLocaleDateString('ar-SA')}</td>
+                                  <td>{mi.items_count} أصناف</td>
+                                  <td style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>{formatCurrency(mi.total_cost)}</td>
+                                  <td>
+                                    {mi.boq_warning ? (
+                                      <span className="badge badge-danger">🚨 تنبيه: تجاوز كميات المقايسة</span>
+                                    ) : (
+                                      <span className="badge badge-success">✅ ضمن حدود المقايسة التقديرية</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {warehouseSubTab === 'audit' && (() => {
+                  const whItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.id);
+                  return (
+                    <form onSubmit={handleSaveAudit}>
+                      <h4 style={{ marginBottom: '1rem', fontWeight: 700 }}>📐 حركة الجرد وتسوية فروقات المخزون</h4>
+                      <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                        استخدم هذا النموذج لإجراء عمليات الجرد الفعلي للمستودع وإثبات الكميات الحقيقية وإجراء تسوية الأرصدة (Stock Adjustments).
+                      </p>
+
+                      <div className="form-grid form-grid-3" style={{ marginBottom: '1.25rem' }}>
+                        <div className="form-group col-span-2">
+                          <label className="form-label required">اختر الصنف المراد تسوية رصيده</label>
+                          <select className="form-control" required value={auditForm.inventory_item_id} onChange={e => {
+                            const itemId = e.target.value;
+                            const selectedItem = whItems.find(i => i.id === itemId);
+                            setAuditForm({
+                              ...auditForm,
+                              inventory_item_id: itemId,
+                              new_quantity: selectedItem ? String(selectedItem.current_quantity) : ''
+                            });
+                          }}>
+                            <option value="">اختر صنفاً...</option>
+                            {whItems.map(i => <option key={i.id} value={i.id}>{i.description} (الرصيد الدفتري الحالي: {i.current_quantity} {i.unit})</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label required">الكمية الفعلية الجديدة (الجرد)</label>
+                          <input className="form-control" type="number" required min="0" value={auditForm.new_quantity} onChange={e => setAuditForm({ ...auditForm, new_quantity: e.target.value })} placeholder="0" />
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                        <label className="form-label required">سبب تسوية الجرد / الفروقات</label>
+                        <textarea className="form-control" required rows={2} value={auditForm.reason} onChange={e => setAuditForm({ ...auditForm, reason: e.target.value })} placeholder="مثال: جرد دوري شهر يوليو / تلف جزء من المواد / نقص في التوريد..." />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn btn-outline" onClick={() => setWarehouseSubTab('items')}>إلغاء</button>
+                        <button type="submit" className="btn btn-primary">
+                          💾 اعتماد تسوية الجرد وتحديث الأرصدة
+                        </button>
+                      </div>
+                    </form>
+                  );
+                })()}
+
+                {warehouseSubTab === 'report' && (() => {
+                  const whItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.id);
+                  const totalCostVal = whItems.reduce((acc, curr) => acc + (Number(curr.current_quantity) * Number(curr.unit_cost || 0)), 0);
+                  const totalSaleVal = whItems.reduce((acc, curr) => acc + (Number(curr.current_quantity) * Number(curr.sale_price || 0)), 0);
+                  
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h4 style={{ margin: 0, fontWeight: 700 }}>📊 تقرير المخزون التفصيلي وصافي قيمة المستودع</h4>
+                        <button className="btn btn-outline btn-sm" type="button" onClick={() => {
+                          const printWindow = window.open('', '_blank');
+                          if (!printWindow) return;
+                          
+                          const printContent = `
+                            <html>
+                            <head>
+                              <title>تقرير مخزون مستودع - ${selectedWarehouse.name}</title>
+                              <style>
+                                body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; }
+                                h2 { text-align: center; color: #1e3a8a; }
+                                .meta { margin-bottom: 20px; font-size: 0.9rem; color: #555; text-align: center; }
+                                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                                th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+                                th { background-color: #f2f2f2; color: #333; }
+                                .total-row { font-weight: bold; background-color: #fafafa; }
+                                .footer { margin-top: 40px; text-align: center; font-size: 0.8rem; color: #888; }
+                              </style>
+                            </head>
+                            <body>
+                              <h2>شركة الريق للمقاولات الكهروميكانيكية</h2>
+                              <h3>تقرير جرد ومخزون مستودع: ${selectedWarehouse.name}</h3>
+                              <div class="meta">
+                                تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')} | الموقع: ${selectedWarehouse.location || 'غير محدد'}
+                              </div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>م</th>
+                                    <th>اسم الصنف / الوصف</th>
+                                    <th>الوحدة</th>
+                                    <th>الكمية المتوفرة</th>
+                                    <th>سعر الشراء (التكلفة)</th>
+                                    <th>سعر البيع المقدر</th>
+                                    <th>إجمالي تكلفة المشتريات</th>
+                                    <th>إجمالي المبيعات المتوقعة</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${whItems.map((item, idx) => `
+                                    <tr>
+                                      <td>${idx + 1}</td>
+                                      <td>${item.description}</td>
+                                      <td>${item.unit}</td>
+                                      <td>${item.current_quantity}</td>
+                                      <td>${item.unit_cost} ج.م</td>
+                                      <td>${item.sale_price || 0} ج.م</td>
+                                      <td>${(Number(item.current_quantity) * Number(item.unit_cost)).toFixed(2)} ج.م</td>
+                                      <td>${(Number(item.current_quantity) * Number(item.sale_price || 0)).toFixed(2)} ج.م</td>
+                                    </tr>
+                                  `).join('')}
+                                  <tr class="total-row">
+                                    <td colspan="6" style="text-align: left;">الإجمالي العام:</td>
+                                    <td>${totalCostVal.toFixed(2)} ج.م</td>
+                                    <td>${totalSaleVal.toFixed(2)} ج.m</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              <div class="footer">تم إنشاء التقرير آلياً بواسطة نظام الريق لإدارة المشاريع</div>
+                            </body>
+                            </html>
+                          `;
+                          printWindow.document.write(printContent);
+                          printWindow.document.close();
+                          printWindow.print();
+                        }}>
+                          🖨️ طباعة تقرير المخازن والجرد
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginTop: '1.25rem' }}>
+                        <div style={{ border: '1px solid var(--border-normal)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.01)' }}>
+                          <h5 style={{ marginTop: 0, fontWeight: 700, borderBottom: '1px solid var(--border-normal)', paddingBottom: '0.5rem' }}>💰 التقييم المالي للمستودع</h5>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>إجمالي رأس المال المستثمر (سعر الشراء):</span>
+                              <strong style={{ fontSize: '1.05rem' }}>{formatCurrency(totalCostVal)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>إجمالي قيمة المبيعات المتوقعة للأرصدة:</span>
+                              <strong style={{ fontSize: '1.05rem', color: 'var(--brand-primary-light)' }}>{formatCurrency(totalSaleVal)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                              <span>الأرباح الكامنة التقديرية (صافي الفارق):</span>
+                              <strong style={{ fontSize: '1.1rem', color: totalSaleVal - totalCostVal >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                {formatCurrency(totalSaleVal - totalCostVal)}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ border: '1px solid var(--border-normal)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.01)' }}>
+                          <h5 style={{ marginTop: 0, fontWeight: 700, borderBottom: '1px solid var(--border-normal)', paddingBottom: '0.5rem' }}>📊 مؤشرات توزيع المخزون</h5>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>عدد الأصناف المتوفرة:</span>
+                              <strong>{whItems.length} صنف</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>أصناف تخطت كمية الأمان (كافٍ):</span>
+                              <strong style={{ color: 'var(--status-success)' }}>{whItems.filter(i => Number(i.current_quantity) > Number(i.min_quantity)).length} صنف</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>أصناف تحت حد الطلب (حرجة):</span>
+                              <strong style={{ color: 'var(--status-danger)' }}>{whItems.filter(i => Number(i.current_quantity) <= Number(i.min_quantity)).length} صنف ⚠️</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="page-header">
+                <div className="page-header-left">
+                  <div className="page-title">🏢 إدارة المستودعات ومخازن الشركة</div>
+                  <div className="page-description">تعريف وتعديل المستودعات المركزية ومخازن المواقع وربطها بالمشاريع</div>
+                </div>
+                <div className="page-header-actions">
+                  <button className="btn btn-primary" onClick={handleOpenCreateWarehouse}>+ إضافة مستودع جديد</button>
+                </div>
+              </div>
+
+              <div className="card">
+                {warehouses.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon">🏢</div>
+                    <div className="empty-state-title">لا توجد مستودعات مسجلة حالياً</div>
+                    <button className="btn btn-primary" onClick={handleOpenCreateWarehouse} style={{ marginTop: '1rem' }}>إضافة أول مستودع</button>
+                  </div>
+                ) : (
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>اسم المستودع</th>
+                          <th>موقع المستودع / العنوان</th>
+                          <th>المشروع المرتبط</th>
+                          <th style={{ textAlign: 'center', width: '220px' }}>العمليات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {warehouses.map((wh: any) => (
+                          <tr key={wh.id}>
+                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wh.name}</td>
+                            <td>{wh.location || '-'}</td>
+                            <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>
+                              {wh.project_name || 'مستودع مركزي (غير مرتبط بمشروع)'}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                                <button className="btn btn-primary btn-sm" onClick={() => { setSelectedWarehouse(wh); setWarehouseSubTab('items'); }}>👁️ دخول</button>
+                                <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditWarehouse(wh)}>✏️ تعديل</button>
+                                <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteWarehouse(wh.id)}>🗑️ حذف</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1282,9 +1900,13 @@ export default function ProcurementPage() {
                   <label className="form-label required">الحد الأدنى لإعادة الطلب</label>
                   <input className="form-control" type="number" required value={inventoryForm.min_quantity} onChange={e => setInventoryForm({...inventoryForm, min_quantity: e.target.value})} placeholder="10" />
                 </div>
-                <div className="form-group col-span-3">
-                  <label className="form-label">تكلفة وحدة المادة ({currencySymbol})</label>
+                 <div className="form-group col-span-2">
+                  <label className="form-label">سعر الشراء للوحدة (التكلفة) ({currencySymbol})</label>
                   <input className="form-control" type="number" value={inventoryForm.unit_cost} onChange={e => setInventoryForm({...inventoryForm, unit_cost: e.target.value})} placeholder="0.00" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">سعر البيع المقدر للوحدة ({currencySymbol})</label>
+                  <input className="form-control" type="number" value={inventoryForm.sale_price} onChange={e => setInventoryForm({...inventoryForm, sale_price: e.target.value})} placeholder="0.00" />
                 </div>
               </div>
               <div className="modal-footer">

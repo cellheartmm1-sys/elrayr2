@@ -39,12 +39,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse } = body;
+    const { warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse, sale_price } = body;
+
+    // Ensure sale_price column exists in inventory_items table
+    await query(`
+      ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS sale_price NUMERIC(12,2) DEFAULT 0;
+    `);
 
     const result = await query(`
-      INSERT INTO inventory_items (warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-    `, [warehouse_id, item_catalog_id || null, description, unit, current_quantity || 0, min_quantity || 0, unit_cost || 0, location_in_warehouse || null]);
+      INSERT INTO inventory_items (warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse, sale_price)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+    `, [
+      warehouse_id,
+      item_catalog_id || null,
+      description,
+      unit,
+      current_quantity || 0,
+      min_quantity || 0,
+      unit_cost || 0,
+      location_in_warehouse || null,
+      sale_price || 0
+    ]);
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {
@@ -56,11 +71,16 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse } = body;
+    const { id, warehouse_id, item_catalog_id, description, unit, current_quantity, min_quantity, unit_cost, location_in_warehouse, sale_price } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
+
+    // Ensure sale_price column exists in inventory_items table
+    await query(`
+      ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS sale_price NUMERIC(12,2) DEFAULT 0;
+    `);
 
     const result = await query(`
       UPDATE inventory_items SET
@@ -71,8 +91,9 @@ export async function PUT(request: NextRequest) {
         current_quantity = $5,
         min_quantity = $6,
         unit_cost = $7,
-        location_in_warehouse = $8
-      WHERE id = $9 RETURNING *
+        location_in_warehouse = $8,
+        sale_price = $9
+      WHERE id = $10 RETURNING *
     `, [
       warehouse_id,
       item_catalog_id || null,
@@ -82,6 +103,7 @@ export async function PUT(request: NextRequest) {
       min_quantity || 0,
       unit_cost || 0,
       location_in_warehouse || null,
+      sale_price || 0,
       id
     ]);
 

@@ -153,6 +153,17 @@ export default function FinancePage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
 
+  // New report console states
+  const [activeReportType, setActiveReportType] = useState<string | null>(null);
+  const [selectedReportProjectId, setSelectedReportProjectId] = useState<string>('');
+  const [selectedReportEmployeeId, setSelectedReportEmployeeId] = useState<string>('');
+  const [reportStartDate, setReportStartDate] = useState<string>('');
+  const [reportEndDate, setReportEndDate] = useState<string>('');
+  const [reportMonthFilter, setReportMonthFilter] = useState<number>(new Date().getMonth() + 1);
+  const [reportYearFilter, setReportYearFilter] = useState<number>(2026);
+  const [printReportData, setPrintReportData] = useState<any>(null);
+  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
+
   const [pettyCustodies, setPettyCustodies] = useState<any[]>([]);
   const [pettyClaims, setPettyClaims] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -174,6 +185,62 @@ export default function FinancePage() {
     project_id: '', ipc_number: '', period_from: '', period_to: '',
     items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
   });
+
+  const [ipcItems, setIpcItems] = useState<any[]>([]);
+
+  // Automatically calculate "الدفعات السابقة" when project changes
+  useEffect(() => {
+    if (!ipcForm.project_id) return;
+    const fetchPreviousPayments = async () => {
+      try {
+        const res = await fetch(`/api/finance/ipc?project_id=${ipcForm.project_id}&limit=100`);
+        const result = await res.json();
+        const projectIpcs = result.data || [];
+        // Sum items_total for approved/paid IPCs (excluding current editing IPC)
+        const approvedIpcs = projectIpcs.filter((i: any) => i.status !== 'draft' && i.status !== 'rejected' && i.id !== editingIpc?.id);
+        const sumPrevious = approvedIpcs.reduce((sum: number, item: any) => sum + Number(item.items_total || 0), 0);
+        
+        setIpcForm(prev => ({
+          ...prev,
+          previous_payments: String(sumPrevious)
+        }));
+      } catch (err) {
+        console.error('Failed to calculate previous payments:', err);
+      }
+    };
+    fetchPreviousPayments();
+  }, [ipcForm.project_id, editingIpc]);
+
+  // Automatically calculate "إجمالي قيمة الأعمال" when item quantities or rates change
+  useEffect(() => {
+    if (ipcItems.length === 0) return;
+    const sum = ipcItems.reduce((acc, curr) => acc + (Number(curr.current_quantity || 0) * Number(curr.unit_rate || 0)), 0);
+    setIpcForm(prev => ({
+      ...prev,
+      items_total: String(sum)
+    }));
+  }, [ipcItems]);
+
+  const [printIpcItems, setPrintIpcItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!printIpc) {
+      setPrintIpcItems([]);
+      return;
+    }
+    const fetchPrintIpcItems = async () => {
+      try {
+        const res = await fetch(`/api/finance/ipc?id=${printIpc.id}`);
+        if (res.ok) {
+          const result = await res.json();
+          setPrintIpcItems(result.items || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch print IPC items:', err);
+      }
+    };
+    fetchPrintIpcItems();
+  }, [printIpc]);
 
   const [expenseForm, setExpenseForm] = useState({
     project_id: '', category: 'material', description: '', expense_date: '', amount: '', supplier: '', invoice_number: ''
@@ -296,7 +363,14 @@ export default function FinancePage() {
     try {
       const res = await fetch('/api/finance/cashflow');
       const data = await res.json();
-      setCashflow(data && Array.isArray(data.data) ? data.data : []);
+      const rawList = data && Array.isArray(data.data) ? data.data : [];
+      const mapped = rawList.map((row: any) => ({
+        month: row.month,
+        income: parseFloat(row.total_inflow) || 0,
+        expenses: parseFloat(row.total_outflow) || 0,
+        net: parseFloat(row.net_cashflow) || 0
+      }));
+      setCashflow(mapped);
     } finally { setLoading(false); }
   }, []);
 
@@ -397,7 +471,10 @@ export default function FinancePage() {
     if (activeTab === 'expenses') fetchExpenses();
     if (activeTab === 'cashflow') fetchCashflow();
     if (activeTab === 'debts') fetchDebts();
-    if (activeTab === 'reports') fetchFinancialReport();
+    if (activeTab === 'reports') {
+      fetchFinancialReport();
+      fetchEmployees();
+    }
     if (activeTab === 'petty_cash') {
       fetchPettyCashData();
       fetchEmployees();
@@ -423,14 +500,18 @@ export default function FinancePage() {
           items_total: Number(ipcForm.items_total) || 0,
           vat_percentage: Number(ipcForm.vat_percentage) || 0,
           retention_percentage: Number(ipcForm.retention_percentage) || 0,
+          advance_deduction_percentage: Number(ipcForm.advance_deduction_percentage) || 0,
+          wht_percentage: Number(ipcForm.wht_percentage) || 0,
           previous_payments: Number(ipcForm.previous_payments) || 0,
           notes: ipcForm.notes || '',
-          status: editingIpc ? editingIpc.status : 'draft'
+          status: editingIpc ? editingIpc.status : 'draft',
+          items: ipcItems
         })
       });
       if (res.ok) {
         setShowIpcModal(false);
         setEditingIpc(null);
+        setIpcItems([]);
         setIpcForm({
           project_id: '', ipc_number: '', period_from: '', period_to: '',
           items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
@@ -443,6 +524,73 @@ export default function FinancePage() {
     } catch (err) {
       console.error(err);
       alert('حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleOpenEditIpc = async (ipc: IPC) => {
+    setEditingIpc(ipc);
+    setIpcForm({
+      project_id: ipc.project_id || '',
+      ipc_number: ipc.ipc_number,
+      period_from: ipc.period_from ? new Date(ipc.period_from).toISOString().split('T')[0] : '',
+      period_to: ipc.period_to ? new Date(ipc.period_to).toISOString().split('T')[0] : '',
+      items_total: ipc.items_total,
+      vat_percentage: ipc.vat_percentage || '14',
+      retention_percentage: ipc.retention_percentage || '10',
+      advance_deduction_percentage: ipc.advance_deduction_percentage || '0',
+      wht_percentage: ipc.wht_percentage || '1',
+      notes: ipc.notes || '',
+      previous_payments: ipc.previous_payments || ''
+    });
+    
+    // Fetch items
+    try {
+      const res = await fetch(`/api/finance/ipc?id=${ipc.id}`);
+      if (res.ok) {
+        const result = await res.json();
+        setIpcItems(result.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch IPC items:', err);
+    }
+    
+    setShowIpcModal(true);
+  };
+
+  const handleLoadProjectBoq = async () => {
+    if (!ipcForm.project_id) {
+      alert('⚠️ يرجى اختيار المشروع أولاً.');
+      return;
+    }
+    try {
+      const resEst = await fetch('/api/estimation');
+      const ests = await resEst.json();
+      const prjEst = ests.find((e: any) => e.project_id === ipcForm.project_id);
+      if (!prjEst) {
+        alert('⚠️ لم يتم العثور على مقايسة (BOQ) معتمدة لهذا المشروع. يمكنك إضافة بنود يدوية.');
+        return;
+      }
+      
+      const resDetail = await fetch(`/api/estimation/${prjEst.id}`);
+      const detail = await resDetail.json();
+      if (detail.items && Array.isArray(detail.items)) {
+        // Load these items into the ipcItems state
+        const loadedItems = detail.items.map((boq: any) => ({
+          boq_item_id: boq.id,
+          description: boq.description,
+          unit: boq.unit || 'قطعة',
+          contract_quantity: boq.quantity || 0,
+          previous_quantity: 0,
+          current_quantity: 0,
+          unit_rate: Number(boq.material_unit_cost || 0) + Number(boq.labor_unit_cost || 0)
+        }));
+        setIpcItems(loadedItems);
+        alert(`✅ تم سحب ${loadedItems.length} بند من مقايسة المشروع بنجاح!`);
+      } else {
+        alert('⚠️ لا توجد بنود في المقايسة المحددة.');
+      }
+    } catch (err: any) {
+      alert(`❌ فشل سحب البنود: ${err.message}`);
     }
   };
 
@@ -460,6 +608,130 @@ export default function FinancePage() {
     } catch (err) {
       console.error(err);
       alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleGenerateReport = async (type: string) => {
+    setActiveReportType(type);
+    setLoading(true);
+    try {
+      let data: any = {};
+      
+      if (type === 'project_detail' || type === 'project_expenses') {
+        const projectId = selectedReportProjectId;
+        if (!projectId) { alert('⚠️ يرجى اختيار المشروع أولاً.'); setLoading(false); return; }
+        
+        // Fetch projects list to find the current project metadata
+        const projRes = await fetch(`/api/projects`);
+        const projs = await projRes.json();
+        const project = (Array.isArray(projs) ? projs : projs.data || []).find((p: any) => p.id === projectId);
+        
+        // Fetch expenses of the project
+        const expRes = await fetch(`/api/finance/expenses?project_id=${projectId}`);
+        const expData = await expRes.json();
+        
+        // Fetch IPCs of the project
+        const ipcRes = await fetch(`/api/finance/ipc?project_id=${projectId}`);
+        const ipcData = await ipcRes.json();
+
+        data = {
+          project,
+          expenses: expData.data || [],
+          ipcs: ipcData.data || []
+        };
+      } 
+      else if (type === 'projects_summary') {
+        const projRes = await fetch(`/api/projects`);
+        const projs = await projRes.json();
+        data = {
+          projects: Array.isArray(projs) ? projs : projs.data || []
+        };
+      }
+      else if (type === 'all_workers' || type === 'supervisors') {
+        const empRes = await fetch(`/api/employees`);
+        const emps = await empRes.json();
+        const empList = Array.isArray(emps) ? emps : emps.data || [];
+        data = {
+          employees: type === 'all_workers' 
+            ? empList.filter((e: any) => e.employment_type === 'daily' || e.job_title?.includes('عامل') || e.job_title?.includes('فني') || e.job_title?.includes('سائق'))
+            : empList.filter((e: any) => e.employment_type !== 'daily' && !e.job_title?.includes('عامل') && !e.job_title?.includes('فني') && !e.job_title?.includes('سائق'))
+        };
+      }
+      else if (type === 'worker_ledger' || type === 'worker_attendance') {
+        const empId = selectedReportEmployeeId;
+        if (!empId) { alert('⚠️ يرجى اختيار العامل أولاً.'); setLoading(false); return; }
+        
+        const empRes = await fetch(`/api/employees`);
+        const emps = await empRes.json();
+        const employee = (Array.isArray(emps) ? emps : emps.data || []).find((e: any) => e.id === empId);
+
+        const params = new URLSearchParams();
+        params.set('employee_id', empId);
+        if (reportStartDate) params.set('date_from', reportStartDate);
+        if (reportEndDate) params.set('date_to', reportEndDate);
+
+        const attRes = await fetch(`/api/hr/attendance?${params}`);
+        const attData = await attRes.json();
+
+        const loanRes = await fetch(`/api/hr/loans`);
+        const loanData = await loanRes.json();
+        const employeeLoans = (loanData.data || loanData || []).filter((l: any) => l.employee_id === empId);
+
+        data = {
+          employee,
+          attendance: attData.data || [],
+          loans: employeeLoans
+        };
+      }
+      else if (type === 'payroll_report') {
+        const payRes = await fetch('/api/hr/payroll');
+        const payData = await payRes.json();
+        const payrollList = Array.isArray(payData) ? payData : payData.data || [];
+        data = {
+          payroll: payrollList.filter((p: any) => Number(p.month) === Number(reportMonthFilter) && Number(p.year) === Number(reportYearFilter))
+        };
+      }
+      else if (type === 'all_equipments' || type === 'equipment_expenses') {
+        const assetRes = await fetch('/api/hr/assets');
+        const assets = await assetRes.json();
+        const assetList = Array.isArray(assets) ? assets : assets.data || [];
+        
+        const expRes = await fetch('/api/finance/expenses');
+        const expData = await expRes.json();
+        const equipmentExpenses = (expData.data || []).filter((e: any) => e.category === 'equipment');
+
+        data = {
+          assets: assetList.filter((a: any) => a.asset_type === 'vehicle' || a.asset_type === 'tool' || a.job_title?.includes('معدة')),
+          expenses: equipmentExpenses
+        };
+      }
+      else if (type === 'daily_log' || type === 'monthly_log' || type === 'range_log') {
+        const expRes = await fetch('/api/finance/expenses');
+        const expData = await expRes.json();
+        
+        const ipcRes = await fetch('/api/finance/ipc');
+        const ipcData = await ipcRes.json();
+
+        data = {
+          expenses: expData.data || [],
+          ipcs: ipcData.data || []
+        };
+      }
+      else if (type === 'revenues' || type === 'profits' || type === 'cashbox') {
+        const res = await fetch('/api/finance/reports');
+        const rData = await res.json();
+        data = {
+          report: rData
+        };
+      }
+
+      setPrintReportData(data);
+      setShowPrintModal(true);
+    } catch (err) {
+      console.error(err);
+      alert('❌ فشل توليد التقرير.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -497,6 +769,36 @@ export default function FinancePage() {
   };
 
   const handleExportSingleIpcExcel = (ipc: IPC) => {
+    if (printIpcItems.length > 0) {
+      const exportData = printIpcItems.map(item => ({
+        description: item.description,
+        unit: item.unit || 'قطعة',
+        contract_quantity: Number(item.contract_quantity) || 0,
+        previous_quantity: Number(item.previous_quantity) || 0,
+        current_quantity: Number(item.current_quantity) || 0,
+        total_quantity: (Number(item.previous_quantity) || 0) + (Number(item.current_quantity) || 0),
+        unit_rate: Number(item.unit_rate) || 0,
+        current_amount: Number(item.current_quantity || 0) * Number(item.unit_rate || 0)
+      }));
+
+      exportJsonToExcel({
+        filename: `تفاصيل_بنود_مستخلص_${ipc.ipc_number}_${new Date().toISOString().slice(0,10)}`,
+        sheetName: 'تفاصيل بنود المستخلص',
+        data: exportData,
+        headers: {
+          description: 'البند / الوصف',
+          unit: 'الوحدة',
+          contract_quantity: 'كمية المقايسة',
+          previous_quantity: 'الكمية السابقة',
+          current_quantity: 'الكمية الحالية',
+          total_quantity: 'إجمالي الكمية المنفذة',
+          unit_rate: 'سعر الفئة',
+          current_amount: 'القيمة الحالية للأعمال'
+        }
+      });
+      return;
+    }
+
     const singleData = [{
       ipc_number: ipc.ipc_number,
       project_name: ipc.project_name || '-',
@@ -794,23 +1096,7 @@ export default function FinancePage() {
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button
                               className="btn btn-ghost text-primary btn-sm"
-                              onClick={() => {
-                                setEditingIpc(ipc);
-                                setIpcForm({
-                                  project_id: ipc.project_id || '',
-                                  ipc_number: ipc.ipc_number,
-                                  period_from: ipc.period_from ? new Date(ipc.period_from).toISOString().split('T')[0] : '',
-                                  period_to: ipc.period_to ? new Date(ipc.period_to).toISOString().split('T')[0] : '',
-                                  items_total: ipc.items_total,
-                                  vat_percentage: ipc.vat_percentage || '14',
-                                  retention_percentage: ipc.retention_percentage || '10',
-                                  advance_deduction_percentage: ipc.advance_deduction_percentage || '0',
-                                  wht_percentage: ipc.wht_percentage || '1',
-                                  notes: ipc.notes || '',
-                                  previous_payments: ipc.previous_payments || ''
-                                });
-                                setShowIpcModal(true);
-                              }}
+                              onClick={() => handleOpenEditIpc(ipc)}
                               title="تعديل"
                             >
                               ✏️
@@ -1303,6 +1589,186 @@ export default function FinancePage() {
                 </div>
               </div>
 
+              {/* Grid of 6 Detailed Report Console Cards */}
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2.5rem', marginBottom: '1.25rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>🖨️ طباعة وتقارير الأقسام التفصيلية</h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                
+                {/* 1. Projects Reports Card */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', border: '1px solid var(--border-subtle)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0.75rem 1.25rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', background: '#c49a3f' }}>📁 تقارير المشاريع</div>
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير مشروع محدد:</span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <select className="form-control" value={selectedReportProjectId} onChange={e => setSelectedReportProjectId(e.target.value)}>
+                          <option value="">اختر المشروع...</option>
+                          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleGenerateReport('project_detail')} style={{ background: '#c49a3f', borderColor: '#c49a3f', whiteSpace: 'nowrap' }}>🖨️ طباعة</button>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير ملخص جميع المشاريع:</span>
+                      <button className="btn btn-outline" onClick={() => handleGenerateReport('projects_summary')} style={{ whiteSpace: 'nowrap' }}>🖨️ طباعة تقرير الجميع</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير مصروفات مشروع محدد:</span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <select className="form-control" value={selectedReportProjectId} onChange={e => setSelectedReportProjectId(e.target.value)}>
+                          <option value="">اختر المشروع...</option>
+                          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleGenerateReport('project_expenses')} style={{ background: '#c49a3f', borderColor: '#c49a3f', whiteSpace: 'nowrap' }}>🖨️ طباعة</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Workers Reports Card */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', border: '1px solid var(--border-subtle)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0.75rem 1.25rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', background: '#198754' }}>👷‍♂️ تقارير العمال</div>
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير جميع العمال واليوميات:</span>
+                      <button className="btn btn-outline" onClick={() => handleGenerateReport('all_workers')} style={{ whiteSpace: 'nowrap' }}>🖨️ طباعة الجميع</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>كشف حساب عامل (يوميات + سلف + خصومات):</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <input type="date" className="form-control" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} placeholder="من تاريخ" />
+                        <input type="date" className="form-control" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} placeholder="إلى تاريخ" />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <select className="form-control" value={selectedReportEmployeeId} onChange={e => setSelectedReportEmployeeId(e.target.value)}>
+                          <option value="">اختر العامل...</option>
+                          {employees.filter(e => e.employment_type === 'daily' || e.job_title?.includes('عامل') || e.job_title?.includes('فني') || e.job_title?.includes('سائق')).map(emp => (
+                            <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.job_title})</option>
+                          ))}
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleGenerateReport('worker_ledger')} style={{ background: '#198754', borderColor: '#198754', whiteSpace: 'nowrap' }}>🖨️ كشف حساب</button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير يوميات حضور العامل:</span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <select className="form-control" value={selectedReportEmployeeId} onChange={e => setSelectedReportEmployeeId(e.target.value)}>
+                          <option value="">اختر العامل...</option>
+                          {employees.filter(e => e.employment_type === 'daily' || e.job_title?.includes('عامل') || e.job_title?.includes('فني')).map(emp => (
+                            <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                          ))}
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleGenerateReport('worker_attendance')} style={{ background: '#198754', borderColor: '#198754', whiteSpace: 'nowrap' }}>🖨️ طباعة اليوميات</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Supervisors Reports Card */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', border: '1px solid var(--border-subtle)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0.75rem 1.25rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', background: '#6f42c1' }}>👔 تقارير المشرفين والإدارة</div>
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير المشرفين والرواتب الإدارية:</span>
+                      <button className="btn btn-outline" onClick={() => handleGenerateReport('supervisors')} style={{ whiteSpace: 'nowrap' }}>🖨️ طباعة المشرفين</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير كشف الرواتب والمسير:</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <select className="form-control" value={reportMonthFilter} onChange={e => setReportMonthFilter(Number(e.target.value))}>
+                          {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1} - شهر</option>)}
+                        </select>
+                        <select className="form-control" value={reportYearFilter} onChange={e => setReportYearFilter(Number(e.target.value))}>
+                          <option value="2026">2026</option>
+                          <option value="2025">2025</option>
+                        </select>
+                      </div>
+                      <button className="btn btn-primary" onClick={() => handleGenerateReport('payroll_report')} style={{ background: '#6f42c1', borderColor: '#6f42c1', width: '100%' }}>🖨️ طباعة مسير رواتب الشهر المختار</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Equipment Reports Card */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', border: '1px solid var(--border-subtle)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0.75rem 1.25rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', background: '#fd7e14' }}>🚚 تقارير المعدات والآليات</div>
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير قائمة المعدات والآليات:</span>
+                      <button className="btn btn-outline" onClick={() => handleGenerateReport('all_equipments')} style={{ whiteSpace: 'nowrap' }}>🖨️ طباعة المعدات</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير مصروفات تشغيل المعدات:</span>
+                      <button className="btn btn-primary" onClick={() => handleGenerateReport('equipment_expenses')} style={{ background: '#fd7e14', borderColor: '#fd7e14', width: '100%' }}>🖨️ طباعة مصروفات وتشغيل المعدات</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Logs & Movements Reports Card */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', border: '1px solid var(--border-subtle)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0.75rem 1.25rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', background: '#212529' }}>📅 تقارير الحركة والقيود المالية</div>
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير حركة يومية للتاريخ:</span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input type="date" className="form-control" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} />
+                        <button className="btn btn-primary" onClick={() => handleGenerateReport('daily_log')} style={{ background: '#212529', borderColor: '#212529', whiteSpace: 'nowrap' }}>🖨️ طباعة اليومي</button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير حركة شهرية للمركز المالي:</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <select className="form-control" value={reportMonthFilter} onChange={e => setReportMonthFilter(Number(e.target.value))}>
+                          {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1} - شهر</option>)}
+                        </select>
+                        <select className="form-control" value={reportYearFilter} onChange={e => setReportYearFilter(Number(e.target.value))}>
+                          <option value="2026">2026</option>
+                          <option value="2025">2025</option>
+                        </select>
+                      </div>
+                      <button className="btn btn-primary" onClick={() => handleGenerateReport('monthly_log')} style={{ background: '#212529', borderColor: '#212529', width: '100%' }}>🖨️ طباعة حركة الشهر</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير حركة بين تاريخين:</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <input type="date" className="form-control" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} placeholder="من تاريخ" />
+                        <input type="date" className="form-control" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} placeholder="إلى تاريخ" />
+                      </div>
+                      <button className="btn btn-primary" onClick={() => handleGenerateReport('range_log')} style={{ background: '#212529', borderColor: '#212529', width: '100%' }}>🖨️ طباعة المدى</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Financial Reports Card */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', border: '1px solid var(--border-subtle)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0.75rem 1.25rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', background: '#0dcaf0' }}>📊 التقارير المالية والحسابات</div>
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير الإيرادات ومستخلصات المقاصة:</span>
+                      <button className="btn btn-outline" onClick={() => handleGenerateReport('revenues')} style={{ whiteSpace: 'nowrap' }}>🖨️ طباعة الإيرادات</button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير الأرباح والخسائر:</span>
+                      <button className="btn btn-outline" onClick={() => handleGenerateReport('profits')} style={{ whiteSpace: 'nowrap' }}>🖨️ طباعة الأرباح</button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير كشف الخزينة والصندوق الكامل:</span>
+                      <button className="btn btn-primary" onClick={() => handleGenerateReport('cashbox')} style={{ background: '#0dcaf0', borderColor: '#0dcaf0', whiteSpace: 'nowrap' }}>🖨️ طباعة الخزينة</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
               {/* Printable Financial Statement Container for window.print() */}
               <div className="print-container">
                 <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -1626,6 +2092,7 @@ export default function FinancePage() {
         <div className="modal-overlay" onClick={() => {
           setShowIpcModal(false);
           setEditingIpc(null);
+          setIpcItems([]);
           setIpcForm({
             project_id: '', ipc_number: '', period_from: '', period_to: '',
             items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
@@ -1637,6 +2104,7 @@ export default function FinancePage() {
               <button className="btn btn-ghost btn-icon" onClick={() => {
                 setShowIpcModal(false);
                 setEditingIpc(null);
+                setIpcItems([]);
                 setIpcForm({
                   project_id: '', ipc_number: '', period_from: '', period_to: '',
                   items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
@@ -1670,11 +2138,19 @@ export default function FinancePage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">نسبة ضريبة القيمة المضافة %</label>
-                  <input className="form-control" type="number" value={ipcForm.vat_percentage} onChange={e => setIpcForm({...ipcForm, vat_percentage: e.target.value})} placeholder="15" />
+                  <input className="form-control" type="number" value={ipcForm.vat_percentage} onChange={e => setIpcForm({...ipcForm, vat_percentage: e.target.value})} placeholder="14" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">نسبة استقطاع الضمان %</label>
                   <input className="form-control" type="number" value={ipcForm.retention_percentage} onChange={e => setIpcForm({...ipcForm, retention_percentage: e.target.value})} placeholder="10" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">خصم الدفعة المقدمة %</label>
+                  <input className="form-control" type="number" value={ipcForm.advance_deduction_percentage} onChange={e => setIpcForm({...ipcForm, advance_deduction_percentage: e.target.value})} placeholder="0" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">خصم ضريبة أرباح تجارية وصناعية (WHT) %</label>
+                  <input className="form-control" type="number" value={ipcForm.wht_percentage} onChange={e => setIpcForm({...ipcForm, wht_percentage: e.target.value})} placeholder="1" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">الدفعات السابقة ({currencySymbol})</label>
@@ -1694,14 +2170,136 @@ export default function FinancePage() {
                   <label className="form-label">ملاحظات</label>
                   <textarea className="form-control" value={ipcForm.notes} onChange={e => setIpcForm({...ipcForm, notes: e.target.value})} placeholder="ملاحظات المستخلص..." rows={2} />
                 </div>
+
+                {/* Items detail section */}
+                <div style={{ gridColumn: 'span 3', borderTop: '1px solid var(--border-normal)', paddingTop: '1.25rem', marginTop: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <h4 style={{ margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>📋 تفاصيل بنود الأعمال والكميات المعتمدة</h4>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="button" className="btn btn-outline btn-sm" onClick={handleLoadProjectBoq}>
+                        📥 سحب البنود من مقايسة المشروع (BOQ)
+                      </button>
+                      <button type="button" className="btn btn-outline btn-sm text-primary" onClick={() => {
+                        setIpcItems([...ipcItems, {
+                          description: '',
+                          unit: 'قطعة',
+                          contract_quantity: 0,
+                          previous_quantity: 0,
+                          current_quantity: 0,
+                          unit_rate: 0
+                        }]);
+                      }}>
+                        ➕ إضافة بند أعمال يدوي
+                      </button>
+                    </div>
+                  </div>
+
+                  {ipcItems.length === 0 ? (
+                    <div className="empty-state" style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.01)', border: '1px dashed var(--border-normal)' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>لا توجد بنود أعمال مضافة للمستخلص حتى الآن. يمكنك سحب البنود من مقايسة المشروع بالزر أعلاه أو إضافتها يدوياً.</div>
+                    </div>
+                  ) : (
+                    <div className="table-wrapper" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                      <table className="data-table" style={{ width: '100%' }}>
+                        <thead>
+                          <tr>
+                            <th>البند / الوصف</th>
+                            <th style={{ width: '80px' }}>الوحدة</th>
+                            <th style={{ width: '100px' }}>كمية المقايسة</th>
+                            <th style={{ width: '100px' }}>الكمية السابقة</th>
+                            <th style={{ width: '100px' }}>الكمية الحالية</th>
+                            <th style={{ width: '100px' }}>سعر الفئة</th>
+                            <th style={{ width: '110px' }}>الإجمالي الحالي</th>
+                            <th style={{ width: '40px' }}>حذف</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ipcItems.map((item, idx) => {
+                            const lineTotal = Number(item.current_quantity || 0) * Number(item.unit_rate || 0);
+                            return (
+                              <tr key={idx}>
+                                <td>
+                                  <input className="form-control form-control-sm" style={{ width: '100%' }} value={item.description} onChange={e => {
+                                    const next = [...ipcItems];
+                                    next[idx].description = e.target.value;
+                                    setIpcItems(next);
+                                  }} required placeholder="اسم البند..." />
+                                </td>
+                                <td>
+                                  <input className="form-control form-control-sm" style={{ width: '100%' }} value={item.unit} onChange={e => {
+                                    const next = [...ipcItems];
+                                    next[idx].unit = e.target.value;
+                                    setIpcItems(next);
+                                  }} required placeholder="متر/قطعة" />
+                                </td>
+                                <td>
+                                  <input className="form-control form-control-sm" type="number" style={{ width: '100%' }} value={item.contract_quantity} onChange={e => {
+                                    const next = [...ipcItems];
+                                    next[idx].contract_quantity = e.target.value;
+                                    setIpcItems(next);
+                                  }} />
+                                </td>
+                                <td>
+                                  <input className="form-control form-control-sm" type="number" style={{ width: '100%' }} value={item.previous_quantity} onChange={e => {
+                                    const next = [...ipcItems];
+                                    next[idx].previous_quantity = e.target.value;
+                                    setIpcItems(next);
+                                  }} />
+                                </td>
+                                <td>
+                                  <input className="form-control form-control-sm" type="number" style={{ width: '100%' }} value={item.current_quantity} onChange={e => {
+                                    const next = [...ipcItems];
+                                    next[idx].current_quantity = e.target.value;
+                                    setIpcItems(next);
+                                  }} required />
+                                </td>
+                                <td>
+                                  <input className="form-control form-control-sm" type="number" style={{ width: '100%' }} value={item.unit_rate} onChange={e => {
+                                    const next = [...ipcItems];
+                                    next[idx].unit_rate = e.target.value;
+                                    setIpcItems(next);
+                                  }} required />
+                                </td>
+                                <td style={{ fontWeight: 600 }}>{formatCurrency(lineTotal)}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <button type="button" className="btn btn-ghost text-danger btn-sm" style={{ padding: '0.25rem' }} onClick={() => {
+                                    setIpcItems(ipcItems.filter((_, i) => i !== idx));
+                                  }}>✕</button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
                 {ipcForm.items_total && (
                   <div className="alert alert-info" style={{ marginTop: '0.75rem', gridColumn: 'span 3' }}>
-                    💡 <strong>الصافي التقديري المستحق:</strong> {formatCurrency(
-                      Number(ipcForm.items_total) + 
-                      (Number(ipcForm.items_total) * (Number(ipcForm.vat_percentage || 0) / 100)) - 
-                      (Number(ipcForm.items_total) * (Number(ipcForm.retention_percentage || 0) / 100)) - 
-                      Number(ipcForm.previous_payments || 0)
-                    )}
+                    {(() => {
+                      const itemsTotal = Number(ipcForm.items_total || 0);
+                      const prevPayments = Number(ipcForm.previous_payments || 0);
+                      const currentWork = itemsTotal > prevPayments ? (itemsTotal - prevPayments) : itemsTotal;
+                      const vat = currentWork * (Number(ipcForm.vat_percentage || 0) / 100);
+                      const retention = currentWork * (Number(ipcForm.retention_percentage || 0) / 100);
+                      const advance = currentWork * (Number(ipcForm.advance_deduction_percentage || 0) / 100);
+                      const wht = currentWork * (Number(ipcForm.wht_percentage || 0) / 100);
+                      const netPayable = currentWork - retention - advance - wht + vat;
+                      
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                          <div><strong>قيمة الأعمال الحالية:</strong> {formatCurrency(currentWork)}</div>
+                          <div><strong>استقطاع الضمان ({ipcForm.retention_percentage}%):</strong> {formatCurrency(retention)}</div>
+                          <div><strong>خصم الدفعة المقدمة ({ipcForm.advance_deduction_percentage}%):</strong> {formatCurrency(advance)}</div>
+                          <div><strong>ضريبة الخصم من المنبع WHT ({ipcForm.wht_percentage}%):</strong> {formatCurrency(wht)}</div>
+                          <div><strong>ضريبة القيمة المضافة ({ipcForm.vat_percentage}%):</strong> {formatCurrency(vat)}</div>
+                          <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', gridColumn: 'span 3', paddingTop: '0.4rem', marginTop: '0.4rem' }}>
+                            <strong style={{ fontSize: '1.05rem', color: 'var(--brand-primary)' }}>الصافي المستحق الصرف:</strong> <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{formatCurrency(netPayable)}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -1709,6 +2307,7 @@ export default function FinancePage() {
                 <button type="button" className="btn btn-outline" onClick={() => {
                   setShowIpcModal(false);
                   setEditingIpc(null);
+                  setIpcItems([]);
                   setIpcForm({
                     project_id: '', ipc_number: '', period_from: '', period_to: '',
                     items_total: '', vat_percentage: '14', retention_percentage: '10', advance_deduction_percentage: '0', wht_percentage: '1', notes: '', previous_payments: ''
@@ -1831,6 +2430,51 @@ export default function FinancePage() {
 
                 return (
                   <>
+                    {/* Detailed business items and quantities */}
+                    {printIpcItems.length > 0 && (
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 'bold', color: '#1e293b', borderBottom: '2px solid #1e3a8a', paddingBottom: '0.25rem', textAlign: 'right' }}>
+                          📋 جدول تفاصيل بنود الأعمال والكميات المعتمدة
+                        </h4>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'right' }}>البند / الوصف</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '60px', textAlign: 'center' }}>الوحدة</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '80px', textAlign: 'center' }}>كمية المقايسة</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '80px', textAlign: 'center' }}>الكمية السابقة</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '80px', textAlign: 'center' }}>الكمية الحالية</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '80px', textAlign: 'center' }}>إجمالي الكمية</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '90px', textAlign: 'center' }}>سعر الفئة ({currencySymbol})</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', width: '110px', textAlign: 'left' }}>القيمة الحالية ({currencySymbol})</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {printIpcItems.map((item, idx) => {
+                              const lineTotal = Number(item.current_quantity || 0) * Number(item.unit_rate || 0);
+                              const totalQty = Number(item.previous_quantity || 0) + Number(item.current_quantity || 0);
+                              return (
+                                <tr key={item.id || idx}>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'right' }}>{item.description}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center' }}>{item.unit}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center' }}>{Number(item.contract_quantity) || '-'}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center' }}>{Number(item.previous_quantity) || 0}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>{Number(item.current_quantity) || 0}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center' }}>{totalQty}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center' }}>{formatCurrency(item.unit_rate)}</td>
+                                  <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'left', fontWeight: 'bold' }}>{formatCurrency(lineTotal)}</td>
+                                </tr>
+                              );
+                            })}
+                            <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                              <td colSpan={7} style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'right' }}>إجمالي قيمة البنود المنجزة للمستخلص الحالي</td>
+                              <td style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'left' }}>{formatCurrency(totalWork)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.25rem' }}>
                       <thead>
                         <tr style={{ background: '#f1f5f9' }}>
@@ -2067,6 +2711,609 @@ export default function FinancePage() {
                 <div style={{ textAlign: 'center', width: '40%' }}>
                   <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>اعتماد المدير العام</div>
                   <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #9ca3af' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== NEW MULTI-REPORT PRINT MODAL ======================== */}
+      {showPrintModal && printReportData && (
+        <div className="modal-overlay print-modal-overlay" onClick={() => setShowPrintModal(false)}>
+          <div className="modal modal-xl print-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', background: 'var(--card-bg)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
+              <div className="modal-title">🖨️ معاينة طباعة التقرير التفصيلي</div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
+                <button className="btn btn-ghost" onClick={() => setShowPrintModal(false)}>إغلاق</button>
+              </div>
+            </div>
+
+            <div className="print-container" style={{ direction: 'rtl', padding: '2.5rem', background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+              <style dangerouslySetInnerHTML={{ __html: `
+                @page {
+                  size: A4 portrait;
+                  margin: 10mm;
+                }
+                @media print {
+                  html, body {
+                    background: #fff !important;
+                    color: #000 !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                  }
+                  body * {
+                    visibility: hidden !important;
+                  }
+                  .print-container, .print-container * {
+                    visibility: visible !important;
+                  }
+                  .print-container {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    box-shadow: none !important;
+                    background: #fff !important;
+                    color: #000 !important;
+                  }
+                  .print-modal-overlay {
+                    position: static !important;
+                    background: transparent !important;
+                    padding: 0 !important;
+                    backdrop-filter: none !important;
+                    display: block !important;
+                  }
+                  .print-modal-content {
+                    max-height: none !important;
+                    overflow: visible !important;
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    max-width: 100% !important;
+                  }
+                  .print-actions {
+                    display: none !important;
+                  }
+                }
+                .print-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-top: 1rem;
+                }
+                .print-table th, .print-table td {
+                  border: 1px solid #000;
+                  padding: 8px;
+                  text-align: right;
+                  font-size: 0.9rem;
+                }
+                .print-table th {
+                  background: #f3f4f6 !important;
+                  font-weight: bold;
+                }
+              ` }} />
+
+              {/* Company Letterhead */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#000', fontWeight: 700 }}>{companyInfo?.name_ar || 'مؤسسة الرايق للمقاولات الكهروميكانيكية'}</h2>
+                  <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '0.25rem' }}>
+                    سجل تجاري: {companyInfo?.cr_number || '١٠١٠١٢٣٤٥٦'} | الرقم الضريبي: {companyInfo?.vat_number || '٣٠٠٠١٢٣٤٥٦٠٠٠٠٣'}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>العنوان: {companyInfo?.address || 'القاهرة، مصر'} | الهاتف: {companyInfo?.phone || '+20-100-000-0000'}</div>
+                </div>
+                <img src="/logo.jpg" alt="Logo" style={{ width: '85px', height: '85px', objectFit: 'contain' }} />
+              </div>
+
+              {/* Title Block */}
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ textDecoration: 'underline', fontSize: '1.3rem', margin: 0 }}>
+                  {activeReportType === 'project_detail' && 'تقرير كشف حساب ومشروع تفصيلي'}
+                  {activeReportType === 'projects_summary' && 'تقرير ملخص وحالة جميع المشاريع'}
+                  {activeReportType === 'project_expenses' && 'تقرير مصروفات وتكاليف مشروع تفصيلي'}
+                  {activeReportType === 'all_workers' && 'كشف رواتب ويوميات العمالة'}
+                  {activeReportType === 'worker_ledger' && 'كشف حساب تسوية مستحقات عامل'}
+                  {activeReportType === 'worker_attendance' && 'سجل حضور وحركة يوميات عامل'}
+                  {activeReportType === 'supervisors' && 'كشف رواتب المشرفين والكادر الإداري'}
+                  {activeReportType === 'payroll_report' && `مسير رواتب الموظفين لشهر ${reportMonthFilter}/${reportYearFilter}`}
+                  {activeReportType === 'all_equipments' && 'تقرير حركة وجرد العهد والمعدات'}
+                  {activeReportType === 'equipment_expenses' && 'تقرير مصروفات وتشغيل المعدات'}
+                  {activeReportType === 'daily_log' && `تقرير الحركة والقيود اليومية`}
+                  {activeReportType === 'monthly_log' && `تقرير الحركة والقيود الشهرية`}
+                  {activeReportType === 'range_log' && `تقرير الحركة والقيود المالية للفترة المحددة`}
+                  {activeReportType === 'revenues' && 'تقرير إجمالي التحصيلات والإيرادات'}
+                  {activeReportType === 'profits' && 'تقرير الأرباح والخسائر والمؤشرات المالية'}
+                  {activeReportType === 'cashbox' && 'تقرير حركة الخزينة والصندوق بالكامل'}
+                </h3>
+                <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</div>
+              </div>
+
+              {/* Report Body rendering */}
+
+              {/* 1. Project Detail */}
+              {activeReportType === 'project_detail' && printReportData.project && (
+                <div>
+                  <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>بيانات المشروع:</h4>
+                  <table className="print-table" style={{ marginBottom: '1.5rem' }}>
+                    <tbody>
+                      <tr>
+                        <th>اسم المشروع</th>
+                        <td>{printReportData.project.name}</td>
+                        <th>العميل</th>
+                        <td>{printReportData.project.client_name || '-'}</td>
+                      </tr>
+                      <tr>
+                        <th>قيمة التعاقد</th>
+                        <td>{formatCurrency(printReportData.project.contract_value)}</td>
+                        <th>طريقة الدفع</th>
+                        <td>{printReportData.project.payment_type === 'once' ? 'دفعة واحدة' : 'على دفعات'}</td>
+                      </tr>
+                      <tr>
+                        <th>حالة المشروع</th>
+                        <td>{printReportData.project.status === 'active' ? 'نشط' : 'مكتمل'}</td>
+                        <th>الموقع</th>
+                        <td>{printReportData.project.location || '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>المؤشرات المالية للمشروع:</h4>
+                  {(() => {
+                    const totalExps = printReportData.expenses.reduce((acc: number, e: any) => acc + Number(e.amount || 0), 0);
+                    const totalReceived = printReportData.ipcs.reduce((acc: number, i: any) => acc + Number(i.net_payable || 0), 0);
+                    const contractVal = Number(printReportData.project.contract_value || 0);
+                    const netMargin = contractVal - totalExps;
+                    return (
+                      <table className="print-table" style={{ marginBottom: '1.5rem' }}>
+                        <thead>
+                          <tr>
+                            <th>إجمالي المصروفات الفعلي</th>
+                            <th>المبالغ المستلمة من العميل</th>
+                            <th>الأرباح المتوقعة (قيمة العقد - المنصرف)</th>
+                            <th>نسبة الربحية</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(totalExps)}</td>
+                            <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatCurrency(totalReceived)}</td>
+                            <td style={{ fontWeight: 'bold', color: netMargin >= 0 ? '#16a34a' : '#dc2626' }}>{formatCurrency(netMargin)}</td>
+                            <td style={{ fontWeight: 'bold' }}>{contractVal > 0 ? ((netMargin / contractVal) * 100).toFixed(1) + '%' : '0%'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+
+                  <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>تفاصيل المصروفات التراكمية للمشروع:</h4>
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th>التصنيف</th>
+                        <th>البيان / الوصف</th>
+                        <th>المورد / المستلم</th>
+                        <th>المبلغ ({currencySymbol})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.expenses.length === 0 ? (
+                        <tr><td colSpan={5} style={{ textAlign: 'center' }}>لا توجد مصروفات مسجلة</td></tr>
+                      ) : (
+                        printReportData.expenses.map((e: any, idx: number) => (
+                          <tr key={idx}>
+                            <td>{new Date(e.expense_date).toLocaleDateString('ar-EG')}</td>
+                            <td>{e.category}</td>
+                            <td>{e.description}</td>
+                            <td>{e.supplier || '-'}</td>
+                            <td style={{ fontWeight: 'bold' }}>{formatCurrency(e.amount)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 2. Projects Summary */}
+              {activeReportType === 'projects_summary' && (
+                <table className="print-table">
+                  <thead>
+                    <tr>
+                      <th>اسم المشروع</th>
+                      <th>العميل</th>
+                      <th>الموقع</th>
+                      <th>قيمة العقد</th>
+                      <th>طريقة الدفع</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printReportData.projects.map((p: any, idx: number) => (
+                      <tr key={idx}>
+                        <td style={{ fontWeight: 'bold' }}>{p.name}</td>
+                        <td>{p.client_name || '-'}</td>
+                        <td>{p.location || '-'}</td>
+                        <td style={{ fontWeight: 'bold' }}>{formatCurrency(p.contract_value)}</td>
+                        <td>{p.payment_type === 'once' ? 'دفعة واحدة' : 'على دفعات'}</td>
+                        <td>{p.status === 'active' ? 'نشط' : 'مكتمل'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {/* 3. Project Expenses */}
+              {activeReportType === 'project_expenses' && (
+                <div>
+                  <h4 style={{ marginBottom: '0.5rem' }}>بيان مصروفات المشروع: {printReportData.project?.name}</h4>
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th>التصنيف</th>
+                        <th>البيان</th>
+                        <th>المورد / الجهة</th>
+                        <th>المبلغ ({currencySymbol})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.expenses.length === 0 ? (
+                        <tr><td colSpan={5} style={{ textAlign: 'center' }}>لا توجد مصروفات</td></tr>
+                      ) : (
+                        printReportData.expenses.map((e: any, idx: number) => (
+                          <tr key={idx}>
+                            <td>{new Date(e.expense_date).toLocaleDateString('ar-EG')}</td>
+                            <td>{e.category}</td>
+                            <td>{e.description}</td>
+                            <td>{e.supplier || '-'}</td>
+                            <td style={{ fontWeight: 'bold' }}>{formatCurrency(e.amount)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 4. All Workers & 7. Supervisors */}
+              {(activeReportType === 'all_workers' || activeReportType === 'supervisors') && (
+                <table className="print-table">
+                  <thead>
+                    <tr>
+                      <th>الرقم الوظيفي</th>
+                      <th>اسم الموظف</th>
+                      <th>المسمى الوظيفي</th>
+                      <th>نوع التوظيف</th>
+                      <th>الراتب الأساسي/اليومية</th>
+                      <th>رقم الهاتف</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printReportData.employees.map((e: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{e.employee_number}</td>
+                        <td style={{ fontWeight: 'bold' }}>{e.full_name}</td>
+                        <td>{e.job_title}</td>
+                        <td>{e.employment_type === 'daily' ? 'يومية' : 'شهري'}</td>
+                        <td style={{ fontWeight: 'bold' }}>{formatCurrency(e.base_salary)}</td>
+                        <td>{e.phone || '-'}</td>
+                        <td>{e.status === 'active' ? 'نشط' : 'غير نشط'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {/* 5. Worker Ledger */}
+              {activeReportType === 'worker_ledger' && printReportData.employee && (
+                <div>
+                  <table className="print-table" style={{ marginBottom: '1.5rem' }}>
+                    <tbody>
+                      <tr>
+                        <th>اسم العامل</th>
+                        <td style={{ fontWeight: 'bold' }}>{printReportData.employee.full_name}</td>
+                        <th>المسمى الوظيفي</th>
+                        <td>{printReportData.employee.job_title}</td>
+                      </tr>
+                      <tr>
+                        <th>الرقم الوظيفي</th>
+                        <td>{printReportData.employee.employee_number}</td>
+                        <th>فترة الحساب</th>
+                        <td>من {reportStartDate || 'البداية'} إلى {reportEndDate || 'اليوم'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {(() => {
+                    const baseDaily = Number(printReportData.employee.base_salary || 0);
+                    const isDaily = printReportData.employee.employment_type === 'daily';
+                    const dailyRate = isDaily ? baseDaily : (baseDaily / 30);
+                    
+                    const presentDays = printReportData.attendance.filter((a: any) => a.attendance_type === 'present' || a.attendance_type === 'late').length;
+                    const halfDays = printReportData.attendance.filter((a: any) => a.attendance_type === 'half_day').length;
+                    
+                    const totalOtHours = printReportData.attendance.reduce((acc: number, a: any) => acc + Number(a.overtime_hours || 0), 0);
+                    const wagesEarned = (presentDays * dailyRate) + (halfDays * (dailyRate / 2));
+                    const otEarned = totalOtHours * 25; // 25 per hour
+                    const totalEarned = wagesEarned + otEarned;
+
+                    const totalLoans = printReportData.loans.reduce((acc: number, l: any) => acc + Number(l.amount || 0), 0);
+                    const paidLoans = printReportData.loans.reduce((acc: number, l: any) => acc + Number(l.paid_amount || 0), 0);
+                    const remainingLoans = totalLoans - paidLoans;
+
+                    const netDue = totalEarned - remainingLoans;
+
+                    return (
+                      <>
+                        <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>ملخص تسوية الحساب المالي:</h4>
+                        <table className="print-table" style={{ marginBottom: '1.5rem' }}>
+                          <thead>
+                            <tr>
+                              <th>أيام الحضور (يومية كاملة)</th>
+                              <th>أيام الحضور (نصف يومية)</th>
+                              <th>ساعات العمل الإضافي</th>
+                              <th>إجمالي الأجور المستحقة</th>
+                              <th>سُلف وقروض متبقية</th>
+                              <th>صافي المبلغ المستحق للصرف</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td>{presentDays} أيام</td>
+                              <td>{halfDays} أيام</td>
+                              <td>{totalOtHours} ساعات</td>
+                              <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatCurrency(totalEarned)}</td>
+                              <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(remainingLoans)}</td>
+                              <td style={{ fontWeight: 'bold', fontSize: '1.05rem', textDecoration: 'underline' }}>{formatCurrency(netDue)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>سجل تفاصيل الحضور خلال الفترة:</h4>
+                        <table className="print-table">
+                          <thead>
+                            <tr>
+                              <th>التاريخ</th>
+                              <th>المشروع / الموقع</th>
+                              <th>حالة الحضور</th>
+                              <th>ساعات إضافي</th>
+                              <th>أجر اليومية</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {printReportData.attendance.map((a: any, idx: number) => {
+                              let dayCost = 0;
+                              if (a.attendance_type === 'present' || a.attendance_type === 'late') {
+                                dayCost = dailyRate + (Number(a.overtime_hours || 0) * 25);
+                              } else if (a.attendance_type === 'half_day') {
+                                dayCost = (dailyRate / 2) + (Number(a.overtime_hours || 0) * 25);
+                              }
+                              return (
+                                <tr key={idx}>
+                                  <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG')}</td>
+                                  <td>{a.project_name || 'المكتب الرئيسي'}</td>
+                                  <td>
+                                    {a.attendance_type === 'present' ? 'حاضر' : a.attendance_type === 'half_day' ? 'نصف يومية' : a.attendance_type === 'late' ? 'متأخر' : 'غياب'}
+                                  </td>
+                                  <td>{a.overtime_hours || 0} س</td>
+                                  <td style={{ fontWeight: 'bold' }}>{formatCurrency(dayCost)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* 6. Worker Attendance */}
+              {activeReportType === 'worker_attendance' && printReportData.employee && (
+                <div>
+                  <h4 style={{ marginBottom: '0.5rem' }}>حضور الموظف: {printReportData.employee.full_name} ({printReportData.employee.job_title})</h4>
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th>المشروع / الموقع</th>
+                        <th>الحالة</th>
+                        <th>وقت الدخول</th>
+                        <th>وقت الخروج</th>
+                        <th>ساعات إضافي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.attendance.length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center' }}>لا توجد سجلات حضور مسجلة</td></tr>
+                      ) : (
+                        printReportData.attendance.map((a: any, idx: number) => (
+                          <tr key={idx}>
+                            <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG')}</td>
+                            <td>{a.project_name || 'المكتب الرئيسي'}</td>
+                            <td>{a.attendance_type === 'present' ? 'حاضر' : a.attendance_type === 'late' ? 'متأخر' : 'غياب'}</td>
+                            <td>{a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td>{a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td style={{ fontWeight: 'bold' }}>{a.overtime_hours || 0} ساعة</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 8. Payroll Report */}
+              {activeReportType === 'payroll_report' && (
+                <table className="print-table">
+                  <thead>
+                    <tr>
+                      <th>اسم الموظف</th>
+                      <th>الراتب الأساسي</th>
+                      <th>البدلات (سكن+نقل)</th>
+                      <th>أجر الإضافي</th>
+                      <th>الخصومات</th>
+                      <th>صافي الراتب المستحق</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printReportData.payroll.length === 0 ? (
+                      <tr><td colSpan={6} style={{ textAlign: 'center' }}>لا توجد بيانات مسيرة لهذا الشهر</td></tr>
+                    ) : (
+                      printReportData.payroll.map((p: any, idx: number) => (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 'bold' }}>{p.employee_name}</td>
+                          <td>{formatCurrency(p.base_salary)}</td>
+                          <td>{formatCurrency(Number(p.housing_allowance || 0) + Number(p.transport_allowance || 0))}</td>
+                          <td style={{ color: '#16a34a' }}>+{formatCurrency(p.overtime_amount)}</td>
+                          <td style={{ color: '#dc2626' }}>-{formatCurrency(p.deductions)}</td>
+                          <td style={{ fontWeight: 'bold' }}>{formatCurrency(p.net_salary)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
+
+              {/* 9. All Equipments & 10. Equipment Expenses */}
+              {(activeReportType === 'all_equipments' || activeReportType === 'equipment_expenses') && (
+                <div>
+                  <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>حالة العهد والمعدات الفنية:</h4>
+                  <table className="print-table" style={{ marginBottom: '1.5rem' }}>
+                    <thead>
+                      <tr>
+                        <th>كود العهدة</th>
+                        <th>اسم العهدة / المعدة</th>
+                        <th>الماركة</th>
+                        <th>المستلم الحالي</th>
+                        <th>الموقع الحالي</th>
+                        <th>الحالة الفنية</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.assets.map((a: any, idx: number) => (
+                        <tr key={idx}>
+                          <td>{a.asset_code}</td>
+                          <td style={{ fontWeight: 'bold' }}>{a.asset_name}</td>
+                          <td>{a.brand || '-'}</td>
+                          <td>{a.employee_name || 'بالمستودع'}</td>
+                          <td>{a.project_name || '-'}</td>
+                          <td>{a.condition}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <h4 style={{ margin: '0.5rem 0', fontWeight: 'bold' }}>سجل مصروفات وتشغيل المعدات:</h4>
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th>المعدة / التفاصيل</th>
+                        <th>الوصف / المستلم</th>
+                        <th>المبلغ ({currencySymbol})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.expenses.length === 0 ? (
+                        <tr><td colSpan={4} style={{ textAlign: 'center' }}>لا توجد مصروفات مسجلة للمعدات</td></tr>
+                      ) : (
+                        printReportData.expenses.map((e: any, idx: number) => (
+                          <tr key={idx}>
+                            <td>{new Date(e.expense_date).toLocaleDateString('ar-EG')}</td>
+                            <td style={{ fontWeight: 'bold' }}>{e.supplier || 'مصروف عام معدات'}</td>
+                            <td>{e.description}</td>
+                            <td style={{ fontWeight: 'bold', color: '#dc2626' }}>{formatCurrency(e.amount)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 11. Daily / Monthly / Range Logs */}
+              {(activeReportType === 'daily_log' || activeReportType === 'monthly_log' || activeReportType === 'range_log') && (
+                <div>
+                  <h4 style={{ marginBottom: '0.5rem' }}>بيان العمليات والقيود المالية المنجزة:</h4>
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th>النوع</th>
+                        <th>البيان / الوصف</th>
+                        <th>المبلغ ({currencySymbol})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.expenses.map((e: any, idx: number) => (
+                        <tr key={idx}>
+                          <td>{new Date(e.expense_date).toLocaleDateString('ar-EG')}</td>
+                          <td style={{ color: '#dc2626', fontWeight: 600 }}>مصروفات 🔴</td>
+                          <td>{e.description} ({e.category})</td>
+                          <td style={{ fontWeight: 'bold' }}>-{formatCurrency(e.amount)}</td>
+                        </tr>
+                      ))}
+                      {printReportData.ipcs.map((i: any, idx: number) => (
+                        <tr key={idx}>
+                          <td>{new Date(i.ipc_date || new Date()).toLocaleDateString('ar-EG')}</td>
+                          <td style={{ color: '#16a34a', fontWeight: 600 }}>إيراد / مستخلص عميل 🟢</td>
+                          <td>{i.notes || `مستخلص رقم ${i.ipc_number || ''}`}</td>
+                          <td style={{ fontWeight: 'bold', color: '#16a34a' }}>+{formatCurrency(i.net_payable)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 14. Revenues, 15. Profits, 16. Treasury */}
+              {(activeReportType === 'revenues' || activeReportType === 'profits' || activeReportType === 'cashbox') && printReportData.report && (
+                <div>
+                  <table className="print-table" style={{ marginBottom: '1.5rem' }}>
+                    <thead>
+                      <tr>
+                        <th>البند المالي</th>
+                        <th>الرصيد والقيمة بالـ ({currencySymbol})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>إجمالي المقبوضات والإيرادات</th>
+                        <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_revenues || 0)}</td>
+                      </tr>
+                      <tr>
+                        <th>إجمالي النفقات والمصروفات</th>
+                        <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_expenses || 0)}</td>
+                      </tr>
+                      <tr>
+                        <th>تمويلات مقاولي الباطن المسددة</th>
+                        <td style={{ color: '#f59e0b', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_subcontractor || 0)}</td>
+                      </tr>
+                      <tr style={{ background: '#f0fdf4', fontSize: '1.1rem' }}>
+                        <th>صافي أرباح ورصيد الصندوق المتاح</th>
+                        <td style={{ fontWeight: 'bold', color: '#16a34a' }}>{formatCurrency(printReportData.report.summary?.net_cash_flow || 0)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Signatures */}
+              <div style={{ marginTop: '3.5rem', display: 'flex', justifyContent: 'space-around', paddingTop: '1rem', borderTop: '1px solid #000' }}>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>توقيع المسؤول المالي</div>
+                  <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #000' }}></div>
+                </div>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>اعتماد وتوقيع المدير العام</div>
+                  <div style={{ marginTop: '2.5rem', borderTop: '1px dashed #000' }}></div>
                 </div>
               </div>
             </div>

@@ -235,7 +235,7 @@ export default function DashboardPage() {
         <>
           {/* KPI Stats */}
           <div className="stat-grid">
-            <div className="stat-card">
+            <div className="stat-card card-kpi-projects">
               <div className="stat-card-icon">🏗️</div>
               <div className="stat-value">{activeProjects?.count || 0}</div>
               <div className="stat-label">مشاريع نشطة</div>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/projects" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card accent">
+            <div className="stat-card card-kpi-contracts">
               <div className="stat-card-icon">💰</div>
               <div className="stat-value">{formatCurrency(totalContractValue)}</div>
               <div className="stat-label">إجمالي قيمة العقود ({currencySymbol})</div>
@@ -251,7 +251,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/contracts" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card success">
+            <div className="stat-card card-kpi-employees">
               <div className="stat-card-icon">👷</div>
               <div className="stat-value">{data?.stats?.employees?.active || 0}</div>
               <div className="stat-label">موظف نشط</div>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/employees" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card danger">
+            <div className="stat-card card-kpi-tickets">
               <div className="stat-card-icon">🔧</div>
               <div className="stat-value">{data?.stats?.faultTickets?.open_tickets || 0}</div>
               <div className="stat-label">بلاغات أعطال مفتوحة</div>
@@ -267,7 +267,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/tickets" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card purple">
+            <div className="stat-card card-kpi-documents">
               <div className="stat-card-icon">📄</div>
               <div className="stat-value">{data?.stats?.expiringDocs?.expiring || 0}</div>
               <div className="stat-label">وثائق تنتهي خلال 30 يوم</div>
@@ -275,7 +275,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/documents" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card accent">
+            <div className="stat-card card-kpi-overtime">
               <div className="stat-card-icon">⏰</div>
               <div className="stat-value">{data?.stats?.pendingOvertime?.pending || 0}</div>
               <div className="stat-label">طلبات عمل إضافي معلقة</div>
@@ -283,7 +283,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/overtime" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card success">
+            <div className="stat-card card-kpi-maintenance">
               <div className="stat-card-icon">🔐</div>
               <div className="stat-value">{data?.stats?.maintenance?.active || 0}</div>
               <div className="stat-label">عقود صيانة نشطة</div>
@@ -291,7 +291,7 @@ export default function DashboardPage() {
               <a href="/dashboard/details/maintenance" className="stat-card-link">عرض التفاصيل ←</a>
             </div>
 
-            <div className="stat-card">
+            <div className="stat-card card-kpi-expenses">
               <div className="stat-card-icon">📊</div>
               <div className="stat-value" suppressHydrationWarning>{formatCurrency(data?.stats?.monthlyExpenses?.total || 0)}</div>
               <div className="stat-label">مصروفات هذا الشهر ({currencySymbol})</div>

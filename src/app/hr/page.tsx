@@ -94,6 +94,18 @@ export default function HRPage() {
   const [showEmpModal, setShowEmpModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [attendanceForm, setAttendanceForm] = useState({
+    employee_id: '',
+    project_id: '',
+    attendance_date: new Date().toISOString().split('T')[0],
+    check_in_time: '08:00',
+    check_out_time: '17:00',
+    hours_worked: '8',
+    overtime_hours: '0',
+    attendance_type: 'present',
+    notes: ''
+  });
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ key: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -468,6 +480,70 @@ export default function HRPage() {
     } catch (err) { console.error(err); }
   };
 
+  const handleCreateAttendance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!attendanceForm.employee_id || !attendanceForm.project_id || !attendanceForm.attendance_date) {
+      alert('⚠️ يرجى تعبئة الحقول المطلوبة واختيار المشروع والموظف والتاريخ.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/hr/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: attendanceForm.employee_id,
+          project_id: attendanceForm.project_id,
+          attendance_date: attendanceForm.attendance_date,
+          check_in_time: attendanceForm.check_in_time || null,
+          check_out_time: attendanceForm.check_out_time || null,
+          hours_worked: Number(attendanceForm.hours_worked) || 8,
+          overtime_hours: Number(attendanceForm.overtime_hours) || 0,
+          attendance_type: attendanceForm.attendance_type,
+          notes: attendanceForm.notes
+        })
+      });
+      if (res.ok) {
+        setShowAttendanceModal(false);
+        setAttendanceForm({
+          employee_id: '',
+          project_id: '',
+          attendance_date: new Date().toISOString().split('T')[0],
+          check_in_time: '08:00',
+          check_out_time: '17:00',
+          hours_worked: '8',
+          overtime_hours: '0',
+          attendance_type: 'present',
+          notes: ''
+        });
+        fetchAttendance();
+        alert('✅ تم تسجيل حضور اليومية وترحيل تكلفة أجر العامل كمنصرف للمشروع بنجاح!');
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل التسجيل: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
+  const handleDeleteAttendance = async (id: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا السجل؟ سيتم إلغاء قيد تكلفة العمالة المباشرة المُرتبط بالمشروع تلقائياً.')) return;
+    try {
+      const res = await fetch(`/api/hr/attendance?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ تم حذف الحضور وإلغاء القيد المالي بنجاح!');
+        fetchAttendance();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل الحذف: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
   const handleGeneratePayroll = async () => {
     if (!confirm(`هل تريد توليد كشف رواتب شهر ${month}-${year}؟`)) return;
     try {
@@ -670,8 +746,11 @@ export default function HRPage() {
         <>
           <div className="page-header">
             <div className="page-header-left">
-              <div className="page-title">📍 حضور وانصراف المواقع الجغرافي (GPS)</div>
-              <div className="page-description">إثبات حضور الفنيين والعمال في نقاط العمل والمشاريع المحددة جغرافيًا</div>
+              <div className="page-title">📍 حضور وانصراف وحركة يوميات المشاريع</div>
+              <div className="page-description">تسجيل حضور الفنيين والعمال وتوزيع أجور اليوميات لتسميعها كمصروفات مباشرة على المشاريع</div>
+            </div>
+            <div className="page-header-actions">
+              <button className="btn btn-primary" onClick={() => setShowAttendanceModal(true)}>➕ تسجيل حضور/يومية يدوي</button>
             </div>
           </div>
 
@@ -700,6 +779,7 @@ export default function HRPage() {
                       <th>وقت الانصراف</th>
                       <th>الحالة</th>
                       <th>ساعات إضافي</th>
+                      <th style={{ textAlign: 'center', width: '100px' }}>العمليات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -720,6 +800,15 @@ export default function HRPage() {
                           </span>
                         </td>
                         <td style={{ color: 'var(--status-purple)', fontWeight: 600 }}>{a.overtime_hours || 0} س</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-ghost text-danger btn-sm"
+                            onClick={() => handleDeleteAttendance(a.id)}
+                            title="حذف اليومية وإلغاء القيد المالي للمشروع"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1262,6 +1351,199 @@ export default function HRPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setShowAssetModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">💾 حفظ العهدة</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: ADD ATTENDANCE / WAGES ======================== */}
+      {showAttendanceModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowAttendanceModal(false);
+          setAttendanceForm({
+            employee_id: '',
+            project_id: '',
+            attendance_date: new Date().toISOString().split('T')[0],
+            check_in_time: '08:00',
+            check_out_time: '17:00',
+            hours_worked: '8',
+            overtime_hours: '0',
+            attendance_type: 'present',
+            notes: ''
+          });
+        }}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">📍 تسجيل حضور ويومية عمالة وموقع جديد</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => {
+                setShowAttendanceModal(false);
+                setAttendanceForm({
+                  employee_id: '',
+                  project_id: '',
+                  attendance_date: new Date().toISOString().split('T')[0],
+                  check_in_time: '08:00',
+                  check_out_time: '17:00',
+                  hours_worked: '8',
+                  overtime_hours: '0',
+                  attendance_type: 'present',
+                  notes: ''
+                });
+              }}>✕</button>
+            </div>
+            <form onSubmit={handleCreateAttendance}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">الموظف / المشرف / العامل</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={attendanceForm.employee_id}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, employee_id: e.target.value })}
+                  >
+                    <option value="">اختر من الكادر...</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name} ({emp.job_title} - {typeLabels[emp.employment_type] || emp.employment_type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">على قوة مشروع / موقع</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={attendanceForm.project_id}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, project_id: e.target.value })}
+                  >
+                    <option value="">اختر المشروع/الموقع لتسجيل اليومية عليه...</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">تاريخ اليومية</label>
+                  <input
+                    className="form-control"
+                    type="date"
+                    required
+                    value={attendanceForm.attendance_date}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, attendance_date: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">حالة الحضور</label>
+                  <select
+                    className="form-control"
+                    value={attendanceForm.attendance_type}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, attendance_type: e.target.value })}
+                  >
+                    <option value="present">حاضر (يومية كاملة)</option>
+                    <option value="half_day">نصف يومية</option>
+                    <option value="late">حاضر مع تأخر</option>
+                    <option value="absent">غياب (بدون تكلفة)</option>
+                    <option value="leave">إجازة رسمية</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">ساعات العمل العادية</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    value={attendanceForm.hours_worked}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, hours_worked: e.target.value })}
+                    placeholder="8"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">ساعات العمل الإضافي (إن وجد)</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    value={attendanceForm.overtime_hours}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, overtime_hours: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">وقت الحضور الفعلي</label>
+                  <input
+                    className="form-control"
+                    type="time"
+                    value={attendanceForm.check_in_time}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, check_in_time: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">وقت الانصراف الفعلي</label>
+                  <input
+                    className="form-control"
+                    type="time"
+                    value={attendanceForm.check_out_time}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, check_out_time: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">ملاحظات اليومية</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={attendanceForm.notes}
+                    onChange={e => setAttendanceForm({ ...attendanceForm, notes: e.target.value })}
+                    placeholder="ملاحظات الأعمال أو المشرف بالموقع..."
+                  />
+                </div>
+              </div>
+              
+              {attendanceForm.employee_id && (
+                <div className="alert alert-info" style={{ marginTop: '1rem' }}>
+                  {(() => {
+                    const emp = employees.find(e => e.id === attendanceForm.employee_id);
+                    if (!emp) return null;
+                    const baseSalary = Number(emp.base_salary || 0);
+                    const dailyRate = emp.employment_type === 'daily' ? baseSalary : (baseSalary / 30);
+                    const otHours = Number(attendanceForm.overtime_hours || 0);
+                    const otRate = 25; // Overtime rate per hour
+                    
+                    let calculatedCost = 0;
+                    if (attendanceForm.attendance_type === 'present' || attendanceForm.attendance_type === 'late') {
+                      calculatedCost = dailyRate + (otHours * otRate);
+                    } else if (attendanceForm.attendance_type === 'half_day') {
+                      calculatedCost = (dailyRate / 2) + (otHours * otRate);
+                    }
+
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+                        <div><strong>اليومية المحتسبة:</strong> {formatCurrency(dailyRate)} {emp.employment_type !== 'daily' && '(راتب شهري مقسم على 30 يوم)'}</div>
+                        {otHours > 0 && <div><strong>الإضافي ({otHours} س × 25):</strong> {formatCurrency(otHours * otRate)}</div>}
+                        <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '0.4rem', marginTop: '0.4rem' }}>
+                          <strong style={{ color: 'var(--brand-primary)' }}>التكلفة المباشرة للعمالة المُرّحلة للمشروع: </strong>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{formatCurrency(calculatedCost)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => {
+                  setShowAttendanceModal(false);
+                  setAttendanceForm({
+                    employee_id: '',
+                    project_id: '',
+                    attendance_date: new Date().toISOString().split('T')[0],
+                    check_in_time: '08:00',
+                    check_out_time: '17:00',
+                    hours_worked: '8',
+                    overtime_hours: '0',
+                    attendance_type: 'present',
+                    notes: ''
+                  });
+                }}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 تسجيل الحضور وتكلفة المشروع</button>
               </div>
             </form>
           </div>

@@ -28,6 +28,7 @@ interface ProjectDetails {
     description: string;
     manager_name: string;
     engineer_name: string;
+    payment_type?: string;
   };
   phases: Array<{
     id: string;
@@ -41,6 +42,7 @@ interface ProjectDetails {
     planned_progress: string;
     actual_progress: string;
     weight_percentage?: string | number;
+    phase_value?: string | number;
   }>;
   progress: Array<{
     id: string;
@@ -96,6 +98,16 @@ interface ProjectDetails {
     base_salary: string;
     notes?: string;
   }>;
+  projectEmployees: Array<{
+    id: string;
+    employee_number: string;
+    full_name: string;
+    job_title: string;
+    employment_type: string;
+    base_salary: string;
+    phone?: string;
+    status: string;
+  }>;
 }
 
 type TabType = 'overview' | 'phases' | 'progress' | 'financials' | 'documents' | 'reports' | 'inspections';
@@ -115,7 +127,17 @@ const ipcStatusBadge: Record<string, string> = {
 };
 
 const phaseTypeLabels: Record<string, string> = {
-  networks: 'شبكات حريق', risers: 'صواعد وهوابط', fixtures: 'تركيبات نهائية', testing: 'اختبارات وضغط', commissioning: 'تشغيل وتسليم', other: 'أعمال أخرى'
+  piping_rough_in: 'أعمال التأسيس (مد مواسير الصلب/السيملس)',
+  fixtures_install: 'تركيب المكونات (الصناديق والرشاشات والحساسات والإنذار)',
+  pump_room: 'غرفة المضخات (مضخات ديزل وكهرباء وجوكي ولوحات)',
+  testing_commissioning: 'الاختبار والكبس (كبس الشبكة واختبار الحساسية والإنذار)',
+  inspections_permits: 'المعاينة والتراخيص (معاينة الدفاع المدني والاستشاري)',
+  networks: 'شبكات حريق',
+  risers: 'صواعد وهوابط',
+  fixtures: 'تركيبات نهائية',
+  testing: 'اختبارات وضغط',
+  commissioning: 'تشغيل وتسليم',
+  other: 'أعمال أخرى'
 };
 
 export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
@@ -141,6 +163,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [showPrintProgressModal, setShowPrintProgressModal] = useState(false);
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
+  const [showPrintPhasesCertificate, setShowPrintPhasesCertificate] = useState(false);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -163,7 +186,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     actual_end: '',
     planned_progress: '0',
     actual_progress: '0',
-    weight_percentage: '10'
+    weight_percentage: '10',
+    phase_value: '0'
   });
 
   const handleOpenCreatePhase = () => {
@@ -178,7 +202,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       actual_end: '',
       planned_progress: '0',
       actual_progress: '0',
-      weight_percentage: '10'
+      weight_percentage: '10',
+      phase_value: '0'
     });
     setShowPhaseModal(true);
   };
@@ -195,7 +220,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       actual_end: phase.actual_end ? phase.actual_end.split('T')[0] : '',
       planned_progress: String(phase.planned_progress ?? '0'),
       actual_progress: String(phase.actual_progress ?? '0'),
-      weight_percentage: String(phase.weight_percentage ?? '10')
+      weight_percentage: String(phase.weight_percentage ?? '10'),
+      phase_value: String(phase.phase_value ?? '0')
     });
     setShowPhaseModal(true);
   };
@@ -212,7 +238,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         project_id: id,
         planned_progress: Number(phaseForm.planned_progress) || 0,
         actual_progress: Number(phaseForm.actual_progress) || 0,
-        weight_percentage: Number(phaseForm.weight_percentage) || 0
+        weight_percentage: Number(phaseForm.weight_percentage) || 0,
+        phase_value: Number(phaseForm.phase_value) || 0
       };
 
       const res = await fetch(url, {
@@ -396,24 +423,31 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Summary Row */}
           <div className="stat-grid">
-            <div className="stat-card accent">
+            <div className="stat-card card-kpi-contracts">
               <div className="stat-card-icon">💰</div>
-              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(project.contract_value)}</div>
+              <div className="stat-value" style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', justifyContent: 'center' }}>
+                <span>{formatCurrency(project.contract_value)}</span>
+                {project.payment_type && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>
+                    ({project.payment_type === 'once' ? 'دفعة واحدة' : 'على دفعات'})
+                  </span>
+                )}
+              </div>
               <div className="stat-label">القيمة التعاقدية للمشروع</div>
             </div>
-            <div className="stat-card warning">
+            <div className="stat-card card-kpi-projects">
               <div className="stat-card-icon">📈</div>
-              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{actualProgress.toFixed(1)}%</div>
+              <div className="stat-value">{actualProgress.toFixed(1)}%</div>
               <div className="stat-label">نسبة الإنجاز الإجمالية (الفنية)</div>
             </div>
-            <div className="stat-card success">
+            <div className="stat-card card-kpi-employees">
               <div className="stat-card-icon">💼</div>
-              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(earnedValue)}</div>
+              <div className="stat-value">{formatCurrency(earnedValue)}</div>
               <div className="stat-label">قيمة الأعمال المنجزة (Earned Value)</div>
             </div>
-            <div className="stat-card danger">
+            <div className="stat-card card-kpi-tickets">
               <div className="stat-card-icon">📊</div>
-              <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</div>
+              <div className="stat-value">{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</div>
               <div className="stat-label">إجمالي التكاليف (مصاريف + مقاولين + عمال)</div>
             </div>
           </div>
@@ -424,26 +458,26 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               <div className="card-title">📝 بطاقة تعريف المشروع والموقع</div>
               <div className="card-subtitle">البيانات الأساسية وتفاصيل الاتصال الخاصة بالمشروع</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>اسم العميل</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{project.client_name}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '0.75rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-normal)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>👤 اسم العميل</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{project.client_name}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>وسيلة الاتصال بالعميل</span>
-                <span style={{ color: 'var(--text-secondary)' }}>{project.client_contact || '-'}</span>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-normal)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>📞 وسيلة الاتصال بالعميل</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{project.client_contact || '-'}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>الموقع الجغرافي</span>
-                <span style={{ color: 'var(--text-secondary)' }}>📍 {project.location || '-'}</span>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-normal)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>📍 الموقع الجغرافي</span>
+                <span style={{ fontWeight: 600, color: 'var(--brand-primary-light)', fontSize: '0.9rem' }}>{project.location || '-'}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>تاريخ البدء</span>
-                <span style={{ color: 'var(--text-secondary)' }}>{project.start_date ? new Date(project.start_date).toLocaleDateString('ar-EG') : '-'}</span>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-normal)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>📅 تاريخ البدء</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{project.start_date ? new Date(project.start_date).toLocaleDateString('ar-EG') : '-'}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>تاريخ التسليم المتوقع</span>
-                <span style={{ color: 'var(--text-secondary)' }}>{project.end_date ? new Date(project.end_date).toLocaleDateString('ar-EG') : '-'}</span>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-normal)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>🏁 تاريخ التسليم المتوقع</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{project.end_date ? new Date(project.end_date).toLocaleDateString('ar-EG') : '-'}</span>
               </div>
             </div>
             
@@ -454,6 +488,105 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </div>
             )}
           </div>
+
+          {/* Project Crew & Employees Section */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem', marginTop: '1rem' }}>
+            
+            {/* HR Assigned Employees */}
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card-header" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+                <div className="card-title">👨‍💼 فريق عمل المشروع (المسجلين بالموارد البشرية)</div>
+                <div className="card-subtitle">المهندسين، الفنيين والمشرفين المعينين على قوة هذا المشروع</div>
+              </div>
+              <div style={{ padding: '1rem' }}>
+                {!details?.projectEmployees || details.projectEmployees.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                     لا يوجد موظفون معينون بشكل دائم على قوة هذا المشروع في شؤون الموظفين حالياً.
+                  </div>
+                ) : (
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>الرقم الوظيفي</th>
+                          <th>الاسم</th>
+                          <th>الوظيفة</th>
+                          <th>نوع التوظيف</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.projectEmployees.map(emp => (
+                          <tr key={emp.id}>
+                            <td style={{ fontWeight: 700 }}>{emp.employee_number}</td>
+                            <td style={{ fontWeight: 600 }}>{emp.full_name}</td>
+                            <td>{emp.job_title}</td>
+                            <td>
+                              <span className={`badge ${emp.employment_type === 'daily' ? 'badge-warning' : 'badge-primary'}`}>
+                                {emp.employment_type === 'daily' ? 'يومية' : 'شهري'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Daily Labor Attendance Logs */}
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card-header" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+                <div className="card-title">👷‍♂️ عمالة اليوميات المسجلة بالموقع (من السركي)</div>
+                <div className="card-subtitle">سجل الحضور اليومي وأجور العمال المنعكسة في مصروفات المشروع</div>
+              </div>
+              <div style={{ padding: '1rem' }}>
+                {!details?.laborAttendance || details.laborAttendance.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                     لم يتم تسجيل أي حضور يومي أو سركي عمالة للموقع في هذا المشروع حتى الآن.
+                  </div>
+                ) : (
+                  <div className="table-wrapper" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>التاريخ</th>
+                          <th>العامل / الفني</th>
+                          <th>نوع الحضور</th>
+                          <th>أجر اليومية</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.laborAttendance.map((a, idx) => {
+                          const rate = Number(a.base_salary || 150);
+                          let cost = rate;
+                          if (a.attendance_type === 'half_day') cost = rate / 2;
+                          else if (a.attendance_type === 'absent') cost = 0;
+                          
+                          const ot = Number(a.overtime_hours || 0) * 25;
+                          const total = cost + ot;
+
+                          return (
+                            <tr key={a.id || idx}>
+                              <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG')}</td>
+                              <td style={{ fontWeight: 600 }}>{a.employee_name}</td>
+                              <td>
+                                <span className={`badge ${a.attendance_type === 'present' ? 'badge-success' : a.attendance_type === 'half_day' ? 'badge-warning' : 'badge-danger'}`}>
+                                  {a.attendance_type === 'present' ? 'يومية كاملة' : a.attendance_type === 'half_day' ? 'نصف يومية' : 'غياب'}
+                                </span>
+                              </td>
+                              <td style={{ fontWeight: 700 }}>{formatCurrency(total)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
         </div>
       )}
 
@@ -462,12 +595,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div className="card-title">📈 مراحل تنفيذ الأعمال وجدول التقدم الفني</div>
-              <div className="card-subtitle">تتبع نسب إنجاز أعمال الشبكات والتركيبات وتفاصيل تواريخ التنفيذ والوزن المالي لكل مرحلة</div>
+              <div className="card-title">📈 مراحل تنفيذ الأعمال وجدول التقدم الفني والمالي</div>
+              <div className="card-subtitle">تتبع نسب إنجاز أعمال الشبكات والتركيبات وتفاصيل تواريخ التنفيذ وسعر كل مرحلة للمستخلصات</div>
             </div>
-            <button className="btn btn-primary" onClick={handleOpenCreatePhase}>
-              ➕ إضافة مرحلة عمل جديدة
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-success" onClick={() => setShowPrintPhasesCertificate(true)}>
+                🖨️ طباعة مستخلص مراحل العمل
+              </button>
+              <button className="btn btn-primary" onClick={handleOpenCreatePhase}>
+                ➕ إضافة مرحلة عمل جديدة
+              </button>
+            </div>
           </div>
           {phases.length === 0 ? (
             <div className="empty-state">
@@ -483,9 +621,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     <th>المرحلة</th>
                     <th>نوع الأعمال</th>
                     <th>مخطط البدء/الانتهاء</th>
-                    <th>الوزن النسبي/المالي</th>
-                    <th>النسبة المخططة</th>
-                    <th>النسبة الفعلية الحالية</th>
+                    <th>سعر المرحلة (ج.م)</th>
+                    <th>النسبة الفعلية</th>
+                    <th>المستحق المنجز (ج.م)</th>
                     <th>الحالة والتقدم</th>
                     <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                   </tr>
@@ -493,6 +631,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <tbody>
                   {phases.map(phase => {
                     const actualProgressNum = Number(phase.actual_progress || 0);
+                    const phasePrice = Number(phase.phase_value || 0);
+                    const earnedAmount = (phasePrice * actualProgressNum) / 100;
                     return (
                       <tr key={phase.id}>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{phase.phase_name}</td>
@@ -506,11 +646,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <div>إلى: {phase.planned_end ? new Date(phase.planned_end).toLocaleDateString('ar-EG') : '-'}</div>
                         </td>
                         <td style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>
-                          {Number(phase.weight_percentage || 0).toFixed(0)}%
+                          {formatCurrency(phasePrice)}
                         </td>
-                        <td style={{ fontWeight: 'bold' }}>{Number(phase.planned_progress).toFixed(0)}%</td>
                         <td style={{ fontWeight: 'bold', color: 'var(--status-success)' }}>
                           {actualProgressNum.toFixed(0)}%
+                        </td>
+                        <td style={{ fontWeight: 800, color: 'var(--brand-primary-light)' }}>
+                          {formatCurrency(earnedAmount)}
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1138,22 +1280,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           <div className="stat-grid">
-            <div className="stat-card primary">
+            <div className="stat-card card-kpi-projects">
               <div className="stat-card-icon">📸</div>
               <div className="stat-value">{inspectionReports.filter(r => r.category === 'site_photos').length}</div>
               <div className="stat-label">صور ومعاينات الموقع</div>
             </div>
-            <div className="stat-card success">
+            <div className="stat-card card-kpi-employees">
               <div className="stat-card-icon">🧪</div>
               <div className="stat-value">{inspectionReports.filter(r => r.category === 'testing_commissioning').length}</div>
               <div className="stat-label">تقارير الاختبارات والتشغيل (Testing)</div>
             </div>
-            <div className="stat-card danger">
+            <div className="stat-card card-kpi-tickets">
               <div className="stat-card-icon">🚒</div>
               <div className="stat-value">{inspectionReports.filter(r => r.category === 'civil_defense_cert').length}</div>
               <div className="stat-label">شهادات واعتمادات الدفاع المدني</div>
             </div>
-            <div className="stat-card info">
+            <div className="stat-card card-kpi-documents">
               <div className="stat-card-icon">📑</div>
               <div className="stat-value">{inspectionReports.length}</div>
               <div className="stat-label">إجمالي الملفات المرفقة للمشروع</div>
@@ -1268,6 +1410,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     value={phaseForm.weight_percentage} 
                     onChange={e => setPhaseForm({...phaseForm, weight_percentage: e.target.value})} 
                     placeholder="10" 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">سعر/قيمة المرحلة المالي (ج.م)</label>
+                  <input 
+                    className="form-control" 
+                    type="number" 
+                    required 
+                    value={phaseForm.phase_value} 
+                    onChange={e => setPhaseForm({...phaseForm, phase_value: e.target.value})} 
+                    placeholder="0.00" 
                   />
                 </div>
                 <div className="form-group">
@@ -1665,6 +1818,84 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </tbody>
               </table>
 
+              {/* Project Crew & Assigned Employees (Print Section) */}
+              <h4 style={{ fontSize: '1.05rem', margin: '1.5rem 0 0.5rem 0', fontWeight: 'bold', textDecoration: 'underline' }}>👨‍💼 الكادر الإداري وفريق عمل المشروع:</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9', color: '#000' }}>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>الرقم الوظيفي</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>الاسم الكامل</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>المسمى الوظيفي</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>نوع التوظيف</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!details?.projectEmployees || details.projectEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', color: '#666' }}>
+                        لا يوجد موظفون معينون بشكل دائم على المشروع بالموارد البشرية.
+                      </td>
+                    </tr>
+                  ) : (
+                    details.projectEmployees.map(emp => (
+                      <tr key={emp.id}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{emp.employee_number}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 600 }}>{emp.full_name}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{emp.job_title}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
+                          {emp.employment_type === 'daily' ? 'يومية' : 'شهري'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {/* Labor Attendance Logs (Print Section) */}
+              <h4 style={{ fontSize: '1.05rem', margin: '1.5rem 0 0.5rem 0', fontWeight: 'bold', textDecoration: 'underline' }}>👷‍♂️ سجل حضور عمالة اليوميات وسركي الموقع:</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9', color: '#000' }}>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>التاريخ</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>العامل / الفني</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>المسمى الوظيفي</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>نوع الحضور</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right' }}>التكلفة المباشرة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!details?.laborAttendance || details.laborAttendance.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', color: '#666' }}>
+                        لا توجد سجلات أجور أو حضور عمالة يومية للموقع.
+                      </td>
+                    </tr>
+                  ) : (
+                    details.laborAttendance.map((a, idx) => {
+                      const rate = Number(a.base_salary || 150);
+                      let cost = rate;
+                      if (a.attendance_type === 'half_day') cost = rate / 2;
+                      else if (a.attendance_type === 'absent') cost = 0;
+                      
+                      const ot = Number(a.overtime_hours || 0) * 25;
+                      const total = cost + ot;
+
+                      return (
+                        <tr key={a.id || idx}>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{new Date(a.attendance_date).toLocaleDateString('ar-EG')}</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 600 }}>{a.employee_name}</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{a.job_title || 'عامل'}</td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
+                            {a.attendance_type === 'present' ? 'يومية كاملة' : a.attendance_type === 'half_day' ? 'نصف يومية' : 'غياب'}
+                          </td>
+                          <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: 700 }}>{formatCurrency(total)}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+
               {/* Signatures */}
               <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
                 <div style={{ textAlign: 'center', width: '40%' }}>
@@ -1767,6 +1998,172 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         </div>
       )}
 
+      {/* ======================== MODAL: PRINT WORK PHASES CERTIFICATE ======================== */}
+      {showPrintPhasesCertificate && (
+        <div className="modal-overlay print-modal-overlay" onClick={() => setShowPrintPhasesCertificate(false)} style={{ zIndex: 9999 }}>
+          <div
+            className="modal modal-xl print-modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              color: '#000',
+              direction: 'rtl',
+              padding: '1.5rem 2rem 2rem 2rem',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              maxWidth: '900px',
+              width: '95%',
+              borderRadius: '12px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              margin: 'auto'
+            }}
+          >
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                html, body {
+                  background: #fff !important;
+                  color: #000 !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+                body * {
+                  visibility: hidden !important;
+                }
+                #printable-phases-certificate, #printable-phases-certificate * {
+                  visibility: visible !important;
+                }
+                #printable-phases-certificate {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+                  box-shadow: none !important;
+                  background: #fff !important;
+                  color: #000 !important;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            ` }} />
+            <div
+              className="no-print"
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                background: '#fff',
+                paddingTop: '0.5rem',
+                paddingBottom: '1rem',
+                marginBottom: '1.5rem',
+                borderBottom: '2px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1e293b' }}>🖨️ معاينة طباعة مستخلص فني ومالي لمراحل العمل</div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-success" onClick={() => window.print()} style={{ fontWeight: 700 }}>🖨️ طباعة المستخلص الآن</button>
+                <button className="btn btn-outline" onClick={() => setShowPrintPhasesCertificate(false)}>إغلاق المعاينة</button>
+              </div>
+            </div>
+
+            {/* Printable Content */}
+            <div id="printable-phases-certificate" style={{ color: '#000', fontFamily: 'Cairo, sans-serif' }}>
+              {/* Report Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{companyInfo?.company_name || 'شركة الرايق للمقاولات الكهروميكانيكية'}</h2>
+                  <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '4px' }}>الإدارة الهندسية وحسابات التكاليف والمستخلصات</div>
+                  <div style={{ fontSize: '0.85rem', color: '#444' }}>سجل تجاري: {companyInfo?.cr_number || '1010895421'} | الرقم الضريبي: {companyInfo?.tax_number || '300000000000003'} | الهاتف: {companyInfo?.phone || '0555555555'}</div>
+                </div>
+                {companyInfo?.logo_url && (
+                  <img src={companyInfo.logo_url} alt="Logo" style={{ height: '60px', objectFit: 'contain' }} />
+                )}
+              </div>
+
+              {/* Title */}
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', textDecoration: 'underline', fontWeight: 800 }}>مستخلص قيمة مراحل العمل المنجزة (فني ومالي)</h3>
+                <div style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px' }}>تاريخ الإصدار: {new Date().toLocaleDateString('ar-EG')}</div>
+              </div>
+
+              {/* Project Data */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                <div><strong>اسم المشروع:</strong> {project.name}</div>
+                <div><strong>كود المشروع:</strong> {project.code}</div>
+                <div><strong>المالك / العميل:</strong> {project.client_name || '-'}</div>
+                <div><strong>قيمة العقد الإجمالية:</strong> {formatCurrency(project.contract_value)}</div>
+              </div>
+
+              {/* Phases Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#e2e8f0', color: '#000' }}>
+                    <th style={{ border: '1px solid #94a3b8', padding: '8px 10px', textAlign: 'right' }}>المرحلة</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '8px 10px', textAlign: 'right' }}>نوع الأعمال</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '8px 10px', textAlign: 'right' }}>سعر المرحلة (ج.م)</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '8px 10px', textAlign: 'center' }}>النسبة الفعلية الحالية</th>
+                    <th style={{ border: '1px solid #94a3b8', padding: '8px 10px', textAlign: 'right' }}>القيمة المنجزة المستحقة (ج.م)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {phases.map(p => {
+                    const price = Number(p.phase_value || 0);
+                    const progress = Number(p.actual_progress || 0);
+                    const earned = (price * progress) / 100;
+                    return (
+                      <tr key={p.id}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', fontWeight: 600 }}>{p.phase_name}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px' }}>{phaseTypeLabels[p.phase_type] || p.phase_type}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px' }}>{formatCurrency(price)}</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#059669' }}>{progress.toFixed(0)}%</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', fontWeight: 700, color: '#2563eb' }}>{formatCurrency(earned)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Total Calculation Summary */}
+              {(() => {
+                const totalValueSum = phases.reduce((sum, p) => sum + Number(p.phase_value || 0), 0);
+                const totalEarnedSum = phases.reduce((sum, p) => sum + (Number(p.phase_value || 0) * Number(p.actual_progress || 0) / 100), 0);
+                const overallPercentage = totalValueSum > 0 ? (totalEarnedSum / totalValueSum) * 100 : 0;
+                return (
+                  <div style={{ border: '2px solid #000', borderRadius: '8px', padding: '1.25rem', marginBottom: '2rem', background: '#fafafa' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', textDecoration: 'underline' }}>📊 بيان القيمة الإجمالية للمستخلص المحتسب:</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', fontSize: '0.9rem' }}>
+                      <div><strong>إجمالي القيمة المسعرة للمراحل:</strong> {formatCurrency(totalValueSum)}</div>
+                      <div><strong>نسبة الإنجاز المالي الإجمالية للمستخلص:</strong> {overallPercentage.toFixed(1)}%</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#059669', gridColumn: 'span 2', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>💰 إجمالي مستخلص الأعمال المنجزة المستحق:</span>
+                        <span>{formatCurrency(totalEarnedSum)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Signatures */}
+              <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 700 }}>استشاري الإشراف الفني</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+                <div style={{ textAlign: 'center', width: '40%' }}>
+                  <div style={{ fontWeight: 700 }}>اعتماد المدير العام للشركة</div>
+                  <div style={{ marginTop: '2.5rem', borderBottom: '1px dashed #000' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           body * { visibility: hidden; }
@@ -1774,8 +2171,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           .modal-overlay { position: absolute !important; left: 0 !important; top: 0 !important; background: white !important; padding: 0 !important; }
           .modal { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
           #printable-progress-report, #printable-progress-report *,
+          #printable-phases-certificate, #printable-phases-certificate *,
           #printable-financial-report, #printable-financial-report * { visibility: visible; }
-          #printable-progress-report, #printable-financial-report { position: absolute; left: 0; top: 0; width: 100%; }
+          #printable-progress-report, #printable-financial-report, #printable-phases-certificate { position: absolute; left: 0; top: 0; width: 100%; }
         }
       ` }} />
     </AppLayout>

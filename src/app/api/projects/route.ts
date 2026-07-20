@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description } = body;
+    const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description, payment_type } = body;
 
     const userRole = request.headers.get('x-user-role') || 'admin';
     const rawUserName = request.headers.get('x-user-name') || 'مستخدم النظام';
@@ -103,6 +103,11 @@ export async function POST(request: NextRequest) {
       }, { status: 202 });
     }
 
+    // Ensure payment_type column exists in projects table
+    await query(`
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'once';
+    `);
+
     // Ensure project_documents table exists
     await query(`
       CREATE TABLE IF NOT EXISTS project_documents (
@@ -115,8 +120,8 @@ export async function POST(request: NextRequest) {
     `);
 
     const result = await query(
-      `INSERT INTO projects (name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      `INSERT INTO projects (name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description, payment_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         name,
         code,
@@ -127,7 +132,8 @@ export async function POST(request: NextRequest) {
         end_date || null,
         contract_value ? Number(contract_value) : null,
         status || 'active',
-        description || null
+        description || null,
+        payment_type || 'once'
       ]
     );
 

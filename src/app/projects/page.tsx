@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 
@@ -98,7 +99,8 @@ export default function ProjectsPage() {
     end_date: '',
     contract_value: '',
     status: 'active',
-    description: ''
+    description: '',
+    payment_type: 'once'
   });
 
   const fetchProjects = useCallback(async () => {
@@ -134,7 +136,8 @@ export default function ProjectsPage() {
       end_date: '',
       contract_value: '',
       status: 'active',
-      description: ''
+      description: '',
+      payment_type: 'once'
     });
     setUploadedFiles([]);
     setShowModal(true);
@@ -152,7 +155,8 @@ export default function ProjectsPage() {
       end_date: project.end_date ? new Date(project.end_date).toISOString().split('T')[0] : '',
       contract_value: project.contract_value || '',
       status: project.status || 'active',
-      description: project.description || ''
+      description: project.description || '',
+      payment_type: (project as any).payment_type || 'once'
     });
     setUploadedFiles([]);
     setShowModal(true);
@@ -328,6 +332,8 @@ export default function ProjectsPage() {
         </select>
       </div>
 
+      <hr style={{ border: 'none', borderTop: '1px solid var(--border-normal)', margin: '1.5rem 0 1.75rem 0', opacity: 0.6 }} />
+
       {/* Data Card */}
       <div className="card">
         {loading ? (
@@ -397,7 +403,15 @@ export default function ProjectsPage() {
                     </td>
                     <td>{project.end_date ? new Date(project.end_date).toLocaleDateString('ar-EG') : '-'}</td>
                     <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="btn btn-outline btn-sm"
+                          style={{ color: 'var(--brand-primary-light)', borderColor: 'rgba(197, 155, 39, 0.3)' }}
+                          title="عرض ملف المشروع"
+                        >
+                          👁️ عرض
+                        </Link>
                         <button
                           className="btn btn-outline btn-sm"
                           onClick={() => handleOpenEdit(project)}
@@ -493,6 +507,17 @@ export default function ProjectsPage() {
                     onChange={(e) => setForm({ ...form, contract_value: e.target.value })}
                     placeholder="500000"
                   />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">طريقة استلام قيمة التعاقد</label>
+                  <select
+                    className="form-control"
+                    value={form.payment_type}
+                    onChange={(e) => setForm({ ...form, payment_type: e.target.value })}
+                  >
+                    <option value="once">مرة واحدة / دفعة واحدة</option>
+                    <option value="installments">على دفعات</option>
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">تاريخ البدء</label>

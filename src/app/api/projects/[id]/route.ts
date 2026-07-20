@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0;
   `);
 
-  const [project, phases, progress, expenses, ipcs, subIpcs, documents, laborAttendance] = await Promise.all([
+  const [project, phases, progress, expenses, ipcs, subIpcs, documents, laborAttendance, projectEmployees] = await Promise.all([
     query(`
       SELECT p.*, u1.full_name as manager_name, u2.full_name as engineer_name
       FROM projects p
@@ -32,10 +32,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     `, [id]),
     query(`SELECT * FROM project_documents WHERE project_id = $1 ORDER BY uploaded_at DESC`, [id]),
     query(`
-      SELECT a.*, e.base_salary, e.full_name as employee_name
+      SELECT a.*, e.base_salary, e.full_name as employee_name, e.job_title
       FROM attendance_records a
       JOIN employees e ON e.id = a.employee_id
       WHERE a.project_id = $1
+    `, [id]),
+    query(`
+      SELECT id, employee_number, full_name, job_title, employment_type, base_salary, phone, status
+      FROM employees
+      WHERE project_id = $1
     `, [id]),
   ]);
 
@@ -52,6 +57,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     subIpcs: subIpcs.rows,
     documents: documents.rows,
     laborAttendance: laborAttendance.rows,
+    projectEmployees: projectEmployees.rows,
   });
 }
 
@@ -59,13 +65,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   try {
     const body = await request.json();
-    const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description } = body;
+    const { name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description, payment_type } = body;
+
+    // Ensure payment_type column exists in projects table
+    await query(`
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'once';
+    `);
 
     const result = await query(
       `UPDATE projects SET name=$1, code=COALESCE($2, code), client_name=$3, client_contact=$4, location=$5, start_date=$6, end_date=$7, 
-       contract_value=$8, status=$9, description=$10, updated_at=NOW()
-       WHERE id=$11 RETURNING *`,
-      [name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description, id]
+       contract_value=$8, status=$9, description=$10, payment_type=$11, updated_at=NOW()
+       WHERE id=$12 RETURNING *`,
+      [name, code, client_name, client_contact, location, start_date, end_date, contract_value, status, description, payment_type || 'once', id]
     );
 
     return NextResponse.json(result.rows[0]);

@@ -19,10 +19,24 @@ export async function GET(request: NextRequest) {
   try {
     await ensureClientIpcSchema();
     const { searchParams } = request.nextUrl;
+    const id = searchParams.get('id') ?? '';
     const status = searchParams.get('status') ?? '';
     const projectId = searchParams.get('project_id') ?? '';
     const dateFrom = searchParams.get('date_from') ?? '';
     const dateTo = searchParams.get('date_to') ?? '';
+
+    if (id) {
+      const ipcRes = await query('SELECT * FROM client_ipc WHERE id = $1', [id]);
+      if (ipcRes.rows.length === 0) {
+        return NextResponse.json({ error: 'IPC record not found' }, { status: 404 });
+      }
+      const itemsRes = await query('SELECT * FROM client_ipc_items WHERE ipc_id = $1 ORDER BY created_at ASC', [id]);
+      return NextResponse.json({
+        data: ipcRes.rows[0],
+        items: itemsRes.rows
+      });
+    }
+
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '25', 10)));
     const offset = (page - 1) * limit;
@@ -116,6 +130,7 @@ export async function POST(request: NextRequest) {
       status = 'draft',
       submitted_date,
       notes,
+      items = []
     } = body;
 
     if (!project_id || !ipc_date) {
@@ -177,7 +192,29 @@ export async function POST(request: NextRequest) {
       ]
     );
 
-    return NextResponse.json({ data: result.rows[0] }, { status: 201 });
+    const newIpc = result.rows[0];
+
+    // Insert items in client_ipc_items
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        await query(`
+          INSERT INTO client_ipc_items (
+            ipc_id, boq_item_id, description, unit, contract_quantity, previous_quantity, current_quantity, unit_rate
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          newIpc.id,
+          item.boq_item_id || null,
+          item.description,
+          item.unit || 'قطعة',
+          Number(item.contract_quantity) || 0,
+          Number(item.previous_quantity) || 0,
+          Number(item.current_quantity) || 0,
+          Number(item.unit_rate) || 0
+        ]);
+      }
+    }
+
+    return NextResponse.json({ data: newIpc }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/finance/ipc]', error);
     return NextResponse.json({ error: 'Failed to create IPC' }, { status: 500 });
@@ -208,6 +245,7 @@ export async function PUT(request: NextRequest) {
       net_payable,
       status,
       notes,
+      items
     } = body;
 
     if (!id) {
@@ -281,6 +319,27 @@ export async function PUT(request: NextRequest) {
         finalStatus, finalNotes, id
       ]
     );
+
+    // If items are provided, sync them
+    if (items && Array.isArray(items)) {
+      await query(`DELETE FROM client_ipc_items WHERE ipc_id = $1`, [id]);
+      for (const item of items) {
+        await query(`
+          INSERT INTO client_ipc_items (
+            ipc_id, boq_item_id, description, unit, contract_quantity, previous_quantity, current_quantity, unit_rate
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          id,
+          item.boq_item_id || null,
+          item.description,
+          item.unit || 'قطعة',
+          Number(item.contract_quantity) || 0,
+          Number(item.previous_quantity) || 0,
+          Number(item.current_quantity) || 0,
+          Number(item.unit_rate) || 0
+        ]);
+      }
+    }
 
     return NextResponse.json({ data: result.rows[0] });
   } catch (error) {

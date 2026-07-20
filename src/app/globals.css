@@ -46,7 +46,11 @@
   --grad-success: linear-gradient(135deg, #059669, #10b981);
   --grad-danger: linear-gradient(135deg, #dc2626, #ef4444);
   --grad-card: linear-gradient(145deg, rgba(15, 17, 24, 0.95), rgba(6, 7, 10, 0.9));
-  --grad-sidebar: linear-gradient(180deg, #08090d 0%, #06070a 100%);
+  --grad-sidebar: linear-gradient(180deg, #0e1118 0%, #050608 100%);
+  --sidebar-border: rgba(197, 155, 39, 0.25);
+  --sidebar-active-bg: linear-gradient(90deg, rgba(197, 155, 39, 0.12) 0%, rgba(197, 155, 39, 0.02) 100%);
+  --sidebar-active-border: rgba(197, 155, 39, 0.35);
+  --sidebar-active-text: var(--brand-primary-light);
 
   /* Glow Effects */
   --glow-primary: 0 0 20px rgba(197, 155, 39, 0.3);
@@ -108,7 +112,11 @@ html[data-theme="light"] {
   /* Gradients Override */
   --grad-primary: linear-gradient(135deg, #a17e1b, #e5b83b);
   --grad-card: linear-gradient(145deg, #ffffff, #f8fafc);
-  --grad-sidebar: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  --grad-sidebar: linear-gradient(180deg, #faf9f6 0%, #f3f1eb 100%);
+  --sidebar-border: rgba(197, 155, 39, 0.18);
+  --sidebar-active-bg: linear-gradient(90deg, rgba(197, 155, 39, 0.08) 0%, rgba(197, 155, 39, 0.01) 100%);
+  --sidebar-active-border: rgba(197, 155, 39, 0.25);
+  --sidebar-active-text: var(--brand-primary-dark);
 
   /* Glow Effects Override */
   --glow-primary: 0 0 20px rgba(197, 155, 39, 0.15);
@@ -223,13 +231,14 @@ body {
   right: 0;
   top: 0;
   background: var(--grad-sidebar);
-  border-left: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
   z-index: 100;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--bg-card-hover) transparent;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
 }
 
 .sidebar::-webkit-scrollbar {
@@ -336,10 +345,11 @@ body {
 }
 
 .nav-item.active {
-  color: white;
-  background: rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+  color: var(--sidebar-active-text);
+  background: var(--sidebar-active-bg);
+  border-color: var(--sidebar-active-border);
+  box-shadow: 0 4px 12px rgba(197, 155, 39, 0.06);
+  font-weight: 600;
 }
 
 .nav-item.active::after {
@@ -348,10 +358,11 @@ body {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
+  width: 4px;
   height: 60%;
-  background: var(--brand-primary-light);
+  background: var(--brand-primary);
   border-radius: 2px 0 0 2px;
+  box-shadow: 0 0 8px var(--brand-primary-light);
 }
 
 .nav-item-icon {
@@ -396,10 +407,10 @@ body {
 }
 
 .nav-sub-item.active {
-  color: var(--brand-primary-light);
-  background: rgba(197, 155, 39, 0.12);
+  color: var(--sidebar-active-text);
+  background: var(--sidebar-active-bg);
   font-weight: 700;
-  border-right: 2px solid var(--brand-primary);
+  border-right: 2.5px solid var(--brand-primary);
 }
 
 .sidebar-footer {
@@ -617,6 +628,276 @@ body {
 .stat-card.success .stat-card-icon { background: rgba(16, 185, 129, 0.12); }
 .stat-card.danger .stat-card-icon { background: rgba(239, 68, 68, 0.12); }
 .stat-card.purple .stat-card-icon { background: rgba(139, 92, 246, 0.12); }
+
+/* ============================================================
+   PREMIUM CUSTOM KPI CARDS (Dashboard specific)
+   ============================================================ */
+
+/* General overrides for custom cards */
+.stat-card[class*="card-kpi-"] {
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card[class*="card-kpi-"]::before {
+  display: none; /* Hide the generic top accent bar to make room for full-card styling */
+}
+
+/* Card 1: Active Projects - Classic Blue/Teal Theme */
+.stat-card.card-kpi-projects {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(3, 105, 161, 0.12) 100%);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+.stat-card.card-kpi-projects .stat-card-icon {
+  background: rgba(14, 165, 233, 0.18);
+  color: #38bdf8;
+  box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+}
+.stat-card.card-kpi-projects .stat-value {
+  color: #38bdf8;
+}
+.stat-card.card-kpi-projects:hover {
+  transform: translateY(-4px);
+  border-color: rgba(14, 165, 233, 0.5);
+  box-shadow: 0 8px 30px rgba(14, 165, 233, 0.2);
+}
+
+/* Card 2: Total Contract Value - Luxurious Gold Theme */
+.stat-card.card-kpi-contracts {
+  background: linear-gradient(135deg, rgba(197, 155, 39, 0.08) 0%, rgba(133, 98, 18, 0.12) 100%);
+  border: 1px solid rgba(197, 155, 39, 0.25);
+}
+.stat-card.card-kpi-contracts .stat-card-icon {
+  background: rgba(197, 155, 39, 0.18);
+  color: #f59e0b;
+  box-shadow: 0 0 15px rgba(197, 155, 39, 0.2);
+}
+.stat-card.card-kpi-contracts .stat-value {
+  color: #f59e0b;
+}
+.stat-card.card-kpi-contracts:hover {
+  transform: translateY(-4px);
+  border-color: rgba(197, 155, 39, 0.5);
+  box-shadow: 0 8px 30px rgba(197, 155, 39, 0.2);
+}
+
+/* Card 3: Active Employees - Emerald Green Theme */
+.stat-card.card-kpi-employees {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(4, 120, 87, 0.12) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.stat-card.card-kpi-employees .stat-card-icon {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+}
+.stat-card.card-kpi-employees .stat-value {
+  color: #34d399;
+}
+.stat-card.card-kpi-employees:hover {
+  transform: translateY(-4px);
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.2);
+}
+
+/* Card 4: Fault Tickets - Ruby Red Theme */
+.stat-card.card-kpi-tickets {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(185, 28, 28, 0.12) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.stat-card.card-kpi-tickets .stat-card-icon {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+}
+.stat-card.card-kpi-tickets .stat-value {
+  color: #f87171;
+}
+.stat-card.card-kpi-tickets:hover {
+  transform: translateY(-4px);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 8px 30px rgba(239, 68, 68, 0.2);
+}
+
+/* Card 5: Expiring Documents - Royal Violet/Purple Theme */
+.stat-card.card-kpi-documents {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(109, 40, 217, 0.12) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+.stat-card.card-kpi-documents .stat-card-icon {
+  background: rgba(139, 92, 246, 0.18);
+  color: #a78bfa;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+.stat-card.card-kpi-documents .stat-value {
+  color: #a78bfa;
+}
+.stat-card.card-kpi-documents:hover {
+  transform: translateY(-4px);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.2);
+}
+
+/* Card 6: Pending Overtime - Copper Orange Theme */
+.stat-card.card-kpi-overtime {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(194, 65, 12, 0.12) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+}
+.stat-card.card-kpi-overtime .stat-card-icon {
+  background: rgba(249, 115, 22, 0.18);
+  color: #fb923c;
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
+}
+.stat-card.card-kpi-overtime .stat-value {
+  color: #fb923c;
+}
+.stat-card.card-kpi-overtime:hover {
+  transform: translateY(-4px);
+  border-color: rgba(249, 115, 22, 0.5);
+  box-shadow: 0 8px 30px rgba(249, 115, 22, 0.2);
+}
+
+/* Card 7: Maintenance Contracts - Sage Cyan/Teal Theme */
+.stat-card.card-kpi-maintenance {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(15, 118, 110, 0.12) 100%);
+  border: 1px solid rgba(20, 184, 166, 0.25);
+}
+.stat-card.card-kpi-maintenance .stat-card-icon {
+  background: rgba(20, 184, 166, 0.18);
+  color: #2dd4bf;
+  box-shadow: 0 0 15px rgba(20, 184, 166, 0.2);
+}
+.stat-card.card-kpi-maintenance .stat-value {
+  color: #2dd4bf;
+}
+.stat-card.card-kpi-maintenance:hover {
+  transform: translateY(-4px);
+  border-color: rgba(20, 184, 166, 0.5);
+  box-shadow: 0 8px 30px rgba(20, 184, 166, 0.2);
+}
+
+/* Card 8: Monthly Expenses - Fuchsia/Coral Theme */
+.stat-card.card-kpi-expenses {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(190, 24, 74, 0.12) 100%);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+}
+.stat-card.card-kpi-expenses .stat-card-icon {
+  background: rgba(236, 72, 153, 0.18);
+  color: #f472b6;
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.2);
+}
+.stat-card.card-kpi-expenses .stat-value {
+  color: #f472b6;
+}
+.stat-card.card-kpi-expenses:hover {
+  transform: translateY(-4px);
+  border-color: rgba(236, 72, 153, 0.5);
+  box-shadow: 0 8px 30px rgba(236, 72, 153, 0.2);
+}
+
+
+/* ============================================================
+   LIGHT MODE OVERRIDES FOR CUSTOM KPI CARDS
+   ============================================================ */
+html[data-theme="light"] .stat-card.card-kpi-projects {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.06) 0%, rgba(224, 242, 254, 0.7) 100%);
+  border-color: rgba(14, 165, 233, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-projects .stat-card-icon {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
+}
+html[data-theme="light"] .stat-card.card-kpi-projects .stat-value {
+  color: #0369a1;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-contracts {
+  background: linear-gradient(135deg, rgba(197, 155, 39, 0.06) 0%, rgba(254, 243, 199, 0.7) 100%);
+  border-color: rgba(197, 155, 39, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-contracts .stat-card-icon {
+  background: rgba(197, 155, 39, 0.15);
+  color: #b45309;
+}
+html[data-theme="light"] .stat-card.card-kpi-contracts .stat-value {
+  color: #92400e;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-employees {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(209, 250, 229, 0.7) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-employees .stat-card-icon {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+html[data-theme="light"] .stat-card.card-kpi-employees .stat-value {
+  color: #065f46;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-tickets {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(254, 226, 226, 0.7) 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-tickets .stat-card-icon {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+html[data-theme="light"] .stat-card.card-kpi-tickets .stat-value {
+  color: #991b1b;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-documents {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, rgba(243, 232, 255, 0.7) 100%);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-documents .stat-card-icon {
+  background: rgba(139, 92, 246, 0.15);
+  color: #6d28d9;
+}
+html[data-theme="light"] .stat-card.card-kpi-documents .stat-value {
+  color: #5b21b6;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-overtime {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(255, 237, 213, 0.7) 100%);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-overtime .stat-card-icon {
+  background: rgba(249, 115, 22, 0.15);
+  color: #c2410c;
+}
+html[data-theme="light"] .stat-card.card-kpi-overtime .stat-value {
+  color: #9a3412;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-maintenance {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.06) 0%, rgba(204, 251, 241, 0.7) 100%);
+  border-color: rgba(20, 184, 166, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-maintenance .stat-card-icon {
+  background: rgba(20, 184, 166, 0.15);
+  color: #0f766e;
+}
+html[data-theme="light"] .stat-card.card-kpi-maintenance .stat-value {
+  color: #115e59;
+}
+
+html[data-theme="light"] .stat-card.card-kpi-expenses {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.06) 0%, rgba(252, 231, 243, 0.7) 100%);
+  border-color: rgba(236, 72, 153, 0.3);
+}
+html[data-theme="light"] .stat-card.card-kpi-expenses .stat-card-icon {
+  background: rgba(236, 72, 153, 0.15);
+  color: #be185d;
+}
+html[data-theme="light"] .stat-card.card-kpi-expenses .stat-value {
+  color: #9d174d;
+}
+
 
 .stat-value {
   font-size: 1.75rem;
