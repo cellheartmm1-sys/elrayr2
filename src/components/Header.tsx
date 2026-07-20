@@ -136,41 +136,43 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
           <span>{userRole === 'admin' ? '👑 مدير النظام' : '👤 ' + (roleLabels[userRole] || 'موظف')}</span>
         </div>
 
-        {/* Approval Center Button for Admin */}
-        <button
-          className="btn btn-outline btn-sm"
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            borderColor: pendingApprovalsCount > 0 ? 'rgba(234,179,8,0.6)' : 'var(--border-normal)',
-            color: pendingApprovalsCount > 0 ? '#eab308' : 'var(--text-primary)',
-            background: pendingApprovalsCount > 0 ? 'rgba(234,179,8,0.1)' : 'transparent',
-            padding: '0.35rem 0.75rem',
-            fontWeight: 600
-          }}
-          title="مركز الموافقات المعلقة"
-          onClick={() => setShowApprovalCenter(true)}
-        >
-          <span>📜 مركز الموافقات</span>
-          {pendingApprovalsCount > 0 && (
-            <span style={{
-              background: '#ef4444',
-              color: '#fff',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              borderRadius: '50%',
-              width: '18px',
-              height: '18px',
-              display: 'inline-flex',
+        {/* Approval Center Button - Admin Only */}
+        {userRole === 'admin' && (
+          <button
+            className="btn btn-outline btn-sm"
+            style={{
+              position: 'relative',
+              display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              {pendingApprovalsCount}
-            </span>
-          )}
-        </button>
+              gap: '0.4rem',
+              borderColor: pendingApprovalsCount > 0 ? 'rgba(234,179,8,0.6)' : 'var(--border-normal)',
+              color: pendingApprovalsCount > 0 ? '#eab308' : 'var(--text-primary)',
+              background: pendingApprovalsCount > 0 ? 'rgba(234,179,8,0.1)' : 'transparent',
+              padding: '0.35rem 0.75rem',
+              fontWeight: 600
+            }}
+            title="مركز الموافقات المعلقة"
+            onClick={() => setShowApprovalCenter(true)}
+          >
+            <span>📜 مركز الموافقات</span>
+            {pendingApprovalsCount > 0 && (
+              <span style={{
+                background: '#ef4444',
+                color: '#fff',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                borderRadius: '50%',
+                width: '18px',
+                height: '18px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {pendingApprovalsCount}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Theme Toggle Button */}
         <button 
@@ -257,15 +259,17 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
           )}
         </div>
 
-        {/* Settings Button */}
-        <button 
-          className="header-icon-btn" 
-          title="الإعدادات العامة والصلاحيات" 
-          id="settings-btn"
-          onClick={() => router.push('/settings')}
-        >
-          <span style={{ fontSize: '1rem' }}>⚙️</span>
-        </button>
+        {/* Settings Button - Admin Only */}
+        {userRole === 'admin' && (
+          <button 
+            className="header-icon-btn" 
+            title="الإعدادات العامة والصلاحيات" 
+            id="settings-btn"
+            onClick={() => router.push('/settings')}
+          >
+            <span style={{ fontSize: '1rem' }}>⚙️</span>
+          </button>
+        )}
 
         {/* User Button & Switcher */}
         <div style={{ position: 'relative' }}>
@@ -313,16 +317,18 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
 
               <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0.25rem 0' }} />
 
-              <button 
-                className="btn btn-ghost btn-sm" 
-                style={{ justifyContent: 'flex-start', padding: '0.4rem 0.5rem', fontSize: '0.8rem' }}
-                onClick={() => {
-                  setShowUserMenu(false);
-                  router.push('/settings');
-                }}
-              >
-                ⚙️ إعدادات الحساب والصلاحيات
-              </button>
+              {userRole === 'admin' && (
+                <button 
+                  className="btn btn-ghost btn-sm" 
+                  style={{ justifyContent: 'flex-start', padding: '0.4rem 0.5rem', fontSize: '0.8rem' }}
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    router.push('/settings');
+                  }}
+                >
+                  ⚙️ إعدادات الحساب والصلاحيات
+                </button>
+              )}
               <button 
                 className="btn btn-ghost btn-sm text-danger" 
                 style={{ justifyContent: 'flex-start', padding: '0.4rem 0.5rem', fontSize: '0.8rem' }}
