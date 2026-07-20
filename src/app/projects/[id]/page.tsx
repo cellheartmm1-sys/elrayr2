@@ -97,6 +97,7 @@ interface ProjectDetails {
     overtime_hours: number;
     base_salary: string;
     notes?: string;
+    job_title?: string;
   }>;
   projectEmployees: Array<{
     id: string;
