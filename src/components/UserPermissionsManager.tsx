@@ -9,8 +9,8 @@ interface UserPermissionsManagerProps {
 }
 
 const roleLabels: Record<string, string> = {
-  admin: '👑 المستخدم الأول (مدير النظام)',
-  secondary: '👤 المستخدم الثاني (موظف فرعي / موافقات مخصصة)',
+  admin: '👑 مدير النظام (كامل الصلاحيات)',
+  secondary: '👤 موظف فرعي (صلاحيات وموافقات مخصصة)',
   manager: 'مدير عام الشركة',
   engineer: 'مهندس موقع/مشروع',
   supervisor: 'مشرف مواقع',
@@ -237,7 +237,7 @@ export default function UserPermissionsManager({ onSuccess, onError }: UserPermi
             نظام إدارة الحسابات والصلاحيات (User Accounts & Access Control)
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            يمكنك هنا إضافة وتعديل وحذف حسابات النظام، وتحديد <strong>كلمة المرور</strong> و <strong>اسم المستخدم</strong>، وتعيين الدور سواء <strong>المستخدم الأول (مدير النظام)</strong> أو <strong>المستخدم الثاني (موظف فرعي)</strong>.
+            يمكنك هنا إضافة وتعديل وحذف حسابات النظام، وتحديد <strong>كلمة المرور</strong> و <strong>اسم المستخدم</strong>، وتعيين الدور والتراخيص لكل حساب.
           </div>
         </div>
       </div>
@@ -486,6 +486,9 @@ export default function UserPermissionsManager({ onSuccess, onError }: UserPermi
             borderRadius: 'var(--radius-lg)',
             width: '100%',
             maxWidth: '520px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
             boxShadow: 'var(--shadow-modal)',
             overflow: 'hidden'
           }}>
@@ -495,7 +498,8 @@ export default function UserPermissionsManager({ onSuccess, onError }: UserPermi
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: 'var(--bg-card-hover)'
+              background: 'var(--bg-card-hover)',
+              flexShrink: 0
             }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {modalMode === 'create' ? '➕ إضافة حساب مستخدم جديد' : '✏️ تعديل بيانات الحساب والدور'}
@@ -508,7 +512,7 @@ export default function UserPermissionsManager({ onSuccess, onError }: UserPermi
               </button>
             </div>
 
-            <form onSubmit={handleSubmitUser} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <form onSubmit={handleSubmitUser} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', flex: 1 }}>
               <div className="form-group">
                 <label className="form-label required">الاسم الكامل</label>
                 <input
@@ -573,8 +577,8 @@ export default function UserPermissionsManager({ onSuccess, onError }: UserPermi
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value })}
                 >
-                  <option value="admin">👑 المستخدم الأول (مدير النظام - كامل الصلاحيات)</option>
-                  <option value="secondary">👤 المستخدم الثاني (موظف فرعي - صلاحيات وموافقات مخصصة)</option>
+                  <option value="admin">👑 مدير النظام (كامل الصلاحيات)</option>
+                  <option value="secondary">👤 موظف فرعي (صلاحيات وموافقات مخصصة)</option>
                   <option value="manager">مدير عام الشركة</option>
                   <option value="engineer">مهندس موقع/مشروع</option>
                   <option value="supervisor">مشرف مواقع</option>
@@ -584,7 +588,7 @@ export default function UserPermissionsManager({ onSuccess, onError }: UserPermi
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.5rem' }}>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

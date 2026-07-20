@@ -12,8 +12,8 @@ interface HeaderProps {
 }
 
 const roleLabels: Record<string, string> = {
-  admin: 'المستخدم الأول (المدير - كافة الصلاحيات)',
-  secondary: 'المستخدم الثاني (صلاحيات وموافقات مخصصة)',
+  admin: 'مدير النظام (كامل الصلاحيات)',
+  secondary: 'موظف فرعي (صلاحيات مخصصة)',
   manager: 'مدير عام الشركة',
   engineer: 'مهندس موقع/مشروع',
   supervisor: 'مشرف مواقع ميداني',
@@ -69,21 +69,6 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
     localStorage.setItem('theme', newTheme);
   };
 
-  const switchUserRole = (newRole: 'admin' | 'secondary') => {
-    if (newRole === 'admin') {
-      localStorage.setItem('user_role', 'admin');
-      localStorage.setItem('user_name', 'مدير النظام (المستخدم الأول)');
-      localStorage.setItem('user_email', 'admin@alrayeq.com');
-    } else {
-      localStorage.setItem('user_role', 'secondary');
-      localStorage.setItem('user_name', 'سالم الغامدي (المستخدم الثاني)');
-      localStorage.setItem('user_email', 'supervisor1@alrayeq.com');
-    }
-    setUserRole(newRole);
-    setShowUserMenu(false);
-    window.location.reload();
-  };
-
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('.').substring(0, 5);
   };
@@ -135,7 +120,7 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
       </div>
 
       <div className="header-actions">
-        {/* Quick User Role Switcher Pill */}
+        {/* Active User Role Badge */}
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -148,7 +133,7 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
           fontWeight: 600,
           color: userRole === 'admin' ? '#10b981' : '#3b82f6'
         }}>
-          <span>{userRole === 'admin' ? '👑 المستخدم الأول (Admin)' : '👤 المستخدم الثاني'}</span>
+          <span>{userRole === 'admin' ? '👑 مدير النظام' : '👤 ' + (roleLabels[userRole] || 'موظف')}</span>
         </div>
 
         {/* Approval Center Button for Admin */}
@@ -325,27 +310,6 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
               }}>
                 الحساب الحالي: <strong>{roleLabels[userRole] || userRole}</strong>
               </div>
-
-              {/* Role Switcher options */}
-              <div style={{ padding: '0.4rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                🔄 التبديل السريع بين المستخدمين:
-              </div>
-
-              <button
-                className={`btn btn-sm ${userRole === 'admin' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ justifyContent: 'flex-start', padding: '0.45rem 0.5rem', fontSize: '0.8rem' }}
-                onClick={() => switchUserRole('admin')}
-              >
-                👑 المستخدم الأول (المدير العام)
-              </button>
-
-              <button
-                className={`btn btn-sm ${userRole === 'secondary' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ justifyContent: 'flex-start', padding: '0.45rem 0.5rem', fontSize: '0.8rem' }}
-                onClick={() => switchUserRole('secondary')}
-              >
-                👤 المستخدم الثاني (موافقات مخصصة)
-              </button>
 
               <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0.25rem 0' }} />
 

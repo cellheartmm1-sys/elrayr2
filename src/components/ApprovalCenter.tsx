@@ -106,10 +106,10 @@ export default function ApprovalCenter({ isOpen, onClose, onRefreshCount }: Appr
             <span style={{ fontSize: '1.6rem' }}>📜</span>
             <div>
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                مركز موافقات المستخدم الأول (Approval Center)
+                مركز الموافقات والاعتمادات (Approval Center)
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                طلبات العمليات التي أنشأها المستخدم الثاني والتي تتطلب موافقتك الصريحة
+                طلبات العمليات الواردة من الموظفين والتي تتطلب موافقة واعتماد مدير النظام
               </div>
             </div>
           </div>
