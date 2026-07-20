@@ -265,15 +265,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '1rem' }}>{item.icon}</span>
+                        <span className="nav-icon">{item.icon}</span>
                         <span>{item.label}</span>
                       </div>
                       {hasSub && (
                         <span style={{ 
-                          fontSize: '0.7rem', 
-                          transition: 'transform 0.2s ease', 
+                          fontSize: '0.65rem', 
+                          transition: 'transform 0.25s ease', 
                           transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                          opacity: 0.7
+                          opacity: 0.5,
+                          color: '#93c5fd'
                         }}>
                           ▼
                         </span>
@@ -311,16 +312,35 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Footer */}
       <div className="sidebar-footer">
         <div style={{
-          padding: '0.75rem',
-          background: role === 'admin' ? 'rgba(16,185,129,0.08)' : 'rgba(59,130,246,0.08)',
-          borderRadius: 'var(--radius-sm)',
-          border: `1px solid ${role === 'admin' ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)'}`,
+          padding: '0.75rem 1rem',
+          background: role === 'admin' 
+            ? 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(29,78,216,0.08))' 
+            : 'linear-gradient(135deg, rgba(99,155,255,0.1), rgba(59,130,246,0.05))',
+          borderRadius: '10px',
+          border: `1px solid ${role === 'admin' ? 'rgba(59,130,246,0.3)' : 'rgba(99,155,255,0.2)'}`,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
         }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-            الترخيص: {role === 'admin' ? 'المستخدم الأول (كامل الصلاحيات)' : 'المستخدم الثاني (صلاحيات وموافقات)'}
+          <div style={{ 
+            fontSize: '0.65rem', 
+            color: 'rgba(147,197,253,0.7)', 
+            marginBottom: '0.3rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem'
+          }}>
+            <span style={{ 
+              display: 'inline-block', 
+              width: '6px', 
+              height: '6px', 
+              borderRadius: '50%', 
+              background: role === 'admin' ? '#34d399' : '#60a5fa',
+              boxShadow: role === 'admin' ? '0 0 6px #34d399' : '0 0 6px #60a5fa',
+              animation: 'pulse-glow 2s ease-in-out infinite'
+            }} />
+            {role === 'admin' ? 'مدير النظام (كامل الصلاحيات)' : 'مستخدم (صلاحيات محدودة)'}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-            الرايق للمقاولات الكهروميكانيكية
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
+            🏗️ الرايق للمقاولات الكهروميكانيكية
           </div>
         </div>
       </div>
