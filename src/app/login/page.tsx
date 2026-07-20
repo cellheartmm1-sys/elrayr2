@@ -88,9 +88,8 @@ export default function LoginPage() {
         let matchedUser = null;
         if (Array.isArray(users)) {
           matchedUser = users.find((u: { email?: string; username?: string }) =>
-            u.email?.toLowerCase() === input ||
-            u.username?.toLowerCase() === input ||
-            (u.email && u.email.split('@')[0].toLowerCase() === input)
+            (u.username && u.username.trim().toLowerCase() === input) ||
+            (u.email && u.email.trim().toLowerCase() === input)
           );
         }
 
