@@ -122,8 +122,8 @@ const navItems: NavSection[] = [
 
 const rolePermissions: Record<string, string[]> = {
   admin: ['/dashboard', '/dashboard#contact-requests', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
-  secondary: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
-  manager: ['/dashboard', '/projects', '/estimation', '/procurement', '/subcontractors', '/labor', '/maintenance', '/finance', '/hr', '/settings'],
+  secondary: ['/dashboard'],
+  manager: ['/dashboard'],
   engineer: ['/dashboard', '/projects', '/procurement', '/labor'],
   supervisor: ['/dashboard', '/projects', '/labor'],
   store_keeper: ['/dashboard', '/procurement'],
@@ -158,12 +158,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   useEffect(() => {
     const storedRole = localStorage.getItem('user_role') || 'admin';
+    const storedUserId = localStorage.getItem('user_id') || '';
+    const storedEmail = localStorage.getItem('user_email') || '';
     setRole(storedRole);
 
     if (storedRole === 'admin') {
       setAllowedHrefs(rolePermissions['admin']);
     } else {
-      fetchDynamicPermissions(storedRole);
+      fetchDynamicPermissions(storedUserId, storedEmail, storedRole);
     }
   }, []);
 
@@ -185,14 +187,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     setOpenMenus(prev => ({ ...prev, [href]: !prev[href] }));
   };
 
-  const fetchDynamicPermissions = async (currentRole: string) => {
+  const fetchDynamicPermissions = async (userId: string, email: string, currentRole: string) => {
     try {
-      const res = await fetch('/api/admin/permissions');
+      const queryParam = userId ? `user_id=${userId}` : (email ? `email=${encodeURIComponent(email)}` : '');
+      const res = await fetch(`/api/admin/permissions?${queryParam}`);
       if (res.ok) {
         const perms = await res.json();
         if (Array.isArray(perms) && perms.length > 0) {
           const allowed = perms
-            .filter((p: any) => p.can_view)
+            .filter((p: any) => p.can_view && p.module !== 'settings')
             .map((p: any) => `/${p.module}`);
           allowed.push('/dashboard');
           setAllowedHrefs(allowed);
@@ -202,7 +205,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     } catch (err) {
       console.error(err);
     }
-    setAllowedHrefs(rolePermissions[currentRole] || rolePermissions['admin']);
+    setAllowedHrefs(rolePermissions[currentRole] || ['/dashboard']);
   };
 
   // Automatically close sidebar on route change on mobile

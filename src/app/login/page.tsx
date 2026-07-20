@@ -123,6 +123,7 @@ export default function LoginPage() {
         }
 
 
+        localStorage.setItem('user_id', matchedUser.id || '');
         localStorage.setItem('user_role', matchedUser.role || 'secondary');
         localStorage.setItem('user_email', matchedUser.email || input);
         localStorage.setItem('user_name', matchedUser.full_name || input);
@@ -131,6 +132,7 @@ export default function LoginPage() {
       })
       .catch(() => {
         // Simple fallback
+        localStorage.setItem('user_id', input === 'admin' ? 'admin' : '');
         localStorage.setItem('user_role', input === 'admin' ? 'admin' : 'secondary');
         localStorage.setItem('user_name', input === 'admin' ? 'مدير النظام' : 'المستخدم الثاني');
         router.push('/dashboard');

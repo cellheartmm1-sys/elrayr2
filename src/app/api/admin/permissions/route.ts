@@ -2,45 +2,78 @@ import { NextResponse, NextRequest } from 'next/server';
 import { query } from '@/lib/db';
 import { SYSTEM_MODULES } from '@/lib/approvals-types';
 
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
+    let userId = searchParams.get('user_id');
+    const email = searchParams.get('email');
 
-    // Fetch existing user permissions
-    let sql = 'SELECT * FROM user_permissions';
-    const params: any[] = [];
-
-    if (userId) {
-      sql += ' WHERE user_id = $1';
-      params.push(userId);
+    // 1. If email provided without userId, resolve userId and role
+    let userRole = '';
+    if (!userId && email) {
+      const userRes = await query('SELECT id, role FROM users WHERE email = $1 OR username = $1', [email]);
+      if (userRes.rows.length > 0) {
+        userId = userRes.rows[0].id;
+        userRole = userRes.rows[0].role;
+      }
+    } else if (userId) {
+      const userRes = await query('SELECT role FROM users WHERE id = $1', [userId]);
+      if (userRes.rows.length > 0) {
+        userRole = userRes.rows[0].role;
+      }
     }
 
-    const result = await query(sql, params);
-    const rows = result.rows;
+    // 2. If target user is Admin, return full permissions for all modules
+    if (userRole === 'admin') {
+      const adminPermissions = SYSTEM_MODULES.map(m => ({
+        user_id: userId || 'admin',
+        module: m.id,
+        can_view: true,
+        can_create: true,
+        can_edit: true,
+        can_delete: true,
+        requires_approval: false
+      }));
+      return NextResponse.json(adminPermissions);
+    }
 
-    // If fetching for a specific user, merge defaults for missing modules
+    // 3. If userId is available, fetch exact user permissions from database
     if (userId) {
+      const result = await query('SELECT * FROM user_permissions WHERE user_id = $1', [userId]);
+      const rows = result.rows;
+
       const permissionsMap = new Map(rows.map((r: any) => [r.module, r]));
       const fullPermissions = SYSTEM_MODULES.map(m => {
         if (permissionsMap.has(m.id)) {
-          return permissionsMap.get(m.id);
+          const perm = permissionsMap.get(m.id);
+          return {
+            ...perm,
+            // Ensure settings module is never viewable by non-admin users
+            can_view: m.id === 'settings' ? false : Boolean(perm.can_view),
+            can_create: m.id === 'settings' ? false : Boolean(perm.can_create),
+            can_edit: m.id === 'settings' ? false : Boolean(perm.can_edit),
+            can_delete: m.id === 'settings' ? false : Boolean(perm.can_delete),
+          };
         }
+        
+        // Default for non-admin user when module is not saved yet:
+        // Default to false so ungranted modules are NOT accessible by default!
         return {
           user_id: userId,
           module: m.id,
-          can_view: true,
+          can_view: false,
           can_create: false,
           can_edit: false,
           can_delete: false,
           requires_approval: true
         };
       });
+
       return NextResponse.json(fullPermissions);
     }
 
-    return NextResponse.json(rows);
+    // If no user specified, return empty array to prevent data leaks
+    return NextResponse.json([]);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -69,10 +102,10 @@ export async function POST(request: NextRequest) {
         [
           user_id,
           perm.module,
-          perm.can_view,
-          perm.can_create,
-          perm.can_edit,
-          perm.can_delete,
+          perm.module === 'settings' ? false : Boolean(perm.can_view),
+          perm.module === 'settings' ? false : Boolean(perm.can_create),
+          perm.module === 'settings' ? false : Boolean(perm.can_edit),
+          perm.module === 'settings' ? false : Boolean(perm.can_delete),
           perm.requires_approval !== undefined ? perm.requires_approval : true
         ]
       );
