@@ -2112,6 +2112,7 @@ export default function FinancePage() {
               }}>✕</button>
             </div>
             <form onSubmit={handleCreateIpc}>
+              <div className="modal-body">
               <div className="form-grid form-grid-3">
                 <div className="form-group">
                   <label className="form-label required">المشروع</label>
@@ -2302,6 +2303,7 @@ export default function FinancePage() {
                     })()}
                   </div>
                 )}
+              </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => {

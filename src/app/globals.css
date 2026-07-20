@@ -1348,6 +1348,14 @@ textarea.form-control {
   overflow: hidden;
 }
 
+/* Auto-scroll for first content div inside modal form */
+.modal > form > div:not(.modal-footer):not(.modal-body) {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  min-height: 0;
+}
+
 .modal .form-grid {
   gap: 0.625rem;
 }
