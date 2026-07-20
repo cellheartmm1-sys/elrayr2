@@ -401,12 +401,13 @@ export default function EstimationPage() {
       {/* ======================== MODAL: ADD / EDIT ESTIMATION ======================== */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-xl" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">{editingEstimation ? '📐 تعديل تفاصيل عرض السعر' : '📐 إنشاء عرض سعر جديد لمناقصة'}</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.5rem' }}>
               <div className="form-grid form-grid-3">
                 <div className="form-group col-span-3">
                   <label className="form-label">المشروع المرتبط (إن وجد)</label>
@@ -534,8 +535,9 @@ export default function EstimationPage() {
                   </div>
                 </div>
               </div>
+              </div>
 
-              <div className="modal-footer" style={{ marginTop: '1.5rem' }}>
+              <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid var(--border-normal)', padding: '1rem 1.5rem', marginTop: 0 }}>
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">💾 حفظ البيانات والتسعير</button>
               </div>
