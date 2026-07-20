@@ -334,8 +334,8 @@ export default function ProjectsPage() {
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--border-normal)', margin: '1.5rem 0 1.75rem 0', opacity: 0.6 }} />
 
-      {/* Data Card */}
-      <div className="card" style={{ padding: '1.25rem' }}>
+      {/* Data Table */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
           <div className="empty-state"><div className="loading-spinner" /></div>
         ) : projects.length === 0 ? (
@@ -345,170 +345,143 @@ export default function ProjectsPage() {
             <button className="btn btn-primary" onClick={handleOpenCreate}>إضافة أول مشروع</button>
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-            gap: '1rem',
-          }}>
-            {projects.map((project) => {
-              const progress = Math.min(Number(project.actual_progress || 0), 100);
-              const progressColor = progress > 80 ? '#10b981' : progress > 40 ? '#f59e0b' : '#ef4444';
-              const statusColors: Record<string, { bg: string; color: string; border: string }> = {
-                active:    { bg: 'rgba(16,185,129,0.12)',  color: '#34d399', border: 'rgba(16,185,129,0.3)'  },
-                completed: { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa', border: 'rgba(59,130,246,0.3)'  },
-                suspended: { bg: 'rgba(245,158,11,0.12)',  color: '#fbbf24', border: 'rgba(245,158,11,0.3)'  },
-                tender:    { bg: 'rgba(139,92,246,0.12)',  color: '#a78bfa', border: 'rgba(139,92,246,0.3)'  },
-              };
-              const sc = statusColors[project.status] || statusColors.active;
-              return (
-                <div
-                  key={project.id}
-                  style={{
-                    background: 'linear-gradient(145deg, var(--bg-card), rgba(15,20,35,0.9))',
-                    border: `1px solid ${sc.border}`,
-                    borderRadius: '14px',
-                    padding: '1.1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                    boxShadow: `0 4px 20px rgba(0,0,0,0.2), 0 0 0 1px ${sc.border}`,
-                    animation: 'fadeInUp 0.4s ease-out both',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 10px 35px rgba(0,0,0,0.35), 0 0 0 1px ${sc.border}`; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 20px rgba(0,0,0,0.2), 0 0 0 1px ${sc.border}`; }}
-                >
-                  {/* Header Row */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
-                        <span style={{
-                          fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
-                          color: '#60a5fa', background: 'rgba(59,130,246,0.1)',
-                          padding: '0.15rem 0.5rem', borderRadius: '100px',
-                          border: '1px solid rgba(59,130,246,0.2)', whiteSpace: 'nowrap'
-                        }}>
+          <div className="table-wrapper">
+            <table className="data-table projects-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '7%' }}>الكود</th>
+                  <th style={{ width: '22%' }}>المشروع والعميل</th>
+                  <th style={{ width: '9%' }}>الموقع</th>
+                  <th style={{ width: '13%' }}>قيمة العقد</th>
+                  <th style={{ width: '13%' }}>الإنجاز</th>
+                  <th style={{ width: '11%', textAlign: 'center' }}>الحالة</th>
+                  <th style={{ width: '9%' }}>الانتهاء</th>
+                  <th style={{ width: '16%', textAlign: 'center' }}>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map((project) => {
+                  const progress = Math.min(Number(project.actual_progress || 0), 100);
+                  const progressColor = progress > 80 ? 'var(--status-success)' : progress > 40 ? 'var(--status-warning)' : 'var(--status-danger)';
+                  const progressHex  = progress > 80 ? '#10b981' : progress > 40 ? '#c59b27' : '#ef4444';
+                  const statusCfg: Record<string, { cls: string; label: string }> = {
+                    active:    { cls: 'badge-success', label: '🟢 نشط'    },
+                    completed: { cls: 'badge-primary', label: '🔵 مكتمل'  },
+                    suspended: { cls: 'badge-warning', label: '🟡 متوقف'  },
+                    tender:    { cls: 'badge-purple',  label: '🟣 مناقصة' },
+                  };
+                  const sc = statusCfg[project.status] || statusCfg.active;
+                  return (
+                    <tr key={project.id} className="project-row">
+                      {/* الكود */}
+                      <td>
+                        <a href={`/projects/${project.id}`} className={`badge ${sc.cls}`} style={{ textDecoration: 'none', fontSize: '0.72rem', fontWeight: 800 }}>
                           {project.code}
+                        </a>
+                      </td>
+
+                      {/* المشروع + العميل */}
+                      <td>
+                        <a href={`/projects/${project.id}`} style={{ textDecoration: 'none', display: 'block', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {project.name}
+                        </a>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', marginTop: '2px' }}>
+                          👤 {project.client_name}
                         </span>
-                        <span style={{
-                          fontSize: '0.7rem', fontWeight: 700,
-                          color: sc.color, background: sc.bg,
-                          padding: '0.15rem 0.5rem', borderRadius: '100px',
-                          border: `1px solid ${sc.border}`, whiteSpace: 'nowrap'
-                        }}>
-                          {project.status === 'active' ? '🟢' : project.status === 'completed' ? '🔵' : project.status === 'suspended' ? '🟡' : '🟣'} {statusLabels[project.status]}
+                      </td>
+
+                      {/* الموقع */}
+                      <td>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                          {project.location || '—'}
                         </span>
-                      </div>
-                      <a
-                        href={`/projects/${project.id}`}
-                        style={{
-                          fontSize: '1rem', fontWeight: 700, color: '#fff',
-                          textDecoration: 'none', display: 'block', lineHeight: 1.3,
-                        }}
-                      >
-                        {project.name}
-                      </a>
-                    </div>
-                  </div>
+                      </td>
 
-                  {/* Info Grid */}
-                  <div style={{
-                    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem 0.75rem',
-                    fontSize: '0.78rem',
-                  }}>
-                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>👤 العميل</div>
-                    <div style={{ color: '#e2e8f0', fontWeight: 600, textAlign: 'left' }}>{project.client_name}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>📍 الموقع</div>
-                    <div style={{ color: '#e2e8f0', textAlign: 'left' }}>{project.location || '—'}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>💰 قيمة العقد</div>
-                    <div style={{ color: '#fbbf24', fontWeight: 700, textAlign: 'left' }}>{formatCurrency(project.contract_value)}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>📅 الانتهاء</div>
-                    <div style={{ color: '#e2e8f0', textAlign: 'left' }}>
-                      {project.end_date ? new Date(project.end_date).toLocaleDateString('ar-EG') : '—'}
-                    </div>
-                  </div>
+                      {/* قيمة العقد */}
+                      <td>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                          {formatCurrency(project.contract_value)}
+                        </span>
+                      </td>
 
-                  {/* Progress Bar */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>نسبة الإنجاز</span>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: progressColor }}>{progress.toFixed(0)}%</span>
-                    </div>
-                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '100px', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', width: `${progress}%`,
-                        background: `linear-gradient(90deg, ${progressColor}, ${progressColor}88)`,
-                        borderRadius: '100px',
-                        transition: 'width 0.6s ease',
-                        boxShadow: `0 0 8px ${progressColor}66`
-                      }} />
-                    </div>
-                  </div>
+                      {/* الإنجاز */}
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div className="progress-bar" style={{ flex: 1, height: '6px', minWidth: 0 }}>
+                            <div
+                              className={`progress-fill ${progress > 80 ? 'success' : progress > 40 ? 'warning' : 'danger'}`}
+                              style={{ width: `${progress}%`, boxShadow: `0 0 6px ${progressHex}66` }}
+                            />
+                          </div>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: progressColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {progress.toFixed(0)}%
+                          </span>
+                        </div>
+                      </td>
 
-                  {/* Action Buttons + Status Changer */}
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
-                    <Link
-                      href={`/projects/${project.id}`}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
-                        background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                        color: '#fff', textDecoration: 'none',
-                        boxShadow: '0 3px 10px rgba(59,130,246,0.35)',
-                        transition: 'all 0.2s ease',
-                        flex: 1, justifyContent: 'center',
-                      }}
-                    >
-                      👁️ عرض
-                    </Link>
-                    <button
-                      onClick={() => handleOpenEdit(project)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
-                        background: 'rgba(255,255,255,0.06)', color: '#e2e8f0',
-                        border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        flex: 1,
-                      }}
-                    >
-                      ✏️ تعديل
-                    </button>
-                    <button
-                      onClick={() => handleDelete(project.id)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
-                        background: 'rgba(239,68,68,0.1)', color: '#f87171',
-                        border: '1px solid rgba(239,68,68,0.2)', cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      🗑️
-                    </button>
-                    <select
-                      value={project.status}
-                      onChange={(e) => handleQuickStatusChange(project, e.target.value)}
-                      style={{
-                        padding: '0.4rem 0.6rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700,
-                        background: sc.bg, color: sc.color,
-                        border: `1px solid ${sc.border}`, cursor: 'pointer',
-                        outline: 'none', appearance: 'none', textAlign: 'center',
-                      }}
-                      title="تغيير حالة المشروع"
-                    >
-                      <option value="active">🟢 نشط</option>
-                      <option value="completed">🔵 مكتمل</option>
-                      <option value="suspended">🟡 متوقف</option>
-                      <option value="tender">🟣 مناقصة</option>
-                    </select>
-                  </div>
-                </div>
-              );
-            })}
+                      {/* الحالة */}
+                      <td style={{ textAlign: 'center' }}>
+                        <select
+                          className={`badge ${sc.cls}`}
+                          value={project.status}
+                          onChange={(e) => handleQuickStatusChange(project, e.target.value)}
+                          style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', border: 'none', outline: 'none', appearance: 'none', textAlign: 'center', padding: '0.3rem 0.5rem', borderRadius: '100px', width: '100%' }}
+                          title="تغيير الحالة"
+                        >
+                          <option value="active">🟢 نشط</option>
+                          <option value="completed">🔵 مكتمل</option>
+                          <option value="suspended">🟡 متوقف</option>
+                          <option value="tender">🟣 مناقصة</option>
+                        </select>
+                      </td>
+
+                      {/* الانتهاء */}
+                      <td>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                          {project.end_date ? new Date(project.end_date).toLocaleDateString('ar-EG') : '—'}
+                        </span>
+                      </td>
+
+                      {/* الإجراءات */}
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center', alignItems: 'center' }}>
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="btn btn-primary btn-sm"
+                            title="عرض المشروع"
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem', whiteSpace: 'nowrap' }}
+                          >
+                            👁️ عرض
+                          </Link>
+                          <button
+                            onClick={() => handleOpenEdit(project)}
+                            className="btn btn-ghost btn-sm"
+                            title="تعديل"
+                            style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem' }}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDelete(project.id)}
+                            className="btn btn-ghost btn-sm text-danger"
+                            title="حذف"
+                            style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem' }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
+
+
+
 
 
       {/* Add / Edit Project Modal */}
