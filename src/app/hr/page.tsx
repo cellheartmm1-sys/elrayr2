@@ -344,6 +344,42 @@ export default function HRPage() {
     setShowAttendanceModal(true);
   };
 
+  const handleQuickRegisterRestDay = async (emp: Employee) => {
+    const hoursInput = prompt(`تسجيل حضور يوم راحة للموظف (${emp.full_name}):\nأدخل إجمالي عدد ساعات العمل (الساعات الزائدة عن 8 تُحسب كـ عمل إضافي):`, '8');
+    if (hoursInput === null) return;
+    const hoursWorkedNum = Math.max(1, parseFloat(hoursInput) || 8);
+    const overtimeHoursNum = hoursWorkedNum > 8 ? (hoursWorkedNum - 8) : 0;
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/hr/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: emp.id,
+          project_id: selectedProject || projects[0]?.id || null,
+          attendance_date: attendanceDateFilter,
+          attendance_type: 'rest_day',
+          hours_worked: hoursWorkedNum,
+          overtime_hours: overtimeHoursNum,
+          notes: 'تسجيل حضور يوم راحة'
+        })
+      });
+      if (res.ok) {
+        alert(`✅ تم تسجيل حضور يوم راحة للموظف ${emp.full_name} (${hoursWorkedNum} س عمل${overtimeHoursNum > 0 ? ` + ${overtimeHoursNum}س إضافي` : ''}).`);
+        fetchAttendance();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل تسجيل حضور يوم الراحة: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleQuickRegisterAbsent = async (emp: Employee) => {
     try {
       setLoading(true);
@@ -1144,6 +1180,8 @@ export default function HRPage() {
                             <td>
                               {statusType === 'present' || statusType === 'late' ? (
                                 <span className="badge badge-success">✅ حاضر {rec?.overtime_hours ? `(+${rec.overtime_hours}س إضافي)` : ''}</span>
+                              ) : statusType === 'rest_day' ? (
+                                <span className="badge badge-warning" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)' }}>🎉 حضور يوم راحة {rec?.overtime_hours ? `(+${rec.overtime_hours}س إضافي)` : ''}</span>
                               ) : statusType === 'half_day' ? (
                                 <span className="badge badge-warning">🌗 نصف يومية</span>
                               ) : statusType === 'absent' ? (
@@ -1166,9 +1204,17 @@ export default function HRPage() {
                                 </button>
 
                                 <button
+                                  className="btn btn-warning btn-sm"
+                                  onClick={() => handleQuickRegisterRestDay(emp)}
+                                  title="تسجيل حضور الموظف في يوم الراحة (أجر اليومية + الإضافي الزائد عن 8 س)"
+                                >
+                                  🎉 حضور يوم راحة
+                                </button>
+
+                                <button
                                   className="btn btn-danger btn-sm"
                                   onClick={() => handleQuickRegisterAbsent(emp)}
-                                  title="تسجيل غياب الموظف لهذا اليوم (خصم اليومية من الراتب)"
+                                  title="تسجيل غياب الموظف لهذا اليوم (خصم يومين من الراتب)"
                                 >
                                   ❌ تسجيل غياب
                                 </button>
@@ -2409,6 +2455,8 @@ export default function HRPage() {
                                   {item.rec ? (
                                     item.rec.attendance_type === 'present' || item.rec.attendance_type === 'late' ? (
                                       <span className="badge badge-success">✅ حاضر {item.rec.overtime_hours ? `(+${item.rec.overtime_hours}س إضافي)` : ''}</span>
+                                    ) : item.rec.attendance_type === 'rest_day' ? (
+                                      <span className="badge badge-warning" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)' }}>🎉 حضور يوم راحة {item.rec.overtime_hours ? `(+${item.rec.overtime_hours}س إضافي)` : ''}</span>
                                     ) : item.rec.attendance_type === 'half_day' ? (
                                       <span className="badge badge-warning">🌗 نصف يومية</span>
                                     ) : item.rec.attendance_type === 'absent' ? (

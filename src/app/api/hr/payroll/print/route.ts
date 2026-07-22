@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
           `SELECT COUNT(DISTINCT attendance_date) AS att_count, COALESCE(SUM(overtime_hours), 0) AS total_ot
            FROM attendance_records 
            WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = $2 AND EXTRACT(YEAR FROM attendance_date) = $3
-             AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday')`,
+             AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day')`,
           [emp.id, monthNum, yearNum]
         );
 
@@ -205,7 +205,9 @@ export async function POST(request: NextRequest) {
         const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
 
         const attendedDays = Number(attCountRes.rows[0]?.att_count || 0);
-        const paidDays = Math.min(daysInMonth, attendedDays + paidLeaveDays);
+        const absentDaysCount = Math.max(0, daysInMonth - attendedDays);
+        const absentPenaltyDays = absentDaysCount * 2;
+        const paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentPenaltyDays + paidLeaveDays));
         const earnedBase = Math.round(dailyRate * paidDays * 100) / 100;
 
         // Query overtime requests & attendance overtime

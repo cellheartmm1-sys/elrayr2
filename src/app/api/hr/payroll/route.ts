@@ -56,7 +56,7 @@ async function processSingleEmployee({
        WHERE employee_id = $1 
          AND EXTRACT(MONTH FROM attendance_date) = $2 
          AND EXTRACT(YEAR FROM attendance_date) = $3
-         AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday')`,
+         AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day')`,
       [empId, month, year]
     );
 
@@ -79,8 +79,11 @@ async function processSingleEmployee({
   const shouldInclude4PaidLeaves = isApprovedOrPaid || isPastMonth || isLastDayOrLaterOfCurrentMonth;
   const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
 
-  const paidDays = Math.min(daysInMonth, attendedDays + paidLeaveDays);
-  const absentDays = Math.max(0, daysInMonth - paidDays);
+  // Deduction rule: 2 days deducted for every 1 day of absence
+  const absentDaysCount = Math.max(0, daysInMonth - attendedDays);
+  const absentPenaltyDays = absentDaysCount * 2;
+  const paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentPenaltyDays + paidLeaveDays));
+  const absentDays = absentDaysCount;
 
   // Daily rate & earned base salary
   const fullBaseSalary = Number(salaryData.base_salary || 0);

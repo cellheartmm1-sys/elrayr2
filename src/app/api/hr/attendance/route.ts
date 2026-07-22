@@ -146,11 +146,19 @@ export async function POST(request: NextRequest) {
     const empRes = await query('SELECT full_name, base_salary FROM employees WHERE id = $1', [employee_id]);
     const empName = empRes.rows[0]?.full_name || 'عامل موقع';
     const baseDailyRate = Number(empRes.rows[0]?.base_salary || 150);
-    const otHours = overtime_hours ? Number(overtime_hours) : 0;
+
+    const totalWorkedHours = hours_worked ? Number(hours_worked) : 8;
+    let otHours = overtime_hours ? Number(overtime_hours) : 0;
+
+    // For rest_day attendance, calculate overtime for hours beyond 8 hours automatically if not explicitly given
+    if (resolvedType === 'rest_day' && totalWorkedHours > 8 && otHours === 0) {
+      otHours = totalWorkedHours - 8;
+    }
+
     const otRate = 25; // Hourly overtime rate
 
     let calculatedLaborCost = 0;
-    if (resolvedType === 'present' || resolvedType === 'late') {
+    if (resolvedType === 'present' || resolvedType === 'late' || resolvedType === 'rest_day') {
       calculatedLaborCost = baseDailyRate + (otHours * otRate);
     } else if (resolvedType === 'half_day') {
       calculatedLaborCost = (baseDailyRate / 2) + (otHours * otRate);
