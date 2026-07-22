@@ -65,8 +65,20 @@ async function processSingleEmployee({
     console.warn('Attendance days calculation skipped:', err);
   }
 
-  // 4 days paid leave added per month
-  const paidLeaveDays = 4;
+  // 4 days paid leave added per month condition:
+  // Included ONLY if status is approved/paid OR if it's a past month OR if current month reaches the start of the last day (currentDay >= daysInMonth)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+
+  const isPastMonth = year < currentYear || (year === currentYear && month < currentMonth);
+  const isLastDayOrLaterOfCurrentMonth = (year === currentYear && month === currentMonth && currentDay >= daysInMonth);
+  const isApprovedOrPaid = status === 'approved' || status === 'paid';
+
+  const shouldInclude4PaidLeaves = isApprovedOrPaid || isPastMonth || isLastDayOrLaterOfCurrentMonth;
+  const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
+
   const paidDays = Math.min(daysInMonth, attendedDays + paidLeaveDays);
   const absentDays = Math.max(0, daysInMonth - paidDays);
 

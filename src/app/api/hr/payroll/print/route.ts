@@ -193,8 +193,19 @@ export async function POST(request: NextRequest) {
           [emp.id, monthNum, yearNum]
         );
 
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        const currentDay = now.getDate();
+
+        const isPastMonth = yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth);
+        const isLastDayOrLaterOfCurrentMonth = (yearNum === currentYear && monthNum === currentMonth && currentDay >= daysInMonth);
+
+        const shouldInclude4PaidLeaves = isPastMonth || isLastDayOrLaterOfCurrentMonth;
+        const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
+
         const attendedDays = Number(attCountRes.rows[0]?.att_count || 0);
-        const paidDays = Math.min(daysInMonth, attendedDays + 4);
+        const paidDays = Math.min(daysInMonth, attendedDays + paidLeaveDays);
         const earnedBase = Math.round(dailyRate * paidDays * 100) / 100;
 
         // Query overtime requests & attendance overtime
