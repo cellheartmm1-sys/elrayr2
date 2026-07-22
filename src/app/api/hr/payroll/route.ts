@@ -68,8 +68,7 @@ export async function GET(request: NextRequest) {
           p.status,
           p.payment_date,
           p.notes,
-          p.created_at,
-          p.updated_at
+          p.created_at
         FROM payroll p
         JOIN employees e ON e.id = p.employee_id
         LEFT JOIN departments d ON d.id = e.department_id
