@@ -1960,8 +1960,8 @@ export default function HRPage() {
 
       {/* ======================== MODAL: PRINT PAYROLL ======================== */}
       {showPrintPayrollModal && (
-        <div className="modal-backdrop" onClick={() => setShowPrintPayrollModal(false)}>
-          <div className="modal-content" style={{ maxWidth: printData ? '1100px' : '750px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowPrintPayrollModal(false)}>
+          <div className="modal modal-xl print-modal-content" style={{ maxWidth: printData ? '1100px' : '750px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">🖨️ طباعة كشف مسير الرواتب والمستحقات</div>
               <button className="modal-close" onClick={() => setShowPrintPayrollModal(false)}>✕</button>
@@ -2222,8 +2222,8 @@ export default function HRPage() {
 
       {/* ======================== MODAL: LEAVE EXCEEDED WARNING ======================== */}
       {leaveWarningInfo && (
-        <div className="modal-backdrop" onClick={() => setLeaveWarningInfo(null)}>
-          <div className="modal-content" style={{ maxWidth: '550px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setLeaveWarningInfo(null)}>
+          <div className="modal" style={{ maxWidth: '550px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ background: 'rgba(239, 68, 68, 0.1)', borderBottom: '1px solid rgba(239, 68, 68, 0.2)' }}>
               <div className="modal-title" style={{ color: 'var(--status-danger)' }}>⚠️ تنبيه استنفاد رصيد الإجازات الشهرية</div>
               <button className="modal-close" onClick={() => setLeaveWarningInfo(null)}>✕</button>

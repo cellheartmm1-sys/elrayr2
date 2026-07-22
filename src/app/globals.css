@@ -1279,13 +1279,18 @@ textarea.form-control {
    MODALS
    ============================================================ */
 
-.modal-overlay {
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 1000;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1293,7 +1298,8 @@ textarea.form-control {
   animation: fadeIn var(--transition-fast) ease;
 }
 
-.modal {
+.modal,
+.modal-content {
   background: var(--bg-card);
   border: 1px solid var(--border-normal);
   border-radius: var(--radius-xl);
@@ -1306,6 +1312,7 @@ textarea.form-control {
   overflow: hidden;
   box-shadow: var(--shadow-modal);
   animation: slideUp var(--transition-normal) ease;
+  z-index: 10000;
 }
 
 .modal-lg { max-width: 800px; }
