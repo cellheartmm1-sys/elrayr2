@@ -228,6 +228,51 @@ export default function HRPage() {
   const [attendanceDateFilter, setAttendanceDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceEmpSearch, setAttendanceEmpSearch] = useState('');
   const [leaveWarningInfo, setLeaveWarningInfo] = useState<{ show: boolean; emp: any; takenLeaves: number; date: string } | null>(null);
+  const [empMonthlyLogModal, setEmpMonthlyLogModal] = useState<{
+    show: boolean;
+    employee_id: string;
+    employee_name: string;
+    month: number;
+    year: number;
+    records: AttendanceRecord[];
+    loading: boolean;
+  } | null>(null);
+
+  const handleViewEmpMonthlyLog = async (p: PayrollItem) => {
+    const targetMonth = p.month || month;
+    const targetYear = p.year || year;
+    setEmpMonthlyLogModal({
+      show: true,
+      employee_id: p.employee_id,
+      employee_name: p.employee_name,
+      month: targetMonth,
+      year: targetYear,
+      records: [],
+      loading: true
+    });
+
+    try {
+      const res = await fetch(`/api/hr/attendance?employee_id=${p.employee_id}&limit=200`);
+      if (res.ok) {
+        const data = await res.json();
+        const empAtt = data && Array.isArray(data.data) ? data.data : [];
+        setEmpMonthlyLogModal({
+          show: true,
+          employee_id: p.employee_id,
+          employee_name: p.employee_name,
+          month: targetMonth,
+          year: targetYear,
+          records: empAtt,
+          loading: false
+        });
+      } else {
+        setEmpMonthlyLogModal(prev => prev ? { ...prev, loading: false } : null);
+      }
+    } catch (err) {
+      console.error(err);
+      setEmpMonthlyLogModal(prev => prev ? { ...prev, loading: false } : null);
+    }
+  };
 
   // Forms
   const [empForm, setEmpForm] = useState({
@@ -959,9 +1004,19 @@ export default function HRPage() {
                       <tr key={p.id}>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.employee_name}</td>
                         <td>
-                          <span className="badge badge-info">
-                            {p.actual_days || p.working_days || 30} / {p.working_days || 30} يوم
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <span className="badge badge-info">
+                              {p.actual_days || p.working_days || 30} / {p.working_days || 30} يوم
+                            </span>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                              onClick={() => handleViewEmpMonthlyLog(p)}
+                              title="عرض كشف تفصيلي لحالة جميع أيام الشهر"
+                            >
+                              👁️ عرض التفاصيل
+                            </button>
+                          </div>
                         </td>
                         <td style={{ fontWeight: 600 }}>{formatCurrency(p.base_salary)}</td>
                         <td>{formatCurrency(Number(p.housing_allowance || 0) + Number(p.transport_allowance || 0))}</td>
@@ -2267,6 +2322,123 @@ export default function HRPage() {
                   إلغاء الأمر
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      {/* ======================== MODAL: EMPLOYEE MONTHLY ATTENDANCE LOG ======================== */}
+      {empMonthlyLogModal && (
+        <div className="modal-overlay" onClick={() => setEmpMonthlyLogModal(null)}>
+          <div className="modal modal-xl" style={{ maxWidth: '920px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                📅 كشف سجل الحضور واليوميات الشهري: <strong>{empMonthlyLogModal.employee_name}</strong> (شهر {empMonthlyLogModal.month} - {empMonthlyLogModal.year})
+              </div>
+              <button className="modal-close" onClick={() => setEmpMonthlyLogModal(null)}>✕</button>
+            </div>
+
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '1.25rem' }}>
+              {empMonthlyLogModal.loading ? (
+                <div className="empty-state"><div className="loading-spinner" /></div>
+              ) : (() => {
+                const daysInM = new Date(empMonthlyLogModal.year, empMonthlyLogModal.month, 0).getDate();
+                const dayList = [];
+                const daysOfWeek = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+                for (let d = 1; d <= daysInM; d++) {
+                  const dateStr = `${empMonthlyLogModal.year}-${String(empMonthlyLogModal.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                  const dtObj = new Date(empMonthlyLogModal.year, empMonthlyLogModal.month - 1, d);
+                  const dayName = daysOfWeek[dtObj.getDay()];
+                  const rec = empMonthlyLogModal.records.find(r => r.attendance_date === dateStr || r.attendance_date.startsWith(dateStr));
+                  dayList.push({ dayNum: d, dateStr, dayName, rec });
+                }
+
+                const presentCount = dayList.filter(x => x.rec && ['present', 'late', 'half_day'].includes(x.rec.attendance_type)).length;
+                const absentCount = dayList.filter(x => x.rec && x.rec.attendance_type === 'absent').length;
+                const leaveCount = dayList.filter(x => x.rec && ['leave', 'holiday'].includes(x.rec.attendance_type)).length;
+
+                return (
+                  <>
+                    <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
+                      <div className="stat-card success">
+                        <div className="stat-card-icon">✅</div>
+                        <div className="stat-value">{presentCount}</div>
+                        <div className="stat-label">أيام الحضور المسجلة</div>
+                      </div>
+                      <div className="stat-card danger">
+                        <div className="stat-card-icon">❌</div>
+                        <div className="stat-value">{absentCount}</div>
+                        <div className="stat-label">أيام الغياب المؤكدة</div>
+                      </div>
+                      <div className="stat-card purple">
+                        <div className="stat-card-icon">🏖️</div>
+                        <div className="stat-value">{leaveCount}</div>
+                        <div className="stat-label">إجازات مدفوعة الأجر</div>
+                      </div>
+                      <div className="stat-card">
+                        <div className="stat-card-icon">📅</div>
+                        <div className="stat-value">{daysInM}</div>
+                        <div className="stat-label">إجمالي أيام الشهر</div>
+                      </div>
+                    </div>
+
+                    <div className="table-wrapper">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '60px', textAlign: 'center' }}>اليوم</th>
+                            <th>التاريخ واليوم</th>
+                            <th>حالة اليومية</th>
+                            <th>الموقع / المشروع</th>
+                            <th>الساعات الإضافية</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dayList.map(item => {
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            const isFuture = item.dateStr > todayStr;
+
+                            return (
+                              <tr key={item.dayNum}>
+                                <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>#{item.dayNum}</td>
+                                <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {item.dayName} ({item.dateStr})
+                                </td>
+                                <td>
+                                  {item.rec ? (
+                                    item.rec.attendance_type === 'present' || item.rec.attendance_type === 'late' ? (
+                                      <span className="badge badge-success">✅ حاضر {item.rec.overtime_hours ? `(+${item.rec.overtime_hours}س إضافي)` : ''}</span>
+                                    ) : item.rec.attendance_type === 'half_day' ? (
+                                      <span className="badge badge-warning">🌗 نصف يومية</span>
+                                    ) : item.rec.attendance_type === 'absent' ? (
+                                      <span className="badge badge-danger">❌ غياب مؤكد</span>
+                                    ) : item.rec.attendance_type === 'leave' || item.rec.attendance_type === 'holiday' ? (
+                                      <span className="badge badge-purple">🏖️ إجازة مدفوعة الأجر</span>
+                                    ) : (
+                                      <span className="badge badge-muted">{item.rec.attendance_type}</span>
+                                    )
+                                  ) : isFuture ? (
+                                    <span className="badge badge-muted">⏳ قادم / متبقي من الشهر</span>
+                                  ) : (
+                                    <span className="badge badge-danger" style={{ opacity: 0.85 }}>❌ غياب تلقائي (لم يتم التسجيل)</span>
+                                  )}
+                                </td>
+                                <td>{item.rec?.project_name || '-'}</td>
+                                <td style={{ fontFeatureSettings: '"tnum"', fontWeight: 600, color: 'var(--status-purple)' }}>
+                                  {item.rec?.overtime_hours ? `+${item.rec.overtime_hours} ساعة` : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-outline" onClick={() => setEmpMonthlyLogModal(null)}>إغلاق الكشف</button>
             </div>
           </div>
         </div>
