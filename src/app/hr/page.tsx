@@ -14,9 +14,9 @@ interface Employee {
 }
 
 interface PayrollItem {
-  id: string; employee_name: string; base_salary: string; housing_allowance: string;
+  id: string; employee_id: string; employee_name: string; base_salary: string; housing_allowance: string;
   transport_allowance: string; overtime_amount: string; deductions: string; net_salary: string; status: string;
-  working_days?: number; actual_days?: number; absent_days?: number;
+  month?: number; year?: number; working_days?: number; actual_days?: number; absent_days?: number;
 }
 
 interface AttendanceRecord {
