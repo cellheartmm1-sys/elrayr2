@@ -552,13 +552,29 @@ export default function HRPage() {
   const handleGeneratePayroll = async () => {
     if (!confirm(`هل تريد توليد كشف رواتب شهر ${month}-${year}؟`)) return;
     try {
+      setLoading(true);
       const res = await fetch('/api/hr/payroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ month, year })
       });
-      if (res.ok) fetchPayroll();
-    } catch (err) { console.error(err); }
+      const data = await res.json();
+      if (res.ok) {
+        if (data.count === 0) {
+          alert(`⚠️ تم الفحص: كشف الرواتب لشهر ${month}-${year} مُنشأ بالفعل لجميع الموظفين النشطين.`);
+        } else {
+          alert(`✅ تم احتساب وتوليد كشف الرواتب لعدد ${data.count || data.data?.length || 0} موظف بنجاح!`);
+        }
+        fetchPayroll();
+      } else {
+        alert(`❌ فشل توليد المسير: ${data.error || 'حدث خطأ غير معروف'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const totalPayrollCost = payroll.reduce((acc, p) => acc + Number(p.net_salary || 0), 0);

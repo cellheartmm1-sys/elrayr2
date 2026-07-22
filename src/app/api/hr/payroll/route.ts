@@ -165,13 +165,20 @@ export async function POST(request: NextRequest) {
       }
 
       // Query approved overtime requests
-      const overtimeReqRes = await query(
-        `SELECT COALESCE(SUM(amount), 0) AS req_amount, COALESCE(SUM(hours), 0) AS req_hours 
-         FROM overtime 
-         WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date) = $2 AND EXTRACT(YEAR FROM overtime_date) = $3`,
-        [empId, month, year]
-      );
-      const reqOvertimeAmount = Number(overtimeReqRes.rows[0]?.req_amount || 0);
+      let reqOvertimeAmount = 0;
+      try {
+        const overtimeReqRes = await query(
+          `SELECT COALESCE(SUM(hours_requested), 0) AS req_hours 
+           FROM overtime_requests 
+           WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date) = $2 AND EXTRACT(YEAR FROM overtime_date) = $3`,
+          [empId, month, year]
+        );
+        const reqHours = Number(overtimeReqRes.rows[0]?.req_hours || 0);
+        const hourlyRate = ((Number(salaryData.base_salary) || 0) / 240) * 1.5;
+        reqOvertimeAmount = reqHours * hourlyRate;
+      } catch (err) {
+        console.warn('Overtime calculation skipped or table missing:', err);
+      }
 
       // Query attendance overtime hours
       const attOvertimeRes = await query(
