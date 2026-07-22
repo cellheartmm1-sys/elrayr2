@@ -20,7 +20,7 @@ interface PayrollItem {
 }
 
 interface AttendanceRecord {
-  id: string; employee_name: string; project_name: string; attendance_date: string;
+  id: string; employee_id?: string; employee_name: string; project_name: string; attendance_date: string;
   check_in_time: string; check_out_time: string; attendance_type: string; overtime_hours: number;
 }
 
@@ -224,6 +224,11 @@ export default function HRPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
 
+  // Attendance Date & Action Filters
+  const [attendanceDateFilter, setAttendanceDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceEmpSearch, setAttendanceEmpSearch] = useState('');
+  const [leaveWarningInfo, setLeaveWarningInfo] = useState<{ show: boolean; emp: any; takenLeaves: number; date: string } | null>(null);
+
   // Forms
   const [empForm, setEmpForm] = useState({
     employee_number: '', full_name: '', full_name_en: '', nationality: 'سعودي', id_number: '',
@@ -268,12 +273,113 @@ export default function HRPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (selectedProject) params.set('project_id', selectedProject);
+    if (attendanceDateFilter) {
+      params.set('date_from', attendanceDateFilter);
+      params.set('date_to', attendanceDateFilter);
+    }
     try {
-      const res = await fetch(`/api/hr/attendance?${params}`);
+      const res = await fetch(`/api/hr/attendance?${params}&limit=200`);
       const data = await res.json();
       setAttendance(data && Array.isArray(data.data) ? data.data : []);
     } finally { setLoading(false); }
-  }, [selectedProject]);
+  }, [selectedProject, attendanceDateFilter]);
+
+  const handleOpenQuickPresentModal = (emp: Employee) => {
+    setAttendanceForm({
+      employee_id: emp.id,
+      project_id: selectedProject || projects[0]?.id || '',
+      attendance_date: attendanceDateFilter,
+      check_in_time: '08:00',
+      check_out_time: '17:00',
+      hours_worked: '8',
+      overtime_hours: '0',
+      attendance_type: 'present',
+      notes: ''
+    });
+    setShowAttendanceModal(true);
+  };
+
+  const handleQuickRegisterAbsent = async (emp: Employee) => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/hr/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: emp.id,
+          attendance_date: attendanceDateFilter,
+          attendance_type: 'absent',
+          notes: 'تسجيل غياب'
+        })
+      });
+      if (res.ok) {
+        alert(`✅ تم تسجيل غياب الموظف ${emp.full_name} لهذا اليوم (خصم اليومية).`);
+        fetchAttendance();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل تسجيل الغياب: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickRegisterLeave = async (emp: Employee, forcePaid: boolean = false) => {
+    const d = new Date(attendanceDateFilter);
+    const m = d.getMonth() + 1;
+    const y = d.getFullYear();
+
+    if (!forcePaid) {
+      // Check existing leave count for this employee in month & year
+      const takenLeaves = attendance.filter(a => 
+        a.employee_id === emp.id && 
+        (a.attendance_type === 'leave' || a.attendance_type === 'holiday') &&
+        new Date(a.attendance_date).getMonth() + 1 === m &&
+        new Date(a.attendance_date).getFullYear() === y &&
+        a.attendance_date !== attendanceDateFilter
+      ).length;
+
+      if (takenLeaves >= 4) {
+        setLeaveWarningInfo({
+          show: true,
+          emp,
+          takenLeaves,
+          date: attendanceDateFilter
+        });
+        return;
+      }
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/hr/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: emp.id,
+          attendance_date: attendanceDateFilter,
+          attendance_type: 'leave',
+          notes: 'تسجيل إجازة مدفوعة الأجر'
+        })
+      });
+      if (res.ok) {
+        alert(`✅ تم تسجيل إجازة مدفوعة الأجر للموظف ${emp.full_name}.`);
+        setLeaveWarningInfo(null);
+        fetchAttendance();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل تسجيل الإجازة: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchOvertime = useCallback(async () => {
     setLoading(true);
@@ -842,70 +948,160 @@ export default function HRPage() {
           <div className="page-header">
             <div className="page-header-left">
               <div className="page-title">📍 حضور وانصراف وحركة يوميات المشاريع</div>
-              <div className="page-description">تسجيل حضور الفنيين والعمال وتوزيع أجور اليوميات لتسميعها كمصروفات مباشرة على المشاريع</div>
+              <div className="page-description">عرض الكادر وتأكيد تسجيل الحضور والغياب والإجازات اليومية السريعة مع فحص رصيد 4 أيام الإجازة الشهري</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setShowAttendanceModal(true)}>➕ تسجيل حضور/يومية يدوي</button>
+              <button className="btn btn-primary" onClick={() => setShowAttendanceModal(true)}>➕ تسجيل تفاصيل حضور/إضافي يدوي</button>
             </div>
           </div>
 
-          <div className="filter-bar">
+          <div className="filter-bar" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>📅 تاريخ اليومية:</label>
+              <input
+                type="date"
+                className="form-control"
+                style={{ width: 'auto' }}
+                value={attendanceDateFilter}
+                onChange={e => setAttendanceDateFilter(e.target.value)}
+              />
+            </div>
+
+            <div className="search-input-wrapper" style={{ maxWidth: '280px' }}>
+              <span className="search-icon">🔍</span>
+              <input
+                className="search-input"
+                placeholder="بحث باسم الموظف أو الرقم..."
+                value={attendanceEmpSearch}
+                onChange={e => setAttendanceEmpSearch(e.target.value)}
+              />
+            </div>
+
             <select className="form-control" style={{ width: 'auto' }} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
               <option value="">كل المواقع والمشاريع</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
 
+          <div className="stat-grid" style={{ marginBottom: '1.25rem' }}>
+            <div className="stat-card success">
+              <div className="stat-card-icon">✅</div>
+              <div className="stat-value">
+                {attendance.filter(a => ['present', 'late', 'half_day'].includes(a.attendance_type)).length}
+              </div>
+              <div className="stat-label">حاضر اليوم ({attendanceDateFilter})</div>
+            </div>
+
+            <div className="stat-card danger">
+              <div className="stat-card-icon">❌</div>
+              <div className="stat-value">
+                {attendance.filter(a => a.attendance_type === 'absent').length}
+              </div>
+              <div className="stat-label">غياب (خصم أجر اليوم)</div>
+            </div>
+
+            <div className="stat-card purple">
+              <div className="stat-card-icon">🏖️</div>
+              <div className="stat-value">
+                {attendance.filter(a => ['leave', 'holiday'].includes(a.attendance_type)).length}
+              </div>
+              <div className="stat-label">إجازات مدفوعة الأجر</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-card-icon">👥</div>
+              <div className="stat-value">{employees.length}</div>
+              <div className="stat-label">إجمالي الكادر والعمالة النشطة</div>
+            </div>
+          </div>
+
           <div className="card">
-            {attendance.length === 0 ? (
+            {loading ? (
+              <div className="empty-state"><div className="loading-spinner" /></div>
+            ) : employees.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">📍</div>
-                <div className="empty-state-title">لا توجد سجلات حضور اليوم في الموقع المحدد</div>
+                <div className="empty-state-icon">👨‍💼</div>
+                <div className="empty-state-title">لا يوجد موظفون نشطون مسجلون في النظام</div>
               </div>
             ) : (
               <div className="table-wrapper">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>الموظف</th>
+                      <th>الرقم الوظيفي</th>
+                      <th>اسم الموظف</th>
+                      <th>المسمى الوظيفي</th>
+                      <th>حالة حضور اليوم ({attendanceDateFilter})</th>
                       <th>الموقع / المشروع</th>
-                      <th>التاريخ</th>
-                      <th>وقت الحضور</th>
-                      <th>وقت الانصراف</th>
-                      <th>الحالة</th>
-                      <th>ساعات إضافي</th>
-                      <th style={{ textAlign: 'center', width: '100px' }}>العمليات</th>
+                      <th style={{ textAlign: 'center' }}>الإجراءات والعمليات السريعة</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {attendance.map(a => (
-                      <tr key={a.id}>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{a.employee_name}</td>
-                        <td>{a.project_name || 'المكتب الرئيسي'}</td>
-                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-SA')}</td>
-                        <td style={{ color: 'var(--status-success)', fontFeatureSettings: '"tnum"' }}>
-                          {a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                        </td>
-                        <td style={{ color: 'var(--status-warning)', fontFeatureSettings: '"tnum"' }}>
-                          {a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                        </td>
-                        <td>
-                          <span className={`badge ${a.attendance_type === 'present' ? 'badge-success' : a.attendance_type === 'late' ? 'badge-warning' : 'badge-danger'}`}>
-                            {a.attendance_type === 'present' ? 'حاضر (GPS)' : a.attendance_type === 'late' ? 'متأخر' : 'غياب'}
-                          </span>
-                        </td>
-                        <td style={{ color: 'var(--status-purple)', fontWeight: 600 }}>{a.overtime_hours || 0} س</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            className="btn btn-ghost text-danger btn-sm"
-                            onClick={() => handleDeleteAttendance(a.id)}
-                            title="حذف اليومية وإلغاء القيد المالي للمشروع"
-                          >
-                            🗑️ حذف
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {employees
+                      .filter(emp => emp.full_name.includes(attendanceEmpSearch) || emp.employee_number.includes(attendanceEmpSearch))
+                      .map(emp => {
+                        const rec = attendance.find(a => a.employee_id === emp.id && (a.attendance_date === attendanceDateFilter || a.attendance_date.startsWith(attendanceDateFilter)));
+                        const statusType = rec ? rec.attendance_type : 'none';
+
+                        return (
+                          <tr key={emp.id}>
+                            <td style={{ fontWeight: 700 }}>{emp.employee_number}</td>
+                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{emp.full_name}</td>
+                            <td>{emp.job_title}</td>
+                            <td>
+                              {statusType === 'present' || statusType === 'late' ? (
+                                <span className="badge badge-success">✅ حاضر {rec?.overtime_hours ? `(+${rec.overtime_hours}س إضافي)` : ''}</span>
+                              ) : statusType === 'half_day' ? (
+                                <span className="badge badge-warning">🌗 نصف يومية</span>
+                              ) : statusType === 'absent' ? (
+                                <span className="badge badge-danger">❌ غياب (بدون أجر)</span>
+                              ) : statusType === 'leave' || statusType === 'holiday' ? (
+                                <span className="badge badge-purple">🏖️ إجازة مدفوعة الأجر</span>
+                              ) : (
+                                <span className="badge badge-muted">⏳ لم يتم التسجيل بعد</span>
+                              )}
+                            </td>
+                            <td>{rec?.project_name || (selectedProject ? projects.find(p => p.id === selectedProject)?.name : '-')}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                  className="btn btn-success btn-sm"
+                                  onClick={() => handleOpenQuickPresentModal(emp)}
+                                  title="تسجيل حضور وتحديد الساعات والمشروع والإضافي"
+                                >
+                                  ✅ تسجيل حضور
+                                </button>
+
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleQuickRegisterAbsent(emp)}
+                                  title="تسجيل غياب الموظف لهذا اليوم (خصم اليومية من الراتب)"
+                                >
+                                  ❌ تسجيل غياب
+                                </button>
+
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleQuickRegisterLeave(emp)}
+                                  title="تسجيل إجازة مدفوعة الأجر (خصم من الـ 4 أيام الشهرية)"
+                                >
+                                  🏖️ تسجيل إجازة
+                                </button>
+
+                                {rec && (
+                                  <button
+                                    className="btn btn-ghost text-danger btn-sm"
+                                    onClick={() => handleDeleteAttendance(rec.id)}
+                                    title="حذف اليومية وإلغاء التسجيل لهذا اليوم"
+                                  >
+                                    🗑️ إلغاء
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -1982,6 +2178,58 @@ export default function HRPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: LEAVE EXCEEDED WARNING ======================== */}
+      {leaveWarningInfo && (
+        <div className="modal-backdrop" onClick={() => setLeaveWarningInfo(null)}>
+          <div className="modal-content" style={{ maxWidth: '550px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: 'rgba(239, 68, 68, 0.1)', borderBottom: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <div className="modal-title" style={{ color: 'var(--status-danger)' }}>⚠️ تنبيه استنفاد رصيد الإجازات الشهرية</div>
+              <button className="modal-close" onClick={() => setLeaveWarningInfo(null)}>✕</button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '1.25rem' }}>
+              <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
+                الموظف <strong>{leaveWarningInfo.emp?.full_name}</strong> قد استنفد بالفعل الـ <strong>4 أيام إجازة المدفوعة الأجر</strong> المخصصة له لهذا الشهر (قام بتسجيل {leaveWarningInfo.takenLeaves} أيام إجازة سابقاً خلال الشهر).
+              </div>
+
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                يرجى اختيار إجراء للتعامل مع طلب الإجازة اليومية بتاريخ ({leaveWarningInfo.date}):
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <button
+                  className="btn btn-warning"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => handleQuickRegisterLeave(leaveWarningInfo.emp, true)}
+                >
+                  🏖️ احتساب إجازة مدفوعة استثنائية (تجاوز الحد الرصيدي)
+                </button>
+
+                <button
+                  className="btn btn-danger"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    const emp = leaveWarningInfo.emp;
+                    setLeaveWarningInfo(null);
+                    handleQuickRegisterAbsent(emp);
+                  }}
+                >
+                  ❌ احتساب كـ غياب / إجازة غير مدفوعة الأجر (خصم أجر اليوم)
+                </button>
+
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => setLeaveWarningInfo(null)}
+                >
+                  إلغاء الأمر
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

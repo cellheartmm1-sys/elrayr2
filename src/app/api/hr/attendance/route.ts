@@ -111,21 +111,35 @@ export async function POST(request: NextRequest) {
       notes,
     } = body;
 
-    // MANDATORY PROJECT SELECTION
-    if (!employee_id || !attendance_date || !project_id) {
-      return NextResponse.json({ error: 'إجبارياً: يجب اختيار المشروع/الموقع المرتبط وبيانات العامل وتاريخ اليومية' }, { status: 400 });
-    }
-
     const resolvedType = attendance_type ?? status ?? 'present';
 
-    // Prevent duplicate recording for same employee on same date and project
+    if (!employee_id || !attendance_date) {
+      return NextResponse.json({ error: 'بيانات العامل وتاريخ اليومية مطلوبة' }, { status: 400 });
+    }
+
+    if ((resolvedType === 'present' || resolvedType === 'late' || resolvedType === 'half_day') && !project_id) {
+      // For attendance linked to project expenses, check if projects exist
+      const prjCheck = await query('SELECT id FROM projects LIMIT 1');
+      if (prjCheck.rows.length > 0 && !project_id) {
+        return NextResponse.json({ error: 'إجبارياً: يجب اختيار المشروع/الموقع المرتبط بالحضور' }, { status: 400 });
+      }
+    }
+
+    // Replace existing attendance record for same employee on same date to allow updates
     const existing = await query(
-      `SELECT id FROM attendance_records WHERE employee_id = $1 AND attendance_date = $2 AND project_id = $3`,
-      [employee_id, attendance_date, project_id]
+      `SELECT id, reference_expense_id FROM attendance_records WHERE employee_id = $1 AND attendance_date = $2`,
+      [employee_id, attendance_date]
     );
 
     if (existing.rows.length > 0) {
-      return NextResponse.json({ error: 'تم تسجيل حضور هذا العامل لهذا اليوم وهذا المشروع مسبقاً' }, { status: 400 });
+      for (const rec of existing.rows) {
+        if (rec.reference_expense_id) {
+          try {
+            await query('DELETE FROM project_expenses WHERE id = $1', [rec.reference_expense_id]);
+          } catch (err) {}
+        }
+        await query('DELETE FROM attendance_records WHERE id = $1', [rec.id]);
+      }
     }
 
     // Fetch employee details to calculate Direct Labor Cost
@@ -142,9 +156,9 @@ export async function POST(request: NextRequest) {
       calculatedLaborCost = (baseDailyRate / 2) + (otHours * otRate);
     }
 
-    // Auto-post Direct Labor Cost into project_expenses
+    // Auto-post Direct Labor Cost into project_expenses if project_id exists
     let refExpenseId: string | null = null;
-    if (calculatedLaborCost > 0) {
+    if (calculatedLaborCost > 0 && project_id) {
       const expRes = await query(
         `INSERT INTO project_expenses (project_id, expense_date, category, description, amount, supplier)
          VALUES ($1, $2, 'labor', $3, $4, 'سركي اليوميات والعمالة المباشرة')
@@ -198,7 +212,7 @@ export async function POST(request: NextRequest) {
         RETURNING *`,
       [
         employee_id,
-        project_id,
+        project_id || null,
         attendance_date,
         resolvedType,
         resolvedCheckIn,
