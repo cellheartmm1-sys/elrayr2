@@ -193,11 +193,7 @@ export async function POST(request: NextRequest) {
           [emp.id, monthNum, yearNum]
         );
 
-        let attendedDays = daysInMonth - 4;
-        if (Number(totalRecRes.rows[0]?.total_rec || 0) > 0) {
-          attendedDays = Number(attCountRes.rows[0]?.att_count || 0);
-        }
-
+        const attendedDays = Number(attCountRes.rows[0]?.att_count || 0);
         const paidDays = Math.min(daysInMonth, attendedDays + 4);
         const earnedBase = Math.round(dailyRate * paidDays * 100) / 100;
 

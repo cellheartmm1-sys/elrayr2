@@ -381,6 +381,43 @@ export default function HRPage() {
     }
   };
 
+  const handleBulkAutoAbsent = async () => {
+    const unrecordedEmps = employees.filter(emp => {
+      const rec = attendance.find(a => a.employee_id === emp.id && (a.attendance_date === attendanceDateFilter || a.attendance_date.startsWith(attendanceDateFilter)));
+      return !rec;
+    });
+
+    if (unrecordedEmps.length === 0) {
+      alert('⚠️ جميع الموظفين لديهم تسجيلات حضور/غياب/إجازة حالية لهذا اليوم.');
+      return;
+    }
+
+    if (!confirm(`هل تريد تثبيت الغياب التلقائي لعدد ${unrecordedEmps.length} موظف لم يتم تسجيل حضورهم لهذا اليوم (${attendanceDateFilter})؟`)) return;
+
+    try {
+      setLoading(true);
+      for (const emp of unrecordedEmps) {
+        await fetch('/api/hr/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employee_id: emp.id,
+            attendance_date: attendanceDateFilter,
+            attendance_type: 'absent',
+            notes: 'غياب تلقائي عند انتهاء اليوم'
+          })
+        });
+      }
+      alert(`✅ تم تثبيت الغياب التلقائي لعدد ${unrecordedEmps.length} موظف بنجاح.`);
+      fetchAttendance();
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ أثناء تثبيت الغياب التلقائي.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchOvertime = useCallback(async () => {
     setLoading(true);
     try {
@@ -950,7 +987,8 @@ export default function HRPage() {
               <div className="page-title">📍 حضور وانصراف وحركة يوميات المشاريع</div>
               <div className="page-description">عرض الكادر وتأكيد تسجيل الحضور والغياب والإجازات اليومية السريعة مع فحص رصيد 4 أيام الإجازة الشهري</div>
             </div>
-            <div className="page-header-actions">
+            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-warning" onClick={handleBulkAutoAbsent} title="تطبيق غياب تلقائي لجميع الموظفين الذين لم يسجلوا اليوم">⚡ إنهاء اليوم وتثبيت الغياب للجميع</button>
               <button className="btn btn-primary" onClick={() => setShowAttendanceModal(true)}>➕ تسجيل تفاصيل حضور/إضافي يدوي</button>
             </div>
           </div>
@@ -995,9 +1033,9 @@ export default function HRPage() {
             <div className="stat-card danger">
               <div className="stat-card-icon">❌</div>
               <div className="stat-value">
-                {attendance.filter(a => a.attendance_type === 'absent').length}
+                {attendance.filter(a => a.attendance_type === 'absent').length + employees.filter(e => !attendance.some(a => a.employee_id === e.id && (a.attendance_date === attendanceDateFilter || a.attendance_date.startsWith(attendanceDateFilter)))).length}
               </div>
-              <div className="stat-label">غياب (خصم أجر اليوم)</div>
+              <div className="stat-label">إجمالي الغياب والغياب التلقائي</div>
             </div>
 
             <div className="stat-card purple">
@@ -1054,11 +1092,11 @@ export default function HRPage() {
                               ) : statusType === 'half_day' ? (
                                 <span className="badge badge-warning">🌗 نصف يومية</span>
                               ) : statusType === 'absent' ? (
-                                <span className="badge badge-danger">❌ غياب (بدون أجر)</span>
+                                <span className="badge badge-danger">❌ غياب مؤكد</span>
                               ) : statusType === 'leave' || statusType === 'holiday' ? (
                                 <span className="badge badge-purple">🏖️ إجازة مدفوعة الأجر</span>
                               ) : (
-                                <span className="badge badge-muted">⏳ لم يتم التسجيل بعد</span>
+                                <span className="badge badge-danger" style={{ opacity: 0.85 }} title="لم يسجل حضور/إذن ويحسب غياب تلقائياً إذا انتهى اليوم">❌ غياب تلقائي (لم يتم التسجيل)</span>
                               )}
                             </td>
                             <td>{rec?.project_name || (selectedProject ? projects.find(p => p.id === selectedProject)?.name : '-')}</td>

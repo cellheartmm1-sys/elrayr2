@@ -47,8 +47,8 @@ async function processSingleEmployee({
   if (empRes.rows.length === 0) return null;
   const salaryData = empRes.rows[0];
 
-  // Query actual attendance days for this employee in this month
-  let attendedDays = daysInMonth - 4; // default assumption if no attendance records exist at all
+  // Query actual recorded attendance days for this employee in this month
+  let attendedDays = 0;
   try {
     const attCountRes = await query(
       `SELECT COUNT(DISTINCT attendance_date) AS attended_count 
@@ -60,18 +60,7 @@ async function processSingleEmployee({
       [empId, month, year]
     );
 
-    const totalRecordsRes = await query(
-      `SELECT COUNT(*) AS total_rec
-       FROM attendance_records
-       WHERE employee_id = $1
-         AND EXTRACT(MONTH FROM attendance_date) = $2
-         AND EXTRACT(YEAR FROM attendance_date) = $3`,
-      [empId, month, year]
-    );
-
-    if (Number(totalRecordsRes.rows[0]?.total_rec || 0) > 0) {
-      attendedDays = Number(attCountRes.rows[0]?.attended_count || 0);
-    }
+    attendedDays = Number(attCountRes.rows[0]?.attended_count || 0);
   } catch (err) {
     console.warn('Attendance days calculation skipped:', err);
   }
