@@ -23,16 +23,16 @@ async function processSingleEmployee({
   notes?: string | null;
   recalculate?: boolean;
 }) {
-  // Check duplicate payroll entry
+  // Check existing payroll entry: auto-update draft records on every fetch/calculation
   const existing = await query(
     'SELECT id, status FROM payroll WHERE employee_id = $1 AND month = $2 AND year = $3',
     [empId, month, year]
   );
   if (existing.rows.length > 0) {
-    if (recalculate && existing.rows[0].status === 'draft') {
+    if (existing.rows[0].status === 'draft') {
       await query('DELETE FROM payroll WHERE id = $1', [existing.rows[0].id]);
     } else {
-      return null; // Skip if already exists
+      return null; // Skip locked records (approved/paid)
     }
   }
 
@@ -96,17 +96,7 @@ async function processSingleEmployee({
   if (activeLoanRes.rows.length > 0) {
     const loan = activeLoanRes.rows[0];
     const remaining = Number(loan.amount) - Number(loan.paid_amount);
-    loanDeduction = Math.min(Number(loan.monthly_deduction), remaining);
-
-    // Deduct/Update the loan paid_amount and status immediately if new entry
-    if (loanDeduction > 0 && !recalculate) {
-      const newPaid = Number(loan.paid_amount) + loanDeduction;
-      const newStatus = newPaid >= Number(loan.amount) ? 'paid' : 'active';
-      await query(
-        `UPDATE employee_loans SET paid_amount = $1, status = $2, updated_at = NOW() WHERE id = $3`,
-        [newPaid, newStatus, loan.id]
-      );
-    }
+    loanDeduction = Math.min(Number(loan.monthly_deduction), Math.max(0, remaining));
   }
 
   // Query approved overtime requests
