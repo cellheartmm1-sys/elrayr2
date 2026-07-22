@@ -2325,6 +2325,8 @@ export default function HRPage() {
             </div>
           </div>
         </div>
+      )}
+
       {/* ======================== MODAL: EMPLOYEE MONTHLY ATTENDANCE LOG ======================== */}
       {empMonthlyLogModal && (
         <div className="modal-overlay" onClick={() => setEmpMonthlyLogModal(null)}>
