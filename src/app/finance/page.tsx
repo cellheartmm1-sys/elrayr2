@@ -1506,7 +1506,7 @@ export default function FinancePage() {
                 <div className="stat-card success">
                   <div className="stat-card-icon">💰</div>
                   <div className="stat-value" style={{ fontSize: '1.4rem' }}>
-                    {formatCurrency(reportData.summary?.total_revenues || 0)}
+                    {formatCurrency(reportData.summary?.total_revenues ?? reportData.summary?.totalRevenues ?? 0)}
                   </div>
                   <div className="stat-label">إجمالي الإيرادات والتحصيلات ({currencySymbol})</div>
                 </div>
@@ -1514,7 +1514,7 @@ export default function FinancePage() {
                 <div className="stat-card danger">
                   <div className="stat-card-icon">💸</div>
                   <div className="stat-value" style={{ fontSize: '1.4rem' }}>
-                    {formatCurrency(reportData.summary?.total_expenses || 0)}
+                    {formatCurrency(reportData.summary?.total_expenses ?? reportData.summary?.totalExpenses ?? 0)}
                   </div>
                   <div className="stat-label">إجمالي المصروفات والنفقات ({currencySymbol})</div>
                 </div>
@@ -1522,15 +1522,15 @@ export default function FinancePage() {
                 <div className="stat-card warning">
                   <div className="stat-card-icon">🤝</div>
                   <div className="stat-value" style={{ fontSize: '1.4rem' }}>
-                    {formatCurrency(reportData.summary?.total_subcontractor || 0)}
+                    {formatCurrency(reportData.summary?.total_subcontractor ?? reportData.summary?.totalSubcontractor ?? 0)}
                   </div>
                   <div className="stat-label">مستخلصات مقاولي الباطن ({currencySymbol})</div>
                 </div>
 
                 <div className="stat-card purple">
                   <div className="stat-card-icon">⚖️</div>
-                  <div className="stat-value" style={{ fontSize: '1.4rem', color: (reportData.summary?.net_cash_flow || 0) >= 0 ? '#10b981' : '#ef4444' }}>
-                    {formatCurrency(reportData.summary?.net_cash_flow || 0)}
+                  <div className="stat-value" style={{ fontSize: '1.4rem', color: ((reportData.summary?.net_cash_flow ?? reportData.summary?.netCashFlow ?? 0) >= 0) ? '#10b981' : '#ef4444' }}>
+                    {formatCurrency(reportData.summary?.net_cash_flow ?? reportData.summary?.netCashFlow ?? 0)}
                   </div>
                   <div className="stat-label">صافي التدفق المالي والأرباح ({currencySymbol})</div>
                 </div>
@@ -1781,10 +1781,10 @@ export default function FinancePage() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid #000', padding: '1rem', borderRadius: '6px' }}>
-                  <div><strong>إجمالي الإيرادات:</strong> {formatCurrency(reportData.summary?.total_revenues || 0)}</div>
-                  <div><strong>إجمالي المصروفات:</strong> {formatCurrency(reportData.summary?.total_expenses || 0)}</div>
-                  <div><strong>مستخلصات المقاولين:</strong> {formatCurrency(reportData.summary?.total_subcontractor || 0)}</div>
-                  <div><strong>صافي الأرباح/التدفق:</strong> {formatCurrency(reportData.summary?.net_cash_flow || 0)}</div>
+                  <div><strong>إجمالي الإيرادات:</strong> {formatCurrency(reportData.summary?.total_revenues ?? reportData.summary?.totalRevenues ?? 0)}</div>
+                  <div><strong>إجمالي المصروفات:</strong> {formatCurrency(reportData.summary?.total_expenses ?? reportData.summary?.totalExpenses ?? 0)}</div>
+                  <div><strong>مستخلصات المقاولين:</strong> {formatCurrency(reportData.summary?.total_subcontractor ?? reportData.summary?.totalSubcontractor ?? 0)}</div>
+                  <div><strong>صافي الأرباح/التدفق:</strong> {formatCurrency(reportData.summary?.net_cash_flow ?? reportData.summary?.netCashFlow ?? 0)}</div>
                 </div>
 
                 <table className="print-table">
@@ -3288,19 +3288,19 @@ export default function FinancePage() {
                     <tbody>
                       <tr>
                         <th>إجمالي المقبوضات والإيرادات</th>
-                        <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_revenues || 0)}</td>
+                        <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_revenues ?? printReportData.report.summary?.totalRevenues ?? 0)}</td>
                       </tr>
                       <tr>
                         <th>إجمالي النفقات والمصروفات</th>
-                        <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_expenses || 0)}</td>
+                        <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_expenses ?? printReportData.report.summary?.totalExpenses ?? 0)}</td>
                       </tr>
                       <tr>
                         <th>تمويلات مقاولي الباطن المسددة</th>
-                        <td style={{ color: '#f59e0b', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_subcontractor || 0)}</td>
+                        <td style={{ color: '#f59e0b', fontWeight: 'bold' }}>{formatCurrency(printReportData.report.summary?.total_subcontractor ?? printReportData.report.summary?.totalSubcontractor ?? 0)}</td>
                       </tr>
                       <tr style={{ background: '#f0fdf4', fontSize: '1.1rem' }}>
                         <th>صافي أرباح ورصيد الصندوق المتاح</th>
-                        <td style={{ fontWeight: 'bold', color: '#16a34a' }}>{formatCurrency(printReportData.report.summary?.net_cash_flow || 0)}</td>
+                        <td style={{ fontWeight: 'bold', color: '#16a34a' }}>{formatCurrency(printReportData.report.summary?.net_cash_flow ?? printReportData.report.summary?.netCashFlow ?? 0)}</td>
                       </tr>
                     </tbody>
                   </table>

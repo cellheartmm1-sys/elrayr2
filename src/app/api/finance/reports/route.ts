@@ -121,7 +121,20 @@ export async function GET(request: NextRequest) {
         totalWht,
         netCashFlow,
         grossProfit: totalRevenues - totalSubcontractor,
-        netProfit: netCashFlow
+        netProfit: netCashFlow,
+
+        // Alias snake_case properties for compatibility with frontend components
+        total_revenues: totalRevenues,
+        total_expenses: totalExpenses,
+        total_subcontractor: totalSubcontractor,
+        total_debts: totalDebts,
+        total_vat: totalVat,
+        total_retention: totalRetention,
+        total_advance_recoveries: totalAdvanceRecoveries,
+        total_wht: totalWht,
+        net_cash_flow: netCashFlow,
+        gross_profit: totalRevenues - totalSubcontractor,
+        net_profit: netCashFlow
       },
       transactions
     });
