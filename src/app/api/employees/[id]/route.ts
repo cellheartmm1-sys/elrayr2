@@ -107,6 +107,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    // Delete/clean up dependent records to avoid Foreign Key constraint violations
+    await query(`DELETE FROM attendance_records WHERE employee_id = $1`, [id]);
+    await query(`DELETE FROM payroll WHERE employee_id = $1`, [id]);
+    await query(`DELETE FROM employee_loans WHERE employee_id = $1`, [id]);
+    await query(`DELETE FROM employee_documents WHERE employee_id = $1`, [id]);
+    await query(`DELETE FROM salary_allocations WHERE employee_id = $1`, [id]);
+    
+    try { await query(`DELETE FROM overtime_requests WHERE employee_id = $1`, [id]); } catch {}
+    try { await query(`UPDATE personal_assets SET assigned_to = NULL WHERE assigned_to = $1`, [id]); } catch {}
+    try { await query(`DELETE FROM petty_cash_custodies WHERE engineer_id = $1`, [id]); } catch {}
+    try { await query(`DELETE FROM petty_cash_claims WHERE engineer_id = $1`, [id]); } catch {}
+
     await query(`DELETE FROM employees WHERE id = $1`, [id]);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
