@@ -99,6 +99,74 @@ export default function HRPage() {
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+
+  // Print Payroll Modal states
+  const [showPrintPayrollModal, setShowPrintPayrollModal] = useState(false);
+  const [printDateMode, setPrintDateMode] = useState<'month' | 'day' | 'range'>('month');
+  const [printMonth, setPrintMonth] = useState(new Date().getMonth() + 1);
+  const [printYear, setPrintYear] = useState(new Date().getFullYear());
+  const [printSingleDate, setPrintSingleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [printStartDate, setPrintStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [printEndDate, setPrintEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const [printEmpMode, setPrintEmpMode] = useState<'all' | 'single' | 'selected'>('all');
+  const [printSingleEmpId, setPrintSingleEmpId] = useState('');
+  const [printSelectedEmpIds, setPrintSelectedEmpIds] = useState<string[]>([]);
+  const [printSearch, setPrintSearch] = useState('');
+
+  const [printData, setPrintData] = useState<any | null>(null);
+  const [printLoading, setPrintLoading] = useState(false);
+
+  const handleOpenPrintModal = () => {
+    setShowPrintPayrollModal(true);
+    setPrintData(null);
+  };
+
+  const handleFetchPrintData = async () => {
+    try {
+      setPrintLoading(true);
+      const res = await fetch('/api/hr/payroll/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateMode: printDateMode,
+          month: printMonth,
+          year: printYear,
+          singleDate: printSingleDate,
+          startDate: printStartDate,
+          endDate: printEndDate,
+          empMode: printEmpMode,
+          singleEmpId: printSingleEmpId,
+          selectedEmpIds: printSelectedEmpIds
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPrintData(data);
+      } else {
+        alert(`❌ فشل تجهيز كشف الطباعة: ${data.error || 'حدث خطأ غير معروف'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
+  const handleToggleSelectEmp = (empId: string) => {
+    setPrintSelectedEmpIds(prev => 
+      prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
+    );
+  };
+
+  const handleSelectAllPrintEmps = () => {
+    setPrintSelectedEmpIds(employees.map(e => e.id));
+  };
+
+  const handleDeselectAllPrintEmps = () => {
+    setPrintSelectedEmpIds([]);
+  };
   const [attendanceForm, setAttendanceForm] = useState({
     employee_id: '',
     project_id: '',
@@ -690,7 +758,8 @@ export default function HRPage() {
               <div className="page-title">💳 مسيرات الرواتب وتوزيع التكاليف</div>
               <div className="page-description">توزيع تكلفة رواتب المهندسين والعمال على المشاريع لتحليل ربحية كل مشروع بدقة</div>
             </div>
-            <div className="page-header-actions">
+            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-outline" onClick={handleOpenPrintModal}>🖨️ طباعة كشف الرواتب</button>
               <button className="btn btn-success" onClick={handleGeneratePayroll}>🔄 إعادة احتساب وتحديث المسير</button>
             </div>
           </div>
@@ -1651,6 +1720,268 @@ export default function HRPage() {
                 <button type="submit" className="btn btn-primary">💾 تسجيل الحضور وتكلفة المشروع</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: PRINT PAYROLL ======================== */}
+      {showPrintPayrollModal && (
+        <div className="modal-backdrop" onClick={() => setShowPrintPayrollModal(false)}>
+          <div className="modal-content" style={{ maxWidth: printData ? '1100px' : '750px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">🖨️ طباعة كشف مسير الرواتب والمستحقات</div>
+              <button className="modal-close" onClick={() => setShowPrintPayrollModal(false)}>✕</button>
+            </div>
+
+            {!printData ? (
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '1.25rem' }}>
+                {/* Step 1: Date Filter Mode */}
+                <div className="card" style={{ marginBottom: '1.25rem', background: 'var(--surface-card)', padding: '1rem', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--brand-primary-light)' }}>
+                    1️⃣ تحديد الفترة الزمنية (Date Range):
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: printDateMode === 'month' ? 700 : 400 }}>
+                      <input type="radio" name="dateMode" checked={printDateMode === 'month'} onChange={() => setPrintDateMode('month')} />
+                      📅 شهر معين (Month)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: printDateMode === 'day' ? 700 : 400 }}>
+                      <input type="radio" name="dateMode" checked={printDateMode === 'day'} onChange={() => setPrintDateMode('day')} />
+                      📆 يوم محدد (Single Day)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: printDateMode === 'range' ? 700 : 400 }}>
+                      <input type="radio" name="dateMode" checked={printDateMode === 'range'} onChange={() => setPrintDateMode('range')} />
+                      🗓️ مدة مخصصة (Custom Range)
+                    </label>
+                  </div>
+
+                  {printDateMode === 'month' && (
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">الشهر:</label>
+                        <select className="form-control" value={printMonth} onChange={e => setPrintMonth(Number(e.target.value))}>
+                          {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1} - شهر</option>)}
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">السنة:</label>
+                        <select className="form-control" value={printYear} onChange={e => setPrintYear(Number(e.target.value))}>
+                          <option value="2026">2026</option>
+                          <option value="2025">2025</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {printDateMode === 'day' && (
+                    <div className="form-group">
+                      <label className="form-label">التاريخ المحدد:</label>
+                      <input type="date" className="form-control" value={printSingleDate} onChange={e => setPrintSingleDate(e.target.value)} />
+                    </div>
+                  )}
+
+                  {printDateMode === 'range' && (
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">من تاريخ (البداية):</label>
+                        <input type="date" className="form-control" value={printStartDate} onChange={e => setPrintStartDate(e.target.value)} />
+                      </div>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">إلى تاريخ (النهاية):</label>
+                        <input type="date" className="form-control" value={printEndDate} onChange={e => setPrintEndDate(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 2: Employee Scope */}
+                <div className="card" style={{ background: 'var(--surface-card)', padding: '1rem', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--brand-primary-light)' }}>
+                    2️⃣ تحديد الموظفين (Employee Scope):
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: printEmpMode === 'all' ? 700 : 400 }}>
+                      <input type="radio" name="empMode" checked={printEmpMode === 'all'} onChange={() => setPrintEmpMode('all')} />
+                      👥 جميع الموظفين النشطين
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: printEmpMode === 'single' ? 700 : 400 }}>
+                      <input type="radio" name="empMode" checked={printEmpMode === 'single'} onChange={() => setPrintEmpMode('single')} />
+                      👤 موظف واحد فقط
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: printEmpMode === 'selected' ? 700 : 400 }}>
+                      <input type="radio" name="empMode" checked={printEmpMode === 'selected'} onChange={() => setPrintEmpMode('selected')} />
+                      📋 تحديد مجموعة من الموظفين ({printSelectedEmpIds.length})
+                    </label>
+                  </div>
+
+                  {printEmpMode === 'single' && (
+                    <div className="form-group">
+                      <label className="form-label">اختر الموظف:</label>
+                      <select className="form-control" value={printSingleEmpId} onChange={e => setPrintSingleEmpId(e.target.value)}>
+                        <option value="">-- اختر موظف من القائمة --</option>
+                        {employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.employee_number} - {emp.full_name} ({emp.job_title})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {printEmpMode === 'selected' && (
+                    <div>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="بحث باسم الموظف..."
+                          value={printSearch}
+                          onChange={e => setPrintSearch(e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={handleSelectAllPrintEmps}>تحديد الكل</button>
+                        <button type="button" className="btn btn-ghost text-danger btn-sm" onClick={handleDeselectAllPrintEmps}>إلغاء التحديد</button>
+                      </div>
+
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-normal)', borderRadius: '8px', padding: '0.5rem' }}>
+                        {employees
+                          .filter(emp => emp.full_name.includes(printSearch) || emp.employee_number.includes(printSearch))
+                          .map(emp => {
+                            const isChecked = printSelectedEmpIds.includes(emp.id);
+                            return (
+                              <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.35rem 0.5rem', borderRadius: '4px', cursor: 'pointer', background: isChecked ? 'rgba(79, 70, 229, 0.08)' : 'transparent' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleToggleSelectEmp(emp.id)}
+                                />
+                                <div>
+                                  <span style={{ fontWeight: 600 }}>{emp.full_name}</span>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginRight: '0.5rem' }}>({emp.employee_number} - {emp.job_title})</span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-footer" style={{ borderTop: 'none', padding: '1.25rem 0 0 0', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                  <button type="button" className="btn btn-outline" onClick={() => setShowPrintPayrollModal(false)}>إلغاء</button>
+                  <button type="button" className="btn btn-primary" onClick={handleFetchPrintData} disabled={printLoading}>
+                    {printLoading ? 'جاري التجهيز...' : '👁️ معاينة وتأكيد كشف الطباعة'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Print Preview & Action */
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: 'var(--surface-card)', padding: '0.75rem 1rem', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: 600 }}>
+                    جاهز للطباعة | {printData.data?.length} موظف مدرج | {printData.periodLabel}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => setPrintData(null)}>⚙️ تعديل الفلتر والخيارات</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => window.print()}>🖨️ طباعة الآن (Print / PDF)</button>
+                  </div>
+                </div>
+
+                {/* Printable Container */}
+                <div id="payroll-printable-area" style={{ background: '#fff', color: '#111827', padding: '2rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <style>{`
+                    @media print {
+                      body * { visibility: hidden !important; }
+                      #payroll-printable-area, #payroll-printable-area * { visibility: visible !important; }
+                      #payroll-printable-area {
+                        position: absolute !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 15mm !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                      }
+                      .no-print { display: none !important; }
+                    }
+                  `}</style>
+
+                  {/* Header */}
+                  <div style={{ borderBottom: '2px solid #1e293b', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b' }}>شركة الرئير للإنشاءات والمقاولات العامة</div>
+                      <div style={{ fontSize: '0.9rem', color: '#64748b' }}>إدارة الموارد البشرية والرواتب - مسيرات الأجور</div>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4f46e5' }}>كشف مسير الرواتب والمستحقات</div>
+                      <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '0.2rem' }}>{printData.periodLabel}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>تاريخ الاستخراج: {new Date().toLocaleDateString('ar-EG')}</div>
+                    </div>
+                  </div>
+
+                  {/* Printable Data Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'right', marginBottom: '2rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>#</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>الرقم الوظيفي</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>اسم الموظف</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>المسمى الوظيفي</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1', textAlign: 'center' }}>أيام الحضور والمدفوع</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>الراتب المستحق</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>البدلات</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>العمل الإضافي</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1' }}>الخصومات</th>
+                        <th style={{ padding: '8px 10px', border: '1px solid #cbd5e1', fontWeight: 700 }}>صافي الراتب</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printData.data?.map((row: any, idx: number) => (
+                        <tr key={row.id || idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', fontWeight: 600 }}>{row.employee_number}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', fontWeight: 700, color: '#0f172a' }}>{row.employee_name}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0' }}>{row.job_title}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>{row.actual_days} / {row.working_days}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0' }}>{formatCurrency(row.base_salary)}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0' }}>{formatCurrency(row.other_allowances || (Number(row.housing_allowance || 0) + Number(row.transport_allowance || 0)))}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', color: '#16a34a' }}>+{formatCurrency(row.overtime_amount)}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', color: '#dc2626' }}>-{formatCurrency(row.deductions)}</td>
+                          <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', fontWeight: 800, color: '#0f172a' }}>{formatCurrency(row.net_salary)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: '#e2e8f0', fontWeight: 800, borderTop: '2px solid #94a3b8' }}>
+                        <td colSpan={5} style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center' }}>الإجمالي الكلي المستحق ({printData.summary?.employeeCount} موظف)</td>
+                        <td style={{ padding: '10px', border: '1px solid #cbd5e1' }}>{formatCurrency(printData.summary?.totalBaseSalary)}</td>
+                        <td style={{ padding: '10px', border: '1px solid #cbd5e1' }}>{formatCurrency(printData.summary?.totalAllowances)}</td>
+                        <td style={{ padding: '10px', border: '1px solid #cbd5e1', color: '#16a34a' }}>+{formatCurrency(printData.summary?.totalOvertime)}</td>
+                        <td style={{ padding: '10px', border: '1px solid #cbd5e1', color: '#dc2626' }}>-{formatCurrency(printData.summary?.totalDeductions)}</td>
+                        <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '1rem', color: '#1e1b4b' }}>{formatCurrency(printData.summary?.totalNetSalary)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+
+                  {/* Official Signatures */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginTop: '3rem', textAlign: 'center', fontSize: '0.85rem', color: '#334155' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>إعداد مسؤول الموارد البشرية</div>
+                      <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ...........................</div>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>المراجعة والتدقيق المالي</div>
+                      <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ...........................</div>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>اعتماد المدير العام</div>
+                      <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ...........................</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
