@@ -16,6 +16,7 @@ interface Employee {
 interface PayrollItem {
   id: string; employee_name: string; base_salary: string; housing_allowance: string;
   transport_allowance: string; overtime_amount: string; deductions: string; net_salary: string; status: string;
+  working_days?: number; actual_days?: number; absent_days?: number;
 }
 
 interface AttendanceRecord {
@@ -550,24 +551,20 @@ export default function HRPage() {
   };
 
   const handleGeneratePayroll = async () => {
-    if (!confirm(`هل تريد توليد كشف رواتب شهر ${month}-${year}؟`)) return;
+    if (!confirm(`هل تريد إعادة احتساب وتحديث كشف رواتب شهر ${month}-${year}؟`)) return;
     try {
       setLoading(true);
       const res = await fetch('/api/hr/payroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month, year })
+        body: JSON.stringify({ month, year, recalculate: true })
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.count === 0) {
-          alert(`⚠️ تم الفحص: كشف الرواتب لشهر ${month}-${year} مُنشأ بالفعل لجميع الموظفين النشطين.`);
-        } else {
-          alert(`✅ تم احتساب وتوليد كشف الرواتب لعدد ${data.count || data.data?.length || 0} موظف بنجاح!`);
-        }
+        alert(`✅ تم إعادة احتساب وتحديث كشف الرواتب لشهر ${month}-${year} بنجاح!`);
         fetchPayroll();
       } else {
-        alert(`❌ فشل توليد المسير: ${data.error || 'حدث خطأ غير معروف'}`);
+        alert(`❌ فشل احتساب المسير: ${data.error || 'حدث خطأ غير معروف'}`);
       }
     } catch (err) {
       console.error(err);
@@ -694,7 +691,7 @@ export default function HRPage() {
               <div className="page-description">توزيع تكلفة رواتب المهندسين والعمال على المشاريع لتحليل ربحية كل مشروع بدقة</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-success" onClick={handleGeneratePayroll}>⚡ احتساب المسير للشهر الحالي</button>
+              <button className="btn btn-success" onClick={handleGeneratePayroll}>🔄 إعادة احتساب وتحديث المسير</button>
             </div>
           </div>
 
@@ -722,19 +719,22 @@ export default function HRPage() {
           </div>
 
           <div className="card">
-            {payroll.length === 0 ? (
+            {loading ? (
+              <div className="empty-state"><div className="loading-spinner" /></div>
+            ) : payroll.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">💸</div>
-                <div className="empty-state-title">لا توجد بيانات مسيرة لهذا الشهر</div>
-                <button className="btn btn-outline" style={{ marginTop: '0.5rem' }} onClick={handleGeneratePayroll}>توليد المسير الآن</button>
+                <div className="empty-state-title">لا يوجد موظفون نشطون لإدراجهم في مسير هذا الشهر</div>
+                <button className="btn btn-outline" style={{ marginTop: '0.5rem' }} onClick={handleGeneratePayroll}>إعادة احتساب وتحديث المسير</button>
               </div>
             ) : (
-              <div className="table-wrapper">
+            <div className="table-wrapper">
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th>الموظف</th>
-                      <th>الراتب الأساسي</th>
+                      <th>أيام الحضور والمدفوع</th>
+                      <th>الراتب الأساسي المستحق</th>
                       <th>السكن والنقل</th>
                       <th>العمل الإضافي</th>
                       <th>الخصومات</th>
@@ -746,7 +746,12 @@ export default function HRPage() {
                     {payroll.map(p => (
                       <tr key={p.id}>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.employee_name}</td>
-                        <td>{formatCurrency(p.base_salary)}</td>
+                        <td>
+                          <span className="badge badge-info">
+                            {p.actual_days || p.working_days || 30} / {p.working_days || 30} يوم
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{formatCurrency(p.base_salary)}</td>
                         <td>{formatCurrency(Number(p.housing_allowance || 0) + Number(p.transport_allowance || 0))}</td>
                         <td style={{ color: 'var(--status-success)' }}>+{formatCurrency(p.overtime_amount)}</td>
                         <td style={{ color: 'var(--status-danger)' }}>-{formatCurrency(p.deductions)}</td>

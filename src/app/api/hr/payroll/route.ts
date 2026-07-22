@@ -1,6 +1,187 @@
 import { query } from '@/lib/db';
 import { NextResponse, NextRequest } from 'next/server';
 
+// Helper function to calculate and insert payroll for a single employee
+async function processSingleEmployee({
+  empId,
+  month,
+  year,
+  customDeductions = 0,
+  overtime_amount = 0,
+  status = 'draft',
+  payment_date = null,
+  notes = null,
+  recalculate = false,
+}: {
+  empId: string;
+  month: number;
+  year: number;
+  customDeductions?: number;
+  overtime_amount?: number;
+  status?: string;
+  payment_date?: string | null;
+  notes?: string | null;
+  recalculate?: boolean;
+}) {
+  // Check duplicate payroll entry
+  const existing = await query(
+    'SELECT id, status FROM payroll WHERE employee_id = $1 AND month = $2 AND year = $3',
+    [empId, month, year]
+  );
+  if (existing.rows.length > 0) {
+    if (recalculate && existing.rows[0].status === 'draft') {
+      await query('DELETE FROM payroll WHERE id = $1', [existing.rows[0].id]);
+    } else {
+      return null; // Skip if already exists
+    }
+  }
+
+  // Days in month calculation (e.g. 31 days for July, 30 for June, 28/29 for Feb)
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  // Fetch employee salary info
+  const empRes = await query(
+    'SELECT base_salary, housing_allowance, transport_allowance, other_allowances FROM employees WHERE id = $1',
+    [empId]
+  );
+  if (empRes.rows.length === 0) return null;
+  const salaryData = empRes.rows[0];
+
+  // Query actual attendance days for this employee in this month
+  let attendedDays = daysInMonth - 4; // default assumption if no attendance records exist at all
+  try {
+    const attCountRes = await query(
+      `SELECT COUNT(DISTINCT attendance_date) AS attended_count 
+       FROM attendance_records 
+       WHERE employee_id = $1 
+         AND EXTRACT(MONTH FROM attendance_date) = $2 
+         AND EXTRACT(YEAR FROM attendance_date) = $3
+         AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday')`,
+      [empId, month, year]
+    );
+
+    const totalRecordsRes = await query(
+      `SELECT COUNT(*) AS total_rec
+       FROM attendance_records
+       WHERE employee_id = $1
+         AND EXTRACT(MONTH FROM attendance_date) = $2
+         AND EXTRACT(YEAR FROM attendance_date) = $3`,
+      [empId, month, year]
+    );
+
+    if (Number(totalRecordsRes.rows[0]?.total_rec || 0) > 0) {
+      attendedDays = Number(attCountRes.rows[0]?.attended_count || 0);
+    }
+  } catch (err) {
+    console.warn('Attendance days calculation skipped:', err);
+  }
+
+  // 4 days paid leave added per month
+  const paidLeaveDays = 4;
+  const paidDays = Math.min(daysInMonth, attendedDays + paidLeaveDays);
+  const absentDays = Math.max(0, daysInMonth - paidDays);
+
+  // Daily rate & earned base salary
+  const fullBaseSalary = Number(salaryData.base_salary || 0);
+  const dailyRate = daysInMonth > 0 ? fullBaseSalary / daysInMonth : 0;
+  const earnedBaseSalary = Math.round(dailyRate * paidDays * 100) / 100;
+
+  // Query active loan deduction
+  const activeLoanRes = await query(
+    `SELECT id, monthly_deduction, amount, paid_amount FROM employee_loans 
+     WHERE employee_id = $1 AND status = 'active'`,
+    [empId]
+  );
+  let loanDeduction = 0;
+  if (activeLoanRes.rows.length > 0) {
+    const loan = activeLoanRes.rows[0];
+    const remaining = Number(loan.amount) - Number(loan.paid_amount);
+    loanDeduction = Math.min(Number(loan.monthly_deduction), remaining);
+
+    // Deduct/Update the loan paid_amount and status immediately if new entry
+    if (loanDeduction > 0 && !recalculate) {
+      const newPaid = Number(loan.paid_amount) + loanDeduction;
+      const newStatus = newPaid >= Number(loan.amount) ? 'paid' : 'active';
+      await query(
+        `UPDATE employee_loans SET paid_amount = $1, status = $2, updated_at = NOW() WHERE id = $3`,
+        [newPaid, newStatus, loan.id]
+      );
+    }
+  }
+
+  // Query approved overtime requests
+  let reqOvertimeAmount = 0;
+  try {
+    const overtimeReqRes = await query(
+      `SELECT COALESCE(SUM(hours_requested), 0) AS req_hours 
+       FROM overtime_requests 
+       WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date) = $2 AND EXTRACT(YEAR FROM overtime_date) = $3`,
+      [empId, month, year]
+    );
+    const reqHours = Number(overtimeReqRes.rows[0]?.req_hours || 0);
+    const hourlyRate = (fullBaseSalary / 240) * 1.5;
+    reqOvertimeAmount = reqHours * hourlyRate;
+  } catch (err) {
+    console.warn('Overtime calculation skipped or table missing:', err);
+  }
+
+  // Query attendance overtime hours
+  let attOvertimeAmount = 0;
+  try {
+    const attOvertimeRes = await query(
+      `SELECT COALESCE(SUM(overtime_hours), 0) AS att_hours 
+       FROM attendance_records 
+       WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = $2 AND EXTRACT(YEAR FROM attendance_date) = $3`,
+      [empId, month, year]
+    );
+    const attOvertimeHours = Number(attOvertimeRes.rows[0]?.att_hours || 0);
+    const hourlyRate = (fullBaseSalary / 240) * 1.5;
+    attOvertimeAmount = attOvertimeHours * hourlyRate;
+  } catch (err) {
+    console.warn('Attendance overtime calculation skipped:', err);
+  }
+
+  const calculatedOvertime = reqOvertimeAmount + attOvertimeAmount;
+  const finalOvertime = Number(overtime_amount) > 0 ? Number(overtime_amount) : calculatedOvertime;
+
+  const finalDeductions = Number(customDeductions) + loanDeduction;
+  const grossSalary =
+    earnedBaseSalary +
+    (Number(salaryData.housing_allowance) ?? 0) +
+    (Number(salaryData.transport_allowance) ?? 0) +
+    (Number(salaryData.other_allowances) ?? 0) +
+    finalOvertime;
+  const netSalary = grossSalary - finalDeductions;
+
+  const result = await query(
+    `INSERT INTO payroll (
+        employee_id, month, year, working_days, actual_days, absent_days,
+        base_salary, housing_allowance, transport_allowance, other_allowances,
+        overtime_amount, deductions, net_salary, status, payment_date, notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      RETURNING *`,
+    [
+      empId,
+      month,
+      year,
+      daysInMonth,
+      paidDays,
+      absentDays,
+      earnedBaseSalary,
+      salaryData.housing_allowance ?? 0,
+      salaryData.transport_allowance ?? 0,
+      salaryData.other_allowances ?? 0,
+      finalOvertime,
+      finalDeductions,
+      netSalary,
+      status,
+      payment_date ?? null,
+      notes ?? null,
+    ]
+  );
+  return result.rows[0];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -11,6 +192,22 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '25', 10)));
     const offset = (page - 1) * limit;
+
+    // Auto-generate payroll records for active employees if month and year are specified
+    if (month && year) {
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+      if (!isNaN(monthNum) && !isNaN(yearNum)) {
+        const activeEmps = await query("SELECT id FROM employees WHERE status = 'active'");
+        for (const emp of activeEmps.rows) {
+          await processSingleEmployee({
+            empId: emp.id,
+            month: monthNum,
+            year: yearNum,
+          });
+        }
+      }
+    }
 
     const conditions: string[] = [];
     const params: unknown[] = [];
@@ -58,6 +255,9 @@ export async function GET(request: NextRequest) {
           d.name AS department_name,
           p.month,
           p.year,
+          p.working_days,
+          p.actual_days,
+          p.absent_days,
           p.base_salary,
           p.housing_allowance,
           p.transport_allowance,
@@ -112,6 +312,7 @@ export async function POST(request: NextRequest) {
       status = 'draft',
       payment_date,
       notes,
+      recalculate = false,
     } = body;
 
     if (!month || !year) {
@@ -121,117 +322,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Helper function to calculate and insert payroll for a single employee
-    const processSingleEmployee = async (empId: string, customDeductions = 0) => {
-      // Check duplicate payroll entry
-      const existing = await query(
-        'SELECT id FROM payroll WHERE employee_id = $1 AND month = $2 AND year = $3',
-        [empId, month, year]
-      );
-      if (existing.rows.length > 0) {
-        return null; // Skip if already exists
-      }
-
-      // Fetch employee salary info
-      const empRes = await query(
-        'SELECT base_salary, housing_allowance, transport_allowance, other_allowances FROM employees WHERE id = $1',
-        [empId]
-      );
-      if (empRes.rows.length === 0) return null;
-      const salaryData = empRes.rows[0];
-
-      // Query active loan deduction
-      const activeLoanRes = await query(
-        `SELECT id, monthly_deduction, amount, paid_amount FROM employee_loans 
-         WHERE employee_id = $1 AND status = 'active'`,
-        [empId]
-      );
-      let loanDeduction = 0;
-      if (activeLoanRes.rows.length > 0) {
-        const loan = activeLoanRes.rows[0];
-        const remaining = Number(loan.amount) - Number(loan.paid_amount);
-        loanDeduction = Math.min(Number(loan.monthly_deduction), remaining);
-
-        // Deduct/Update the loan paid_amount and status immediately
-        if (loanDeduction > 0) {
-          const newPaid = Number(loan.paid_amount) + loanDeduction;
-          const newStatus = newPaid >= Number(loan.amount) ? 'paid' : 'active';
-          await query(
-            `UPDATE employee_loans SET paid_amount = $1, status = $2, updated_at = NOW() WHERE id = $3`,
-            [newPaid, newStatus, loan.id]
-          );
-        }
-      }
-
-      // Query approved overtime requests
-      let reqOvertimeAmount = 0;
-      try {
-        const overtimeReqRes = await query(
-          `SELECT COALESCE(SUM(hours_requested), 0) AS req_hours 
-           FROM overtime_requests 
-           WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date) = $2 AND EXTRACT(YEAR FROM overtime_date) = $3`,
-          [empId, month, year]
-        );
-        const reqHours = Number(overtimeReqRes.rows[0]?.req_hours || 0);
-        const hourlyRate = ((Number(salaryData.base_salary) || 0) / 240) * 1.5;
-        reqOvertimeAmount = reqHours * hourlyRate;
-      } catch (err) {
-        console.warn('Overtime calculation skipped or table missing:', err);
-      }
-
-      // Query attendance overtime hours
-      const attOvertimeRes = await query(
-        `SELECT COALESCE(SUM(overtime_hours), 0) AS att_hours 
-         FROM attendance_records 
-         WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = $2 AND EXTRACT(YEAR FROM attendance_date) = $3`,
-        [empId, month, year]
-      );
-      const attOvertimeHours = Number(attOvertimeRes.rows[0]?.att_hours || 0);
-
-      // Hourly rate calculation: (base_salary / 240) * 1.5
-      const hourlyRate = ((Number(salaryData.base_salary) || 0) / 240) * 1.5;
-      const attOvertimeAmount = attOvertimeHours * hourlyRate;
-
-      const calculatedOvertime = reqOvertimeAmount + attOvertimeAmount;
-      const finalOvertime = Number(overtime_amount) > 0 ? Number(overtime_amount) : calculatedOvertime;
-
-      const finalDeductions = Number(customDeductions) + loanDeduction;
-      const grossSalary =
-        (Number(salaryData.base_salary) ?? 0) +
-        (Number(salaryData.housing_allowance) ?? 0) +
-        (Number(salaryData.transport_allowance) ?? 0) +
-        (Number(salaryData.other_allowances) ?? 0) +
-        finalOvertime;
-      const netSalary = grossSalary - finalDeductions;
-
-      const result = await query(
-        `INSERT INTO payroll (
-            employee_id, month, year, base_salary, housing_allowance,
-            transport_allowance, other_allowances, overtime_amount,
-            deductions, net_salary, status, payment_date, notes
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-          RETURNING *`,
-        [
-          empId,
-          month,
-          year,
-          salaryData.base_salary ?? 0,
-          salaryData.housing_allowance ?? 0,
-          salaryData.transport_allowance ?? 0,
-          salaryData.other_allowances ?? 0,
-          finalOvertime,
-          finalDeductions,
-          netSalary,
-          status,
-          payment_date ?? null,
-          notes ?? null,
-        ]
-      );
-      return result.rows[0];
-    };
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
 
     if (employee_id) {
-      const record = await processSingleEmployee(employee_id, deductions);
+      const record = await processSingleEmployee({
+        empId: employee_id,
+        month: monthNum,
+        year: yearNum,
+        customDeductions: deductions,
+        overtime_amount,
+        status,
+        payment_date,
+        notes,
+        recalculate,
+      });
       if (!record) {
         return NextResponse.json(
           { error: 'Payroll record already exists or employee not found' },
@@ -244,7 +349,17 @@ export async function POST(request: NextRequest) {
       const activeEmps = await query("SELECT id FROM employees WHERE status = 'active'");
       const created = [];
       for (const emp of activeEmps.rows) {
-        const rec = await processSingleEmployee(emp.id, 0);
+        const rec = await processSingleEmployee({
+          empId: emp.id,
+          month: monthNum,
+          year: yearNum,
+          customDeductions: 0,
+          overtime_amount: 0,
+          status,
+          payment_date,
+          notes,
+          recalculate,
+        });
         if (rec) created.push(rec);
       }
       return NextResponse.json({ data: created, count: created.length }, { status: 201 });
@@ -257,3 +372,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
