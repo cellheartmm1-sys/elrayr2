@@ -812,6 +812,251 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
       </div>
 
+      {/* ======================== PRINTABLE EMPLOYEE DOSSIER (A4) ======================== */}
+      <div className="employee-print-dossier">
+        <style>{`
+          @media screen {
+            .employee-print-dossier { display: none !important; }
+          }
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 12mm 15mm 15mm 15mm;
+            }
+            body {
+              background: #ffffff !important;
+              color: #000000 !important;
+              font-family: Arial, sans-serif !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .no-print, header, nav, sidebar, .app-header, .tabs, button, Link, label, .modal-overlay {
+              display: none !important;
+            }
+            .employee-print-dossier {
+              display: block !important;
+              width: 100% !important;
+              direction: rtl !important;
+              color: #1e293b !important;
+            }
+            .print-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 0.4rem;
+              margin-bottom: 0.8rem;
+            }
+            .print-table th, .print-table td {
+              border: 1px solid #cbd5e1;
+              padding: 6px 10px;
+              font-size: 11px;
+              text-align: right;
+            }
+            .print-table th {
+              background-color: #f1f5f9 !important;
+              font-weight: bold;
+            }
+          }
+        `}</style>
+
+        {/* Header */}
+        <div style={{ borderBottom: '2px solid #1e293b', paddingBottom: '0.8rem', marginBottom: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b' }}>شركة الرايق للإنشاءات والمقاولات العامة</div>
+            <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>إدارة الموارد البشرية - بطاقة السجل الوظيفي الشامل</div>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4f46e5' }}>بطاقة ملف الموظف</div>
+            <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '0.2rem' }}>رقم الملف: {employee.employee_number}</div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</div>
+          </div>
+        </div>
+
+        {/* Top Info Banner */}
+        <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '1rem', marginBottom: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>{employee.full_name}</div>
+            <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '0.2rem' }}>
+              المسمى الوظيفي: <strong>{employee.job_title}</strong> | القسم: <strong>{employee.department_name || 'غير محدد'}</strong>
+            </div>
+          </div>
+          <div style={{ textAlign: 'left', fontSize: '0.85rem', color: '#334155' }}>
+            <div>حالة التوظيف: <strong>{statusLabels[employee.status] || employee.status}</strong></div>
+            <div>نوع العقد: <strong>{typeLabels[employee.employment_type] || employee.employment_type}</strong></div>
+          </div>
+        </div>
+
+        {/* Section 1: Personal & Financial Details */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+            📌 البيانات الشخصية والهيكلة المالية
+          </div>
+          <table className="print-table">
+            <tbody>
+              <tr>
+                <td style={{ width: '18%', fontWeight: 'bold', background: '#f8fafc' }}>الاسم بالعربي:</td>
+                <td style={{ width: '32%' }}>{employee.full_name}</td>
+                <td style={{ width: '18%', fontWeight: 'bold', background: '#f8fafc' }}>الاسم بالإنجليزية:</td>
+                <td style={{ width: '32%' }}>{employee.full_name_en || '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>الجنسية:</td>
+                <td>{employee.nationality || '-'}</td>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>رقم الإقامة / الهوية:</td>
+                <td>{employee.iqama_number || employee.id_number || '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>تاريخ انتهاء الإقامة:</td>
+                <td>{employee.iqama_expiry ? new Date(employee.iqama_expiry).toLocaleDateString('ar-SA') : '-'}</td>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>رقم الجواز:</td>
+                <td>{employee.passport_number || '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>تاريخ الميلاد:</td>
+                <td>{employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString('ar-SA') : '-'}</td>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>تاريخ التعيين:</td>
+                <td>{employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('ar-SA') : '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>رقم الجوال:</td>
+                <td>{employee.phone || '-'}</td>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>البريد الإلكتروني:</td>
+                <td>{employee.email || '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>الراتب الأساسي:</td>
+                <td style={{ fontWeight: 'bold' }}>{formatCurrency(employee.base_salary)}</td>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>بدل السكن والنقل:</td>
+                <td>{formatCurrency(Number(employee.housing_allowance || 0) + Number(employee.transport_allowance || 0))}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>البنك المعتمد:</td>
+                <td>{employee.bank_name || '-'}</td>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>رقم الحساب / IBAN:</td>
+                <td>{employee.iban || employee.bank_account || '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>طوارئ (اسم وتليفون):</td>
+                <td colSpan={3}>{(employee.emergency_contact || '-') + ' (' + (employee.emergency_phone || '-') + ')'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 2: Documents & Attachments List */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+            📁 المستندات والوثائق المرفوعة للموظف ({documents.length})
+          </div>
+          {documents.length === 0 ? (
+            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', padding: '0.5rem' }}>لا توجد وثائق مرفوعة للموظف حالياً.</div>
+          ) : (
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '30px' }}>#</th>
+                  <th>نوع المستند / الوثيقة</th>
+                  <th>رقم الوثيقة</th>
+                  <th>تاريخ الإدراج</th>
+                  <th>حالة المرفق</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((doc, index) => (
+                  <tr key={doc.id}>
+                    <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                    <td style={{ fontWeight: 'bold' }}>{docLabels[doc.document_type] || doc.document_type}</td>
+                    <td>{doc.document_number || '-'}</td>
+                    <td>{new Date(doc.created_at).toLocaleDateString('ar-EG')}</td>
+                    <td>{doc.file_url ? 'مرفق ومحفوظ بالسحابة ✅' : 'مستند بدون ملف'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Section 3: Assets & Project Allocations */}
+        <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+              🔨 العهد الشخصية المستلمة ({assets.length})
+            </div>
+            {assets.length === 0 ? (
+              <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', padding: '0.5rem' }}>لا توجد عهد عينية مسلمة للموظف.</div>
+            ) : (
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th>كود العهدة</th>
+                    <th>العهد المستلمة</th>
+                    <th>حالة العهدة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assets.map(a => (
+                    <tr key={a.id}>
+                      <td style={{ fontWeight: 'bold' }}>{a.asset_code}</td>
+                      <td>{a.asset_name}</td>
+                      <td>{a.condition}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+              📊 توزيع التكلفة والراتب على المشاريع ({allocations.length})
+            </div>
+            {allocations.length === 0 ? (
+              <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', padding: '0.5rem' }}>لا يوجد توزيع مسجل على المشاريع.</div>
+            ) : (
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th>المشروع</th>
+                    <th>النسبة</th>
+                    <th>المبلغ المستقطع</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allocations.map(al => (
+                    <tr key={al.id}>
+                      <td style={{ fontWeight: 'bold' }}>{al.project_name}</td>
+                      <td>{al.allocation_percentage}%</td>
+                      <td>{formatCurrency(al.allocated_amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Section 4: Signatures */}
+        <div style={{ marginTop: '2rem', borderTop: '1px solid #cbd5e1', paddingTop: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', textAlign: 'center', fontSize: '11px' }}>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>إعداد شؤون الموظفين</div>
+              <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ....................</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>إقرار واستلام الموظف</div>
+              <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ....................</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>المراجعة والتدقيق المالي</div>
+              <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ....................</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '2.5rem' }}>اعتماد المدير العام</div>
+              <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '0.4rem' }}>التوقيع: ....................</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ======================== MODAL: ADD / EDIT SALARY ALLOCATION ======================== */}
       {showAllocationModal && (
         <div className="modal-overlay" onClick={() => setShowAllocationModal(false)}>
