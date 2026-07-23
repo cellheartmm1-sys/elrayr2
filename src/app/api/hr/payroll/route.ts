@@ -49,18 +49,21 @@ async function processSingleEmployee({
 
   // Query actual recorded attendance days for this employee in this month
   let attendedDays = 0;
+  let explicitAbsentDays = 0;
   try {
     const attCountRes = await query(
-      `SELECT COUNT(DISTINCT attendance_date) AS attended_count 
+      `SELECT 
+         COUNT(DISTINCT CASE WHEN attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day') THEN attendance_date END) AS attended_count,
+         COUNT(DISTINCT CASE WHEN attendance_type = 'absent' THEN attendance_date END) AS explicit_absent_count
        FROM attendance_records 
        WHERE employee_id = $1 
-         AND EXTRACT(MONTH FROM attendance_date) = $2 
-         AND EXTRACT(YEAR FROM attendance_date) = $3
-         AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day')`,
+         AND EXTRACT(MONTH FROM attendance_date::date) = $2 
+         AND EXTRACT(YEAR FROM attendance_date::date) = $3`,
       [empId, month, year]
     );
 
     attendedDays = Number(attCountRes.rows[0]?.attended_count || 0);
+    explicitAbsentDays = Number(attCountRes.rows[0]?.explicit_absent_count || 0);
   } catch (err) {
     console.warn('Attendance days calculation skipped:', err);
   }
@@ -80,10 +83,18 @@ async function processSingleEmployee({
   const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
 
   // Deduction rule: 2 days deducted for every 1 day of absence
-  const absentDaysCount = Math.max(0, daysInMonth - attendedDays);
-  const absentPenaltyDays = absentDaysCount * 2;
-  const paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentPenaltyDays + paidLeaveDays));
-  const absentDays = absentDaysCount;
+  const isCompletedMonth = isPastMonth || isLastDayOrLaterOfCurrentMonth;
+  const totalAbsentDays = isCompletedMonth
+    ? Math.max(0, daysInMonth - (attendedDays + paidLeaveDays))
+    : explicitAbsentDays;
+
+  const absentPenaltyDays = totalAbsentDays * 2;
+
+  const paidDays = isCompletedMonth
+    ? Math.min(daysInMonth, Math.max(0, daysInMonth - absentPenaltyDays))
+    : Math.min(daysInMonth, Math.max(0, attendedDays + paidLeaveDays - absentPenaltyDays));
+
+  const absentDays = totalAbsentDays;
 
   // Daily rate & earned base salary
   const fullBaseSalary = Number(salaryData.base_salary || 0);
@@ -109,7 +120,7 @@ async function processSingleEmployee({
     const overtimeReqRes = await query(
       `SELECT COALESCE(SUM(hours_requested), 0) AS req_hours 
        FROM overtime_requests 
-       WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date) = $2 AND EXTRACT(YEAR FROM overtime_date) = $3`,
+       WHERE employee_id = $1 AND status = 'approved' AND EXTRACT(MONTH FROM overtime_date::date) = $2 AND EXTRACT(YEAR FROM overtime_date::date) = $3`,
       [empId, month, year]
     );
     const reqHours = Number(overtimeReqRes.rows[0]?.req_hours || 0);
@@ -125,7 +136,7 @@ async function processSingleEmployee({
     const attOvertimeRes = await query(
       `SELECT COALESCE(SUM(overtime_hours), 0) AS att_hours 
        FROM attendance_records 
-       WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = $2 AND EXTRACT(YEAR FROM attendance_date) = $3`,
+       WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date::date) = $2 AND EXTRACT(YEAR FROM attendance_date::date) = $3`,
       [empId, month, year]
     );
     const attOvertimeHours = Number(attOvertimeRes.rows[0]?.att_hours || 0);
