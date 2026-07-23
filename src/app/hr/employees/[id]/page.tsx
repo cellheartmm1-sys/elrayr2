@@ -377,6 +377,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               <span className={`badge ${typeBadge[employee.employment_type] || 'badge-muted'}`} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', fontWeight: 700 }}>
                 {typeLabels[employee.employment_type] || employee.employment_type}
               </span>
+              <button onClick={() => window.print()} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                🖨️ طباعة الملف الكامل
+              </button>
               <Link href="/hr" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 🔙 رجوع
               </Link>

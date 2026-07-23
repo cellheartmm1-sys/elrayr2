@@ -947,7 +947,15 @@ export default function HRPage() {
                         <td>{emp.phone || '-'}</td>
                         <td><span className={`badge ${statusBadge[emp.status] || 'badge-muted'}`}>{statusLabels[emp.status] || emp.status}</span></td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <Link
+                              href={`/hr/employees/${emp.id}`}
+                              className="btn btn-outline btn-sm"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none' }}
+                              title="عرض الملف الكامل للموظف والوثائق المرفوعة"
+                            >
+                              📁 عرض الملف
+                            </Link>
                             <button
                               className="btn btn-ghost text-primary btn-sm"
                               onClick={() => handleOpenEditEmployee(emp)}
