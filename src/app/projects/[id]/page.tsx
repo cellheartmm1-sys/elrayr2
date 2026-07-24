@@ -434,6 +434,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     ({project.payment_type === 'once' ? 'دفعة واحدة' : 'على دفعات'})
                   </span>
                 )}
+                <a href={`/projects/${id}/contract`} className="kpi-detail-btn">تفاصيل ←</a>
               </div>
               <div className="card-icon-watermark">📄</div>
             </div>
@@ -444,6 +445,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <span className="card-value">{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</span>
                 <span className="card-label">إجمالي التكاليف</span>
                 <span className="card-subtext">مصاريف + مقاولين + عمال</span>
+                <a href={`/projects/${id}/costs`} className="kpi-detail-btn">تفاصيل ←</a>
               </div>
               <div className="card-icon-watermark">💸</div>
             </div>
@@ -454,6 +456,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <span className="card-value">{formatCurrency(totalDailyLaborCost)}</span>
                 <span className="card-label">يوميات العمال والمشرفين</span>
                 <span className="card-subtext">الحضور الفعلي للموقع</span>
+                <a href={`/projects/${id}/labor`} className="kpi-detail-btn">تفاصيل ←</a>
               </div>
               <div className="card-icon-watermark">👥</div>
             </div>
@@ -464,6 +467,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <span className="card-value">{formatCurrency(netProjectProfit)}</span>
                 <span className="card-label">صافي الربح</span>
                 <span className="card-subtext">المستخلصات المعتمدة - التكاليف</span>
+                <a href={`/projects/${id}/profit`} className="kpi-detail-btn">تفاصيل ←</a>
               </div>
               <div className="card-icon-watermark">📈</div>
             </div>
