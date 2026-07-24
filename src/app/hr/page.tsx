@@ -2253,7 +2253,7 @@ export default function HRPage() {
                   {/* Header */}
                   <div style={{ borderBottom: '2px solid #1e293b', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b' }}>شركة الرايق للإنشاءات والمقاولات العامة</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b' }}>شركة الرايق للمقاولات الكهروميكانيكية</div>
                       <div style={{ fontSize: '0.9rem', color: '#64748b' }}>إدارة الموارد البشرية والرواتب - مسيرات الأجور</div>
                     </div>
                     <div style={{ textAlign: 'left' }}>

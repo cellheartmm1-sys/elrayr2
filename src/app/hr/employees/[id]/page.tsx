@@ -861,7 +861,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         {/* Header */}
         <div style={{ borderBottom: '2px solid #1e293b', paddingBottom: '0.8rem', marginBottom: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b' }}>شركة الرايق للإنشاءات والمقاولات العامة</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b' }}>شركة الرايق للمقاولات الكهروميكانيكية</div>
             <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>إدارة الموارد البشرية - بطاقة السجل الوظيفي الشامل</div>
           </div>
           <div style={{ textAlign: 'left' }}>
