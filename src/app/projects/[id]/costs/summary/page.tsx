@@ -42,7 +42,8 @@ export default function TotalCostsSummaryPage({ params }: Props) {
     );
   }
 
-  const { project, expenses = [], subIpcs = [], laborAttendance = [], ipcs = [] } = data;
+  const { project, expenses: rawExpenses = [], subIpcs = [], laborAttendance = [], ipcs = [] } = data;
+  const expenses = rawExpenses.filter((e: any) => e.category !== 'labor' && e.category !== 'salaries');
   const contractValue = Number(project.contract_value || 0);
 
   const getDailyRate = (a: any) => {

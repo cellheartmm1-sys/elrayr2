@@ -53,7 +53,8 @@ export default function CostsDetailPage({ params }: Props) {
     );
   }
 
-  const { project, expenses = [], subIpcs = [], laborAttendance = [] } = data;
+  const { project, expenses: rawExpenses = [], subIpcs = [], laborAttendance = [] } = data;
+  const expenses = rawExpenses.filter((e: any) => e.category !== 'labor' && e.category !== 'salaries');
   const contractValue = Number(project.contract_value || 0);
 
   // Expenses

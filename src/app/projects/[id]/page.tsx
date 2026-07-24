@@ -356,7 +356,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   }
 
   const { project, phases, progress, expenses, ipcs, subIpcs, debts = [], documents = [], laborAttendance = [] } = details;
-  const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.total || 0), 0);
+  const nonLaborExpenses = expenses.filter((e: any) => e.category !== 'labor' && e.category !== 'salaries');
+  const totalExpenses = nonLaborExpenses.reduce((acc, e) => acc + Number(e.total || 0), 0);
   
   // Calculate dynamic average/weighted progress
   const totalWeight = phases.reduce((acc, p) => acc + Number(p.weight_percentage || 0), 0);

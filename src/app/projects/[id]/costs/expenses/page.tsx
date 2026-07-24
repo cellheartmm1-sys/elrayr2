@@ -55,7 +55,9 @@ export default function ExpensesDetailPage({ params }: Props) {
     );
   }
 
-  const { project, expenses = [], allExpenses = [] } = data;
+  const { project, expenses: rawExpenses = [], allExpenses: rawAllExpenses = [] } = data;
+  const expenses = rawExpenses.filter((e: any) => e.category !== 'labor' && e.category !== 'salaries');
+  const allExpenses = rawAllExpenses.filter((e: any) => e.category !== 'labor' && e.category !== 'salaries');
   const totalExpenses = expenses.reduce((acc: number, e: any) => acc + Number(e.total || 0), 0);
 
   // Filter expenses
