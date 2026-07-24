@@ -63,9 +63,23 @@ export default function CostsDetailPage({ params }: Props) {
   const paidSubIpcs = subIpcs.filter((s: any) => s.status === 'paid' || s.status === 'approved' || s.status === 'submitted');
   const totalSubcontractorIpc = paidSubIpcs.reduce((acc: number, s: any) => acc + Number(s.net_payable || 0), 0);
 
+  const getDailyRate = (a: any) => {
+    const base = Number(a.base_salary || 0);
+    if (!base) return 150;
+    if (a.employment_type === 'daily') return base;
+    let daysInMonth = 30;
+    if (a.attendance_date) {
+      const d = new Date(a.attendance_date);
+      if (!isNaN(d.getTime())) {
+        daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      }
+    }
+    return base / daysInMonth;
+  };
+
   // Labor
   const totalDailyLaborCost = laborAttendance.reduce((acc: number, a: any) => {
-    const rate = Number(a.base_salary || 150);
+    const rate = getDailyRate(a);
     const overtime = Number(a.overtime_hours || 0) * 25;
     return acc + (a.attendance_type === 'present' ? (rate + overtime) : 0);
   }, 0);
@@ -88,7 +102,7 @@ export default function CostsDetailPage({ params }: Props) {
       if (!acc[key]) {
         acc[key] = { name: a.employee_name, job_title: a.job_title || '-', days: 0, overtime: 0, cost: 0 };
       }
-      const rate = Number(a.base_salary || 150);
+      const rate = getDailyRate(a);
       const overtime = Number(a.overtime_hours || 0) * 25;
       acc[key].days += 1;
       acc[key].overtime += Number(a.overtime_hours || 0);

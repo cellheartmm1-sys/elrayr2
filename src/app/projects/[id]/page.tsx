@@ -368,13 +368,27 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     ? (phases.reduce((acc, p) => acc + (Number(p.planned_progress || 0) * Number(p.weight_percentage || 0)), 0) / totalWeight)
     : (phases.length > 0 ? (phases.reduce((acc, p) => acc + Number(p.planned_progress || 0), 0) / phases.length) : 0);
 
+  const getDailyRate = (a: any) => {
+    const base = Number(a.base_salary || 0);
+    if (!base) return 150;
+    if (a.employment_type === 'daily') return base;
+    let daysInMonth = 30;
+    if (a.attendance_date) {
+      const d = new Date(a.attendance_date);
+      if (!isNaN(d.getTime())) {
+        daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      }
+    }
+    return base / daysInMonth;
+  };
+
   // Financial calculations
   const earnedValue = Number(project.contract_value || 0) * (actualProgress / 100);
   const totalInvoiced = ipcs.filter(i => i.status === 'paid' || i.status === 'client_approved' || i.status === 'pending_payment').reduce((acc, i) => acc + Number(i.net_payable || 0), 0);
   const totalCollected = ipcs.filter(i => i.status === 'paid').reduce((acc, i) => acc + Number(i.net_payable || 0), 0);
   const totalSubcontractorIpc = subIpcs.filter(s => s.status === 'paid' || s.status === 'approved' || s.status === 'submitted').reduce((acc, s) => acc + Number(s.net_payable || 0), 0);
   const totalDailyLaborCost = laborAttendance.reduce((acc, a) => {
-    const rate = Number(a.base_salary || 150);
+    const rate = getDailyRate(a);
     const overtime = Number(a.overtime_hours || 0) * 25;
     return acc + (a.attendance_type === 'present' ? (rate + overtime) : 0);
   }, 0);

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     `, [id]),
     query(`SELECT * FROM project_documents WHERE project_id = $1 ORDER BY uploaded_at DESC`, [id]),
     query(`
-      SELECT a.*, e.base_salary, e.full_name as employee_name, e.job_title
+      SELECT a.*, e.base_salary, e.employment_type, e.full_name as employee_name, e.job_title
       FROM attendance_records a
       JOIN employees e ON e.id = a.employee_id
       WHERE a.project_id = $1

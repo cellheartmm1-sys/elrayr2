@@ -57,11 +57,25 @@ export default function LaborDetailPage({ params }: Props) {
 
   const { project, laborAttendance = [] } = data;
 
+  const getDailyRate = (a: any) => {
+    const base = Number(a.base_salary || 0);
+    if (!base) return 150;
+    if (a.employment_type === 'daily') return base;
+    let daysInMonth = 30;
+    if (a.attendance_date) {
+      const d = new Date(a.attendance_date);
+      if (!isNaN(d.getTime())) {
+        daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      }
+    }
+    return base / daysInMonth;
+  };
+
   // Calculations
   const presentRecords = laborAttendance.filter((a: any) => a.attendance_type === 'present');
   const absentRecords = laborAttendance.filter((a: any) => a.attendance_type === 'absent');
   const totalDailyLaborCost = presentRecords.reduce((acc: number, a: any) => {
-    const rate = Number(a.base_salary || 150);
+    const rate = getDailyRate(a);
     const overtime = Number(a.overtime_hours || 0) * 25;
     return acc + rate + overtime;
   }, 0);
@@ -72,7 +86,7 @@ export default function LaborDetailPage({ params }: Props) {
   const uniqueEmployees = Array.from(new Set(laborAttendance.map((a: any) => a.employee_id)))
     .map((empId: any) => {
       const rec = laborAttendance.find((a: any) => a.employee_id === empId);
-      return { id: String(empId || ''), name: String(rec?.employee_name || ''), job_title: rec?.job_title };
+      return { id: String(empId || ''), name: String(rec?.employee_name || ''), job_title: rec?.job_title, employment_type: rec?.employment_type };
     });
 
   // By employee stats
@@ -82,7 +96,7 @@ export default function LaborDetailPage({ params }: Props) {
     const absent = records.filter((a: any) => a.attendance_type === 'absent');
     const overtimeHours = present.reduce((acc: number, a: any) => acc + Number(a.overtime_hours || 0), 0);
     const cost = present.reduce((acc: number, a: any) => {
-      const rate = Number(a.base_salary || 150);
+      const rate = getDailyRate(a);
       const ot = Number(a.overtime_hours || 0) * 25;
       return acc + rate + ot;
     }, 0);
@@ -258,7 +272,7 @@ export default function LaborDetailPage({ params }: Props) {
               </thead>
               <tbody>
                 {filteredRecords.map((rec: any) => {
-                  const rate = Number(rec.base_salary || 150);
+                  const rate = getDailyRate(rec);
                   const overtime = Number(rec.overtime_hours || 0) * 25;
                   const dayCost = rec.attendance_type === 'present' ? rate + overtime : 0;
                   return (
