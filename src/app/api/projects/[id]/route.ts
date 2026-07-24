@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS weight_percentage NUMERIC(5,2) DEFAULT 0;
   `);
 
-  const [project, phases, progress, expenses, ipcs, subIpcs, documents, laborAttendance, projectEmployees] = await Promise.all([
+  const [project, phases, progress, expenses, ipcs, subIpcs, documents, laborAttendance, projectEmployees, allExpenses] = await Promise.all([
     query(`
       SELECT p.*, u1.full_name as manager_name, u2.full_name as engineer_name
       FROM projects p
@@ -42,6 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       FROM employees
       WHERE project_id = $1
     `, [id]),
+    query(`SELECT * FROM project_expenses WHERE project_id = $1 ORDER BY expense_date DESC`, [id]),
   ]);
 
   if (!project.rows[0]) {
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     phases: phases.rows,
     progress: progress.rows,
     expenses: expenses.rows,
+    allExpenses: allExpenses.rows,
     ipcs: ipcs.rows,
     subIpcs: subIpcs.rows,
     documents: documents.rows,

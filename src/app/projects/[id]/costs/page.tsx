@@ -138,24 +138,28 @@ export default function CostsDetailPage({ params }: Props) {
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginBottom: '0.5rem' }}>💸 إجمالي التكاليف</div>
           <div style={{ fontSize: '2rem', fontWeight: 800 }}>{formatCurrency(totalCosts)}</div>
           <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: '4px' }}>{costRatio}% من قيمة العقد</div>
+          <a href={`/projects/${id}/costs/summary`} className="kpi-detail-btn">تفاصيل ←</a>
           <div style={{ position: 'absolute', left: '-10px', bottom: '-15px', fontSize: '5rem', opacity: 0.1 }}>📊</div>
         </div>
         <div style={{ background: 'linear-gradient(135deg, #b91c1c, #f97316)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', color: '#fff', position: 'relative', overflow: 'hidden' }}>
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginBottom: '0.5rem' }}>🧾 مصروفات ومشتريات</div>
           <div style={{ fontSize: '2rem', fontWeight: 800 }}>{formatCurrency(totalExpenses)}</div>
           <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: '4px' }}>{totalCosts > 0 ? ((totalExpenses / totalCosts) * 100).toFixed(1) : 0}% من التكاليف</div>
+          <a href={`/projects/${id}/costs/expenses`} className="kpi-detail-btn">تفاصيل ←</a>
           <div style={{ position: 'absolute', left: '-10px', bottom: '-15px', fontSize: '5rem', opacity: 0.1 }}>🧾</div>
         </div>
         <div style={{ background: 'linear-gradient(135deg, #c2410c, #f97316)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', color: '#fff', position: 'relative', overflow: 'hidden' }}>
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginBottom: '0.5rem' }}>👷 مقاولو الباطن</div>
           <div style={{ fontSize: '2rem', fontWeight: 800 }}>{formatCurrency(totalSubcontractorIpc)}</div>
           <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: '4px' }}>{totalCosts > 0 ? ((totalSubcontractorIpc / totalCosts) * 100).toFixed(1) : 0}% من التكاليف</div>
+          <a href={`/projects/${id}/costs/subcontractors`} className="kpi-detail-btn">تفاصيل ←</a>
           <div style={{ position: 'absolute', left: '-10px', bottom: '-15px', fontSize: '5rem', opacity: 0.1 }}>👷</div>
         </div>
         <div style={{ background: 'linear-gradient(135deg, #5b21b6, #8b5cf6)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', color: '#fff', position: 'relative', overflow: 'hidden' }}>
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginBottom: '0.5rem' }}>👥 عمال اليومية</div>
           <div style={{ fontSize: '2rem', fontWeight: 800 }}>{formatCurrency(totalDailyLaborCost)}</div>
           <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: '4px' }}>{totalCosts > 0 ? ((totalDailyLaborCost / totalCosts) * 100).toFixed(1) : 0}% من التكاليف</div>
+          <a href={`/projects/${id}/labor`} className="kpi-detail-btn">تفاصيل ←</a>
           <div style={{ position: 'absolute', left: '-10px', bottom: '-15px', fontSize: '5rem', opacity: 0.1 }}>👥</div>
         </div>
       </div>
