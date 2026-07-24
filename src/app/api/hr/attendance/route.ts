@@ -164,24 +164,8 @@ export async function POST(request: NextRequest) {
       calculatedLaborCost = (baseDailyRate / 2) + (otHours * otRate);
     }
 
-    // Auto-post Direct Labor Cost into project_expenses if project_id exists
+    // Note: Daily labor is tracked via attendance_records (not duplicated in project_expenses)
     let refExpenseId: string | null = null;
-    if (calculatedLaborCost > 0 && project_id) {
-      const expRes = await query(
-        `INSERT INTO project_expenses (project_id, expense_date, category, description, amount, supplier)
-         VALUES ($1, $2, 'labor', $3, $4, 'سركي اليوميات والعمالة المباشرة')
-         RETURNING id`,
-        [
-          project_id,
-          attendance_date,
-          `أجر عمالة مباشرة (Direct Labor Cost) - ${empName} (${resolvedType === 'half_day' ? 'نصف يومية' : 'يومية'}${otHours > 0 ? ` + ${otHours} س إضافي` : ''})`,
-          calculatedLaborCost
-        ]
-      );
-      if (expRes.rows.length > 0) {
-        refExpenseId = expRes.rows[0].id;
-      }
-    }
 
     let rawCheckIn = check_in_time ?? check_in ?? null;
     let rawCheckOut = check_out_time ?? check_out ?? null;
