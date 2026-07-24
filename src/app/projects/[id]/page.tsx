@@ -457,9 +457,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             {/* إجمالي التكاليف */}
             <div className="project-kpi-card red">
               <div className="card-content">
-                <span className="card-value">{formatCurrency(totalExpenses + totalSubcontractorIpc + totalDailyLaborCost)}</span>
+                <span className="card-value">{formatCurrency(totalExpenses + totalSubcontractorIpc)}</span>
                 <span className="card-label">إجمالي التكاليف</span>
-                <span className="card-subtext">مصاريف + مقاولين + عمال</span>
+                <span className="card-subtext">مصاريف + مقاولين</span>
                 <a href={`/projects/${id}/costs`} className="kpi-detail-btn">تفاصيل ←</a>
               </div>
               <div className="card-icon-watermark">💸</div>

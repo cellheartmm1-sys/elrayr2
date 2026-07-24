@@ -85,7 +85,7 @@ export default function CostsDetailPage({ params }: Props) {
     return acc + (a.attendance_type === 'present' ? (rate + overtime) : 0);
   }, 0);
 
-  const totalCosts = totalExpenses + totalSubcontractorIpc + totalDailyLaborCost;
+  const totalCosts = totalExpenses + totalSubcontractorIpc;
   const costRatio = contractValue > 0 ? ((totalCosts / contractValue) * 100).toFixed(1) : '0';
 
   // Cost breakdown
