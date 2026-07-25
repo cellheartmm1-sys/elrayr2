@@ -104,8 +104,13 @@ export async function POST(request: NextRequest) {
       notes
     } = body;
 
+    const cleanUuid = (val: any) => (val && typeof val === 'string' && val.trim() !== '' ? val : null);
+    const cleanStr = (val: any) => (val && typeof val === 'string' && val.trim() !== '' ? val : null);
+
     if (type === 'issue_custody') {
-      if (!engineer_id || !amount || Number(amount) <= 0) {
+      const cleanEngineerId = cleanUuid(engineer_id);
+      const cleanProjectId = cleanUuid(project_id);
+      if (!cleanEngineerId || !amount || Number(amount) <= 0) {
         return NextResponse.json({ error: 'إجبارياً: اختيار المهندس وإدخال قيمة العُهدة النقدية' }, { status: 400 });
       }
 
@@ -121,7 +126,7 @@ export async function POST(request: NextRequest) {
       const res = await query(
         `INSERT INTO petty_cash_custodies (custody_number, engineer_id, project_id, amount_given, issue_date, notes)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [custodyNumber, engineer_id, project_id ?? null, amount, issue_date, notes ?? null]
+        [custodyNumber, cleanEngineerId, cleanProjectId, amount, issue_date, cleanStr(notes)]
       );
 
       return NextResponse.json({
@@ -130,7 +135,11 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
 
     } else if (type === 'submit_claim') {
-      if (!engineer_id || !description || !amount || Number(amount) <= 0) {
+      const cleanEngineerId = cleanUuid(engineer_id);
+      const cleanProjectId = cleanUuid(project_id);
+      const cleanCustodyId = cleanUuid(custody_id);
+
+      if (!cleanEngineerId || !description || !amount || Number(amount) <= 0) {
         return NextResponse.json({ error: 'إجبارياً: اختيار المهندس وتفاصيل المبلغ والوصف للفاتورة' }, { status: 400 });
       }
 
@@ -149,16 +158,16 @@ export async function POST(request: NextRequest) {
           category, description, amount, receipt_image_url, notes, status
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING *`,
         [
-          custody_id ?? null,
-          engineer_id,
-          project_id ?? null,
+          cleanCustodyId,
+          cleanEngineerId,
+          cleanProjectId,
           claimNumber,
           claim_date,
           category,
           description,
           amount,
-          receipt_image_url ?? null,
-          notes ?? null
+          cleanStr(receipt_image_url),
+          cleanStr(notes)
         ]
       );
 

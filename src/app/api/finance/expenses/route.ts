@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'category, expense_date, and amount are required' }, { status: 400 });
     }
 
-    const resolvedSupplier = supplier ?? vendor ?? null;
+    const cleanProjectId = project_id && typeof project_id === 'string' && project_id.trim() !== '' ? project_id : null;
 
     const result = await query(
       `INSERT INTO project_expenses (
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         ) VALUES ($1,$2,$3,$4,$5,$6,$7)
         RETURNING *`,
       [
-        project_id ?? null,
+        cleanProjectId,
         category,
         description ?? null,
         expense_date,
