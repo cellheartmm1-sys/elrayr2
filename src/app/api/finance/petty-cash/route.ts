@@ -51,7 +51,18 @@ export async function GET(request: NextRequest) {
     const custodiesRes = await query(
       `SELECT
           pcc.*,
-          (pcc.amount_given - pcc.amount_spent) AS amount_remaining,
+          COALESCE((
+            SELECT SUM(amount)
+            FROM petty_cash_claims
+            WHERE (custody_id = pcc.id OR (custody_id IS NULL AND engineer_id = pcc.engineer_id))
+              AND status = 'approved'
+          ), 0) AS amount_spent,
+          (pcc.amount_given - COALESCE((
+            SELECT SUM(amount)
+            FROM petty_cash_claims
+            WHERE (custody_id = pcc.id OR (custody_id IS NULL AND engineer_id = pcc.engineer_id))
+              AND status = 'approved'
+          ), 0)) AS amount_remaining,
           e.full_name AS engineer_name,
           p.name AS project_name
         FROM petty_cash_custodies pcc
@@ -137,10 +148,21 @@ export async function POST(request: NextRequest) {
     } else if (type === 'submit_claim') {
       const cleanEngineerId = cleanUuid(engineer_id);
       const cleanProjectId = cleanUuid(project_id);
-      const cleanCustodyId = cleanUuid(custody_id);
+      let cleanCustodyId = cleanUuid(custody_id);
 
       if (!cleanEngineerId || !description || !amount || Number(amount) <= 0) {
         return NextResponse.json({ error: 'إجبارياً: اختيار المهندس وتفاصيل المبلغ والوصف للفاتورة' }, { status: 400 });
+      }
+
+      // Auto-link custody_id if missing by finding engineer's custody
+      if (!cleanCustodyId && cleanEngineerId) {
+        const activeCustRes = await query(
+          `SELECT id FROM petty_cash_custodies WHERE engineer_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [cleanEngineerId]
+        );
+        if (activeCustRes.rows.length > 0) {
+          cleanCustodyId = activeCustRes.rows[0].id;
+        }
       }
 
       // Generate Claim Number CLM-1001
@@ -203,21 +225,32 @@ export async function PUT(request: NextRequest) {
     const claim = claimRes.rows[0];
 
     if (action === 'approve') {
-      // 1. Update claim status
+      let targetCustodyId = claim.custody_id;
+      if (!targetCustodyId && claim.engineer_id) {
+        const activeCustRes = await query(
+          `SELECT id FROM petty_cash_custodies WHERE engineer_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [claim.engineer_id]
+        );
+        if (activeCustRes.rows.length > 0) {
+          targetCustodyId = activeCustRes.rows[0].id;
+        }
+      }
+
+      // 1. Update claim status & custody_id
       await query(
         `UPDATE petty_cash_claims
-         SET status = 'approved', approval_date = CURRENT_DATE, notes = COALESCE($1, notes)
-         WHERE id = $2`,
-        [notes ?? null, claim_id]
+         SET status = 'approved', approval_date = CURRENT_DATE, custody_id = COALESCE($1, custody_id), notes = COALESCE($2, notes)
+         WHERE id = $3`,
+        [targetCustodyId ?? null, notes ?? null, claim_id]
       );
 
-      // 2. Update custody spent amount if linked
-      if (claim.custody_id) {
+      // 2. Update custody spent amount if targetCustodyId exists
+      if (targetCustodyId) {
         await query(
           `UPDATE petty_cash_custodies
-           SET amount_spent = amount_spent + $1
-           WHERE id = $2`,
-          [claim.amount, claim.custody_id]
+           SET amount_spent = COALESCE((SELECT SUM(amount) FROM petty_cash_claims WHERE custody_id = $1 AND status = 'approved'), 0)
+           WHERE id = $1`,
+          [targetCustodyId]
         );
       }
 
