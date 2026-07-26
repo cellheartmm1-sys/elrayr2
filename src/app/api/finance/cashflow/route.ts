@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
             COUNT(*) AS cnt
           FROM project_expenses
           WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+            AND category NOT IN ('labor', 'salaries')
             ${expenseProjectFilter}
           GROUP BY DATE_TRUNC('month', expense_date)
 
@@ -66,12 +67,12 @@ export async function GET(request: NextRequest) {
           UNION ALL
 
           SELECT
-            TO_CHAR(MAKE_DATE(year, month, 1), 'YYYY-MM') AS month,
-            SUM(COALESCE(net_salary, 0)) AS outflow,
+            TO_CHAR(MAKE_DATE(p.year, p.month, 1), 'YYYY-MM') AS month,
+            SUM(COALESCE(p.net_salary, 0)) AS outflow,
             COUNT(*) AS cnt
-          FROM payroll
-          WHERE MAKE_DATE(year, month, 1) >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
-          GROUP BY year, month
+          FROM payroll p
+          ${projectId ? 'JOIN employees e ON e.id = p.employee_id WHERE e.project_id = $1 AND' : 'WHERE'} MAKE_DATE(p.year, p.month, 1) >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+          GROUP BY p.year, p.month
         ) combined
         GROUP BY month
         ORDER BY month`,

@@ -44,12 +44,16 @@ export async function GET(request: NextRequest) {
       paramIndex++;
     }
 
+    const nonLaborWhereExpense = dateWhereExpense
+      ? `${dateWhereExpense} AND pe.category NOT IN ('labor', 'salaries')`
+      : ` WHERE pe.category NOT IN ('labor', 'salaries')`;
+
     const [expensesRes, clientIpcsRes, subIpcsRes, debtsRes] = await Promise.all([
       query(`
         SELECT pe.id, pe.expense_date as date, pe.amount, pe.category, pe.description, pe.supplier, p.name as project_name, 'expense' as type
         FROM project_expenses pe
         LEFT JOIN projects p ON p.id = pe.project_id
-        ${dateWhereExpense}
+        ${nonLaborWhereExpense}
         ORDER BY pe.expense_date DESC
       `, params),
 
