@@ -170,9 +170,12 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, asset_code, asset_name, asset_type, brand, model, serial_number, condition, status, assigned_to, notes } = body;
+    const { id, asset_code, asset_name, asset_type, brand, model, serial_number, condition, status, assigned_to, assignment_date, notes } = body;
 
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    const resolvedAssignedTo = (assigned_to !== undefined && assigned_to !== '') ? assigned_to : null;
+    const resolvedAssignmentDate = (assignment_date !== undefined && assignment_date !== '') ? assignment_date : null;
 
     const result = await query(
       `UPDATE personal_assets
@@ -184,10 +187,11 @@ export async function PUT(request: NextRequest) {
            serial_number = COALESCE($6, serial_number),
            condition = COALESCE($7, condition),
            status = COALESCE($8, status),
-           assigned_to = COALESCE($9, assigned_to),
-           notes = COALESCE($10, notes)
-       WHERE id = $11 RETURNING *`,
-      [asset_code ?? null, asset_name ?? null, asset_type ?? null, brand ?? null, model ?? null, serial_number ?? null, condition ?? null, status ?? null, assigned_to ?? null, notes ?? null, id]
+           assigned_to = $9,
+           assignment_date = $10,
+           notes = COALESCE($11, notes)
+       WHERE id = $12 RETURNING *`,
+      [asset_code ?? null, asset_name ?? null, asset_type ?? null, brand ?? null, model ?? null, serial_number ?? null, condition ?? null, status ?? null, resolvedAssignedTo, resolvedAssignmentDate, notes ?? null, id]
     );
 
     return NextResponse.json({ data: result.rows[0] });

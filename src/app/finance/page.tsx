@@ -175,6 +175,21 @@ export default function FinancePage() {
     engineer_id: '', project_id: '', amount: '', issue_date: new Date().toISOString().split('T')[0], notes: ''
   });
 
+  // Edit Custody states
+  const [showEditCustodyModal, setShowEditCustodyModal] = useState(false);
+  const [editingCustody, setEditingCustody] = useState<any>(null);
+  const [editCustodyForm, setEditCustodyForm] = useState({
+    engineer_id: '', project_id: '', amount_given: '', issue_date: '', notes: ''
+  });
+
+  // Edit Claim states
+  const [showEditClaimModal, setShowEditClaimModal] = useState(false);
+  const [editingClaim, setEditingClaim] = useState<any>(null);
+  const [editClaimForm, setEditClaimForm] = useState({
+    engineer_id: '', project_id: '', category: 'material', description: '', amount: '', claim_date: '', notes: ''
+  });
+
+
   const [claimForm, setClaimForm] = useState({
     custody_id: '', engineer_id: '', project_id: '', category: 'material',
     description: '', amount: '', claim_date: new Date().toISOString().split('T')[0],
@@ -331,6 +346,70 @@ export default function FinancePage() {
         fetchExpenses();
       } else { alert(`❌ فشل العملية: ${data.error || 'حدث خطأ'}`); }
     } catch (err) { console.error(err); }
+  };
+
+  const handleOpenEditCustody = (cust: any) => {
+    setEditingCustody(cust);
+    setEditCustodyForm({
+      engineer_id: cust.engineer_id || '',
+      project_id: cust.project_id || '',
+      amount_given: String(cust.amount_given || ''),
+      issue_date: cust.issue_date ? cust.issue_date.split('T')[0] : '',
+      notes: cust.notes || ''
+    });
+    setShowEditCustodyModal(true);
+  };
+
+  const handleUpdateCustody = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCustody) return;
+    try {
+      const res = await fetch('/api/finance/petty-cash', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'edit_custody', id: editingCustody.id, ...editCustodyForm })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ ${data.message}`);
+        setShowEditCustodyModal(false);
+        setEditingCustody(null);
+        fetchPettyCashData();
+      } else { alert(`❌ فشل التعديل: ${data.error || 'حدث خطأ'}`); }
+    } catch (err) { console.error(err); alert('❌ حدث خطأ بالاتصال'); }
+  };
+
+  const handleOpenEditClaim = (claim: any) => {
+    setEditingClaim(claim);
+    setEditClaimForm({
+      engineer_id: claim.engineer_id || '',
+      project_id: claim.project_id || '',
+      category: claim.category || 'material',
+      description: claim.description || '',
+      amount: String(claim.amount || ''),
+      claim_date: claim.claim_date ? claim.claim_date.split('T')[0] : '',
+      notes: claim.notes || ''
+    });
+    setShowEditClaimModal(true);
+  };
+
+  const handleUpdateClaim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClaim) return;
+    try {
+      const res = await fetch('/api/finance/petty-cash', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'edit_claim', id: editingClaim.id, ...editClaimForm })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ ${data.message}`);
+        setShowEditClaimModal(false);
+        setEditingClaim(null);
+        fetchPettyCashData();
+      } else { alert(`❌ فشل التعديل: ${data.error || 'حدث خطأ'}`); }
+    } catch (err) { console.error(err); alert('❌ حدث خطأ بالاتصال'); }
   };
 
 
@@ -1839,7 +1918,99 @@ export default function FinancePage() {
               <div className="page-title">💵 إدارة العُهَد النقدية للمهندسين (Petty Cash Tracker)</div>
               <div className="page-description">تسليم وتتبع العُهد النقدية لمهندسي المواقع، رفع صور الفواتير أونلاين بالموبايل، والاعتماد والتوزيع الآلي على ميزانيات المشاريع</div>
             </div>
-            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-outline"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                onClick={() => {
+                  const printWin = window.open('', '_blank', 'width=1200,height=800');
+                  if (!printWin) { alert('يرجى السماح بالنوافذ المنبثقة'); return; }
+                  const catMap: Record<string,string> = { material: 'مواد', labor: 'عمالة', subcontractor: 'مقاول', equipment: 'معدات', transport: 'نقل', overhead: 'تكاليف عامة', other: 'أخرى' };
+                  const fmt = (v: any) => Number(v || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 });
+                  const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('ar-EG', { calendar: 'gregory', year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+                  const custRows = pettyCustodies.map((c: any, i: number) => `
+                    <tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                      <td style="text-align:center;font-weight:700">${i+1}</td>
+                      <td style="font-family:monospace;font-weight:700;color:#1e40af">${c.custody_number}</td>
+                      <td style="font-weight:600">${c.engineer_name || '-'}</td>
+                      <td>${c.project_name || 'عام'}</td>
+                      <td>${fmtDate(c.issue_date)}</td>
+                      <td style="font-weight:700;color:#1e3a8a;text-align:left">${fmt(c.amount_given)}</td>
+                      <td style="color:#dc2626;text-align:left">${fmt(c.amount_spent)}</td>
+                      <td style="font-weight:700;color:#16a34a;text-align:left">${fmt(c.amount_remaining)}</td>
+                      <td style="text-align:center"><span style="padding:2px 10px;border-radius:20px;background:#dcfce7;color:#166534;font-size:0.8rem;font-weight:700">نشطة</span></td>
+                    </tr>`).join('');
+                  const claimRows = pettyClaims.map((c: any, i: number) => `
+                    <tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                      <td style="text-align:center;font-weight:700">${i+1}</td>
+                      <td style="font-family:monospace;font-weight:700;color:#4f46e5">${c.claim_number}</td>
+                      <td style="font-weight:600">${c.engineer_name || '-'}</td>
+                      <td>${c.description}</td>
+                      <td>${catMap[c.category] || c.category}</td>
+                      <td>${c.project_name || 'غير محدد'}</td>
+                      <td>${fmtDate(c.claim_date)}</td>
+                      <td style="font-weight:700;color:#1e3a8a;text-align:left">${fmt(c.amount)}</td>
+                      <td style="text-align:center"><span style="padding:2px 10px;border-radius:20px;font-size:0.8rem;font-weight:700;
+                        background:${c.status==='approved'?'#dcfce7':c.status==='rejected'?'#fee2e2':'#fef9c3'};
+                        color:${c.status==='approved'?'#166534':c.status==='rejected'?'#991b1b':'#854d0e'}">
+                        ${c.status==='approved'?'✅ معتمدة':c.status==='rejected'?'رفض':'قيد مراجعة'}</span></td>
+                    </tr>`).join('');
+                  const now = new Date().toLocaleDateString('ar-EG', {calendar:'gregory',year:'numeric',month:'long',day:'numeric'});
+                  const totalGiven = fmt(pettyCustodies.reduce((a: number, c: any) => a + Number(c.amount_given||0), 0));
+                  const totalSpent = fmt(pettyCustodies.reduce((a: number, c: any) => a + Number(c.amount_spent||0), 0));
+                  const totalRemaining = fmt(pettyCustodies.reduce((a: number, c: any) => a + Number(c.amount_remaining||0), 0));
+                  const totalClaims = fmt(pettyClaims.reduce((a: number, c: any) => a + Number(c.amount||0), 0));
+                  printWin.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>كشف العُهَد النقدية</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111827;font-size:11px;direction:rtl}
+.header{border-bottom:3px solid #1e293b;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start}
+.co{font-size:17px;font-weight:800;color:#1e293b}.co-sub{font-size:11px;color:#64748b;margin-top:3px}
+.rep-title{font-size:14px;font-weight:700;color:#4f46e5;text-align:left}.rep-date{font-size:11px;color:#64748b;text-align:left;margin-top:3px}
+.stats{display:flex;gap:12px;margin-bottom:14px}.stat-box{border:1px solid #e2e8f0;border-radius:6px;padding:7px 14px;flex:1;text-align:center;background:#f8fafc}
+.stat-num{font-size:17px;font-weight:800;color:#1e40af}.stat-lbl{font-size:10px;color:#64748b;margin-top:2px}
+.section-title{background:#1e293b;color:#fff;padding:6px 10px;font-size:12px;font-weight:700;margin:16px 0 8px 0;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:10px}thead tr{background:#334155;color:#fff}
+th{padding:6px 5px;text-align:right;font-weight:700;border:1px solid #475569}
+td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
+.footer{margin-top:16px;border-top:1px solid #e2e8f0;padding-top:8px;display:flex;justify-content:space-between;color:#94a3b8;font-size:10px}
+@media print{@page{size:A4 landscape;margin:10mm}}</style></head><body>
+<div class="header">
+  <div><div class="co">شركة الرايق للمقاولات الكهروميكانيكية</div><div class="co-sub">إدارة المالية — كشف العُهَد النقدية (Petty Cash)</div></div>
+  <div><div class="rep-title">💵 كشف العُهَد النقدية للمهندسين</div><div class="rep-date">تاريخ الإصدار: ${now}</div></div>
+</div>
+<div class="stats">
+  <div class="stat-box"><div class="stat-num">${totalGiven}</div><div class="stat-lbl">إجمالي العُهد المسلمة</div></div>
+  <div class="stat-box"><div class="stat-num" style="color:#dc2626">${totalSpent}</div><div class="stat-lbl">المصروف المعتمد</div></div>
+  <div class="stat-box"><div class="stat-num" style="color:#16a34a">${totalRemaining}</div><div class="stat-lbl">الرصيد المتبقي</div></div>
+  <div class="stat-box"><div class="stat-num" style="color:#4f46e5">${totalClaims}</div><div class="stat-lbl">إجمالي الفواتير</div></div>
+  <div class="stat-box"><div class="stat-num">${pettyClaims.filter((c: any) => c.status==='pending').length}</div><div class="stat-lbl">قيد المراجعة</div></div>
+</div>
+<div class="section-title">👷‍♂️ عُهد المهندسين - رصيد العُهد النقدية</div>
+<table><thead><tr>
+  <th style="width:3%;text-align:center">#</th><th style="width:9%">رقم العُهدة</th>
+  <th style="width:14%">المهندس المستلم</th><th style="width:12%">المشروع</th>
+  <th style="width:9%">تاريخ الصرف</th><th style="width:10%;text-align:left">المسلم</th>
+  <th style="width:10%;text-align:left">المصروف</th><th style="width:10%;text-align:left">المتبقي</th>
+  <th style="width:8%;text-align:center">الحالة</th>
+</tr></thead><tbody>${custRows}</tbody></table>
+<div class="section-title">🧾 فواتير وإيصالات العُهد المرفوعة</div>
+<table><thead><tr>
+  <th style="width:3%;text-align:center">#</th><th style="width:8%">رقم الفاتورة</th>
+  <th style="width:11%">المهندس</th><th style="width:16%">البيان</th>
+  <th style="width:8%">التصنيف</th><th style="width:12%">المشروع</th>
+  <th style="width:9%">التاريخ</th><th style="width:9%;text-align:left">المبلغ</th>
+  <th style="width:9%;text-align:center">الحالة</th>
+</tr></thead><tbody>${claimRows}</tbody></table>
+<div class="footer">
+  <span>إجمالي العُهد: ${pettyCustodies.length} | إجمالي الفواتير: ${pettyClaims.length}</span>
+  <span>نظام الرايق — طباعة: ${now}</span>
+</div></body></html>`);
+                  printWin.document.close();
+                  setTimeout(() => { printWin.focus(); printWin.print(); }, 400);
+                }}
+              >
+                🖨️ طباعة كشف العُهد
+              </button>
               <button className="btn btn-secondary" onClick={() => setShowClaimModal(true)}>📸 رفع فاتورة عُهدة من الموقع</button>
               <button className="btn btn-primary" onClick={() => setShowCustodyModal(true)}>+ تسليم عُهدة نقدية لمهندس</button>
             </div>
@@ -1892,6 +2063,7 @@ export default function FinancePage() {
                       <th>المصروف المعتمد</th>
                       <th>الرصيد المتبقي</th>
                       <th>الحالة</th>
+                      <th style={{ textAlign: 'center' }}>تعديل</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1900,11 +2072,18 @@ export default function FinancePage() {
                         <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{cust.custody_number}</td>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cust.engineer_name}</td>
                         <td>{cust.project_name || 'عام / غير مرتبط بمشروع'}</td>
-                        <td>{new Date(cust.issue_date).toLocaleDateString('ar-EG')}</td>
+                        <td>{new Date(cust.issue_date).toLocaleDateString('ar-EG', { calendar: 'gregory', year: 'numeric', month: '2-digit', day: '2-digit' })}</td>
                         <td style={{ fontWeight: 700, color: '#1e3a8a' }}>{formatCurrency(cust.amount_given)}</td>
                         <td style={{ color: '#dc2626' }}>{formatCurrency(cust.amount_spent)}</td>
                         <td style={{ fontWeight: 700, color: '#16a34a' }}>{formatCurrency(cust.amount_remaining)}</td>
                         <td><span className="badge badge-success">نشطة ومستمرة</span></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleOpenEditCustody(cust)}
+                            style={{ color: 'var(--brand-primary-light)' }}
+                          >✏️ تعديل</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1972,13 +2151,18 @@ export default function FinancePage() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           {claim.status === 'pending' ? (
-                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleOpenEditClaim(claim)}
+                                style={{ color: 'var(--brand-primary-light)' }}
+                              >✏️ تعديل</button>
                               <button
                                 className="btn btn-success btn-sm"
                                 onClick={() => handleApproveOrRejectClaim(claim.id, 'approve')}
                                 title="اعتماد الفاتورة وتخصيصها كـ مصروف مباشر في ميزانية المشروع"
                               >
-                                ✅ اعتماد وتوزيع
+                                ✅ اعتماد
                               </button>
                               <button
                                 className="btn btn-danger btn-sm"
@@ -1988,7 +2172,14 @@ export default function FinancePage() {
                               </button>
                             </div>
                           ) : (
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>مكتملة</span>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleOpenEditClaim(claim)}
+                                style={{ color: 'var(--brand-primary-light)' }}
+                              >✏️ تعديل</button>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', alignSelf: 'center' }}>مكتملة</span>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -2001,8 +2192,122 @@ export default function FinancePage() {
         </>
       )}
 
+      {/* ======================== MODAL: EDIT CUSTODY ======================== */}
+      {showEditCustodyModal && editingCustody && (
+        <div className="modal-overlay" onClick={() => setShowEditCustodyModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">✏️ تعديل بيانات العُهدة النقدية — {editingCustody.custody_number}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditCustodyModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateCustody}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label required">المهندس المستلم</label>
+                  <select className="form-control" required value={editCustodyForm.engineer_id} onChange={e => setEditCustodyForm({...editCustodyForm, engineer_id: e.target.value})}>
+                    <option value="">-- اختر مهندس --</option>
+                    {employees.map((emp: any) => <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.job_title || 'موظف'})</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">مبلغ العُهدة</label>
+                  <input className="form-control" type="number" step="any" required value={editCustodyForm.amount_given}
+                    onChange={e => setEditCustodyForm({...editCustodyForm, amount_given: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ الصرف</label>
+                  <input className="form-control" type="date" value={editCustodyForm.issue_date}
+                    onChange={e => setEditCustodyForm({...editCustodyForm, issue_date: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">المشروع</label>
+                  <select className="form-control" value={editCustodyForm.project_id} onChange={e => setEditCustodyForm({...editCustodyForm, project_id: e.target.value})}>
+                    <option value="">عام / غير مرتبط بمشروع</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">ملاحظات</label>
+                  <textarea className="form-control" rows={2} value={editCustodyForm.notes}
+                    onChange={e => setEditCustodyForm({...editCustodyForm, notes: e.target.value})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowEditCustodyModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 حفظ التعديلات</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
-      {/* ======================== MODAL: ADD DEBT ======================== */}
+      {/* ======================== MODAL: EDIT CLAIM ======================== */}
+      {showEditClaimModal && editingClaim && (
+        <div className="modal-overlay" onClick={() => setShowEditClaimModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">✏️ تعديل بيانات الفاتورة — {editingClaim.claim_number}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditClaimModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateClaim}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group">
+                  <label className="form-label required">المهندس</label>
+                  <select className="form-control" required value={editClaimForm.engineer_id} onChange={e => setEditClaimForm({...editClaimForm, engineer_id: e.target.value})}>
+                    <option value="">-- اختر --</option>
+                    {employees.map((emp: any) => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">التصنيف</label>
+                  <select className="form-control" value={editClaimForm.category} onChange={e => setEditClaimForm({...editClaimForm, category: e.target.value})}>
+                    <option value="material">مواد</option>
+                    <option value="labor">عمالة</option>
+                    <option value="subcontractor">مقاول فرعي</option>
+                    <option value="equipment">معدات</option>
+                    <option value="transport">نقل</option>
+                    <option value="overhead">تكاليف عامة</option>
+                    <option value="other">أخرى</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label required">بيان الفاتورة</label>
+                  <input className="form-control" required value={editClaimForm.description}
+                    onChange={e => setEditClaimForm({...editClaimForm, description: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">المبلغ</label>
+                  <input className="form-control" type="number" step="any" required value={editClaimForm.amount}
+                    onChange={e => setEditClaimForm({...editClaimForm, amount: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">تاريخ الفاتورة</label>
+                  <input className="form-control" type="date" value={editClaimForm.claim_date}
+                    onChange={e => setEditClaimForm({...editClaimForm, claim_date: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">المشروع</label>
+                  <select className="form-control" value={editClaimForm.project_id} onChange={e => setEditClaimForm({...editClaimForm, project_id: e.target.value})}>
+                    <option value="">غير محدد</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">ملاحظات</label>
+                  <textarea className="form-control" rows={2} value={editClaimForm.notes}
+                    onChange={e => setEditClaimForm({...editClaimForm, notes: e.target.value})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowEditClaimModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 حفظ التعديلات</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+
       {showDebtModal && (
         <div className="modal-overlay" onClick={() => setShowDebtModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>

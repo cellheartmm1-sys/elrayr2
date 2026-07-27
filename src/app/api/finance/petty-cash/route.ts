@@ -212,8 +212,47 @@ export async function PUT(request: NextRequest) {
   try {
     await ensurePettyCashSchema();
     const body = await request.json();
-    const { claim_id, action, notes } = body; // action: 'approve' | 'reject'
+    const { type, claim_id, action, notes } = body;
 
+    // --- EDIT CUSTODY ---
+    if (type === 'edit_custody') {
+      const { id, engineer_id, project_id, amount_given, issue_date, notes: custNotes } = body;
+      if (!id) return NextResponse.json({ error: 'id مطلوب' }, { status: 400 });
+      const cleanUuid = (val: any) => (val && typeof val === 'string' && val.trim() !== '' ? val : null);
+      await query(
+        `UPDATE petty_cash_custodies
+         SET engineer_id = COALESCE($1, engineer_id),
+             project_id = $2,
+             amount_given = COALESCE($3, amount_given),
+             issue_date = COALESCE($4, issue_date),
+             notes = $5
+         WHERE id = $6`,
+        [cleanUuid(engineer_id), cleanUuid(project_id), amount_given ? Number(amount_given) : null, issue_date || null, custNotes ?? null, id]
+      );
+      return NextResponse.json({ message: 'تم تعديل بيانات العُهدة النقدية بنجاح.' });
+    }
+
+    // --- EDIT CLAIM ---
+    if (type === 'edit_claim') {
+      const { id, engineer_id, project_id, category, description, amount, claim_date, notes: claimNotes } = body;
+      if (!id) return NextResponse.json({ error: 'id مطلوب' }, { status: 400 });
+      const cleanUuid = (val: any) => (val && typeof val === 'string' && val.trim() !== '' ? val : null);
+      await query(
+        `UPDATE petty_cash_claims
+         SET engineer_id = COALESCE($1, engineer_id),
+             project_id = $2,
+             category = COALESCE($3, category),
+             description = COALESCE($4, description),
+             amount = COALESCE($5, amount),
+             claim_date = COALESCE($6, claim_date),
+             notes = $7
+         WHERE id = $8`,
+        [cleanUuid(engineer_id), cleanUuid(project_id), category || null, description || null, amount ? Number(amount) : null, claim_date || null, claimNotes ?? null, id]
+      );
+      return NextResponse.json({ message: 'تم تعديل بيانات الفاتورة بنجاح.' });
+    }
+
+    // --- APPROVE / REJECT CLAIM (existing logic) ---
     if (!claim_id || !['approve', 'reject'].includes(action)) {
       return NextResponse.json({ error: 'claim_id و action مطلوبان بشكل صحيح' }, { status: 400 });
     }

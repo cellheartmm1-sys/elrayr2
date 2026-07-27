@@ -97,6 +97,13 @@ export default function HRPage() {
   const [loading, setLoading] = useState(false);
   const [showEmpModal, setShowEmpModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showEditAssetModal, setShowEditAssetModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<PersonalAsset | null>(null);
+  const [editAssetForm, setEditAssetForm] = useState({
+    asset_code: '', asset_name: '', asset_type: 'tool', brand: '', model: '',
+    serial_number: '', purchase_cost: '', condition: 'good', status: 'available',
+    assigned_to: '', assignment_date: '', notes: ''
+  });
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
@@ -750,6 +757,48 @@ export default function HRPage() {
     }
   };
 
+  const handleOpenEditAsset = (asset: PersonalAsset) => {
+    setEditingAsset(asset);
+    setEditAssetForm({
+      asset_code: asset.asset_code || '',
+      asset_name: asset.asset_name || '',
+      asset_type: asset.asset_type || 'tool',
+      brand: asset.brand || '',
+      model: asset.model || '',
+      serial_number: asset.serial_number || '',
+      purchase_cost: asset.purchase_cost != null ? String(asset.purchase_cost) : '',
+      condition: asset.condition || 'good',
+      status: asset.status || 'available',
+      assigned_to: asset.assigned_to || '',
+      assignment_date: asset.assignment_date ? asset.assignment_date.split('T')[0] : '',
+      notes: asset.notes || ''
+    });
+    setShowEditAssetModal(true);
+  };
+
+  const handleUpdateAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAsset) return;
+    try {
+      const res = await fetch('/api/hr/assets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingAsset.id, ...editAssetForm })
+      });
+      if (res.ok) {
+        setShowEditAssetModal(false);
+        setEditingAsset(null);
+        fetchAssets();
+      } else {
+        const errData = await res.json();
+        alert(`❌ فشل التعديل: ${errData.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
   const handleDeleteLoan = async (id: string) => {
     if (!confirm('⚠️ هل أنت متأكد من حذف هذه السلفة؟')) return;
     try {
@@ -1327,6 +1376,98 @@ export default function HRPage() {
               <div className="page-description">تتبع أجهزة اختبار شبكات الحريق والصواريخ واللابتوبات والسيارات المسلمة للمهندسين والمشرفين</div>
             </div>
             <div className="page-header-actions">
+              <button
+                className="btn btn-outline"
+                onClick={() => {
+                  // Open print preview of the assets
+                  const printWin = window.open('', '_blank', 'width=1100,height=750');
+                  if (!printWin) { alert('يرجى السماح بالنوافذ المنبثقة لتفعيل الطباعة'); return; }
+                  const condMap: Record<string,string> = { new: 'جديدة', good: 'ممتازة', fair: 'جيدة', poor: 'تحتاج صيانة' };
+                  const typeMap: Record<string,string> = { tool: 'عدة', vehicle: 'سيارة/معدة', laptop: 'كمبيوتر', phone: 'هاتف', equipment: 'جهاز اختبار' };
+                  const rows = assets.map((a, i) => `
+                    <tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                      <td style="text-align:center;font-weight:700">${i+1}</td>
+                      <td style="font-family:monospace;font-weight:700">${a.asset_code || '-'}</td>
+                      <td style="font-weight:600">${a.asset_name}</td>
+                      <td>${typeMap[a.asset_type] || a.asset_type} ${a.brand ? `(${a.brand})` : ''}</td>
+                      <td style="font-weight:600;color:#4f46e5">${a.employee_name || a.assigned_to_name || '— بالمخزن —'}</td>
+                      <td>${a.assignment_date ? new Date(a.assignment_date).toLocaleDateString('ar-EG',{calendar:'gregory',year:'numeric',month:'2-digit',day:'2-digit'}) : '-'}</td>
+                      <td style="font-family:monospace">${a.serial_number || '-'}</td>
+                      <td>${condMap[a.condition] || a.condition}</td>
+                      <td style="text-align:center">
+                        <span style="padding:2px 10px;border-radius:20px;font-size:0.8rem;font-weight:700;
+                          background:${a.status==='available'?'#dcfce7':'#dbeafe'};
+                          color:${a.status==='available'?'#166534':'#1e40af'}">
+                          ${a.status==='available'?'بالمخزن':'مسلمة'}
+                        </span>
+                      </td>
+                      <td>${a.notes || '-'}</td>
+                    </tr>`).join('');
+                  const now = new Date().toLocaleDateString('ar-EG',{calendar:'gregory',year:'numeric',month:'long',day:'numeric'});
+                  printWin.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>كشف العهد الشخصية</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #111827; font-size: 11px; direction: rtl; }
+    .header { border-bottom: 3px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .company-name { font-size: 18px; font-weight: 800; color: #1e293b; }
+    .company-sub { font-size: 11px; color: #64748b; margin-top: 3px; }
+    .report-title { font-size: 14px; font-weight: 700; color: #4f46e5; text-align: left; }
+    .report-date { font-size: 11px; color: #64748b; text-align: left; margin-top: 3px; }
+    .stats { display: flex; gap: 16px; margin-bottom: 14px; }
+    .stat-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 16px; flex: 1; text-align: center; background: #f8fafc; }
+    .stat-num { font-size: 20px; font-weight: 800; color: #1e40af; }
+    .stat-lbl { font-size: 10px; color: #64748b; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    thead tr { background: #1e293b; color: #fff; }
+    th { padding: 7px 6px; text-align: right; font-weight: 700; border: 1px solid #334155; }
+    td { padding: 6px; border: 1px solid #e2e8f0; vertical-align: middle; }
+    .footer { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; color: #94a3b8; font-size: 10px; }
+    @media print { @page { size: A4 landscape; margin: 12mm; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div><div class="company-name">شركة الرايق للمقاولات الكهروميكانيكية</div>
+    <div class="company-sub">إدارة الموارد البشرية — كشف العهد والأصول الشخصية</div></div>
+    <div><div class="report-title">🔨 كشف العهد الشخصية</div>
+    <div class="report-date">تاريخ الإصدار: ${now}</div></div>
+  </div>
+  <div class="stats">
+    <div class="stat-box"><div class="stat-num">${assets.length}</div><div class="stat-lbl">إجمالي العهد</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#166534">${assets.filter(a=>a.status==='available').length}</div><div class="stat-lbl">متوفرة بالمخزن</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#1e40af">${assets.filter(a=>a.status!=='available').length}</div><div class="stat-lbl">مسلمة للموظفين</div></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:3%;text-align:center">#</th>
+      <th style="width:8%">كود العهدة</th>
+      <th style="width:14%">اسم العهدة</th>
+      <th style="width:10%">النوع/الماركة</th>
+      <th style="width:12%">الموظف المستلم</th>
+      <th style="width:9%">تاريخ التسليم</th>
+      <th style="width:11%">الرقم التسلسلي</th>
+      <th style="width:8%">الحالة الفنية</th>
+      <th style="width:8%;text-align:center">حالة العهدة</th>
+      <th>ملاحظات</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">
+    <span>إجمالي العهد المدرجة: ${assets.length} عهدة</span>
+    <span>نظام الرايق — تاريخ الطباعة: ${now}</span>
+  </div>
+</body></html>`);
+                  printWin.document.close();
+                  setTimeout(() => { printWin.focus(); printWin.print(); }, 400);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                🖨️ طباعة كشف العهد
+              </button>
               <button className="btn btn-primary" onClick={() => setShowAssetModal(true)}>+ تسجيل عهدة جديدة</button>
             </div>
           </div>
@@ -1368,7 +1509,7 @@ export default function HRPage() {
                             <span style={{ color: 'var(--text-muted)' }}>🏛️ بالمخزن الرئيسي (غير مسندة)</span>
                           )}
                         </td>
-                        <td>{a.assignment_date ? new Date(a.assignment_date).toLocaleDateString('ar-SA') : '-'}</td>
+                        <td>{a.assignment_date ? new Date(a.assignment_date).toLocaleDateString('ar-EG', { calendar: 'gregory', year: 'numeric', month: '2-digit', day: '2-digit' }) : '-'}</td>
                         <td style={{ fontFamily: 'monospace' }}>{a.serial_number || '-'}</td>
                         <td><span className="badge badge-muted">{a.condition}</span></td>
                         <td>
@@ -1377,13 +1518,23 @@ export default function HRPage() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button
-                            className="btn btn-outline btn-sm text-danger"
-                            onClick={() => handleDeleteAsset(a.id)}
-                            title="حذف العهدة"
-                          >
-                            🗑️ حذف
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleOpenEditAsset(a)}
+                              title="تعديل العهدة"
+                              style={{ color: 'var(--brand-primary-light)' }}
+                            >
+                              ✏️ تعديل
+                            </button>
+                            <button
+                              className="btn btn-outline btn-sm text-danger"
+                              onClick={() => handleDeleteAsset(a.id)}
+                              title="حذف العهدة"
+                            >
+                              🗑️ حذف
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1866,6 +2017,117 @@ export default function HRPage() {
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', padding: '1rem 1.5rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setShowAssetModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary" style={{ fontWeight: 600 }}>💾 حفظ العهدة وتسليمها</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: EDIT ASSET ======================== */}
+      {showEditAssetModal && editingAsset && (
+        <div className="modal-overlay" onClick={() => setShowEditAssetModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <div className="modal-title">✏️ تعديل بيانات العهدة</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditAssetModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateAsset} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.5rem' }}>
+                <div className="form-grid form-grid-2" style={{ gap: '1.25rem' }}>
+                  {/* Assigned Employee */}
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label" style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>
+                      👤 الموظف المستلم للعهدة
+                    </label>
+                    <select
+                      className="form-control"
+                      value={editAssetForm.assigned_to}
+                      onChange={e => {
+                        const empId = e.target.value;
+                        setEditAssetForm({ ...editAssetForm, assigned_to: empId, status: empId ? 'assigned' : 'available' });
+                      }}
+                      style={{ fontSize: '0.95rem', fontWeight: 600 }}
+                    >
+                      <option value="">-- بدون موظف (متوفرة بالمخزن الرئيسي) --</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.full_name} ({emp.job_title || 'موظف'} - {emp.employee_number})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label required">كود العهدة</label>
+                    <input className="form-control" required value={editAssetForm.asset_code} onChange={e => setEditAssetForm({...editAssetForm, asset_code: e.target.value})} placeholder="AST-100" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label required">اسم العهدة / المعدة</label>
+                    <input className="form-control" required value={editAssetForm.asset_name} onChange={e => setEditAssetForm({...editAssetForm, asset_name: e.target.value})} placeholder="شنيور هيلتي / لابتوب / سيارة" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">نوع العهدة</label>
+                    <select className="form-control" value={editAssetForm.asset_type} onChange={e => setEditAssetForm({...editAssetForm, asset_type: e.target.value})}>
+                      <option value="tool">عدة يدوية/كهربائية</option>
+                      <option value="vehicle">سيارة/معدة كبيرة</option>
+                      <option value="laptop">جهاز كمبيوتر/لابتوب</option>
+                      <option value="phone">هاتف محمول</option>
+                      <option value="equipment">جهاز اختبار حريق/موقع</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">تاريخ التسليم (ميلادي)</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={editAssetForm.assignment_date}
+                      onChange={e => setEditAssetForm({ ...editAssetForm, assignment_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الماركة (Brand)</label>
+                    <input className="form-control" value={editAssetForm.brand} onChange={e => setEditAssetForm({...editAssetForm, brand: e.target.value})} placeholder="Bosch / Makita / DeWalt" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الموديل (Model)</label>
+                    <input className="form-control" value={editAssetForm.model} onChange={e => setEditAssetForm({...editAssetForm, model: e.target.value})} placeholder="مثال: GBH 2-26" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الرقم التسلسلي (S/N)</label>
+                    <input className="form-control" value={editAssetForm.serial_number} onChange={e => setEditAssetForm({...editAssetForm, serial_number: e.target.value})} placeholder="SN-12345678" />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">الحالة الفنية للمعدة</label>
+                    <select className="form-control" value={editAssetForm.condition} onChange={e => setEditAssetForm({...editAssetForm, condition: e.target.value})}>
+                      <option value="new">جديدة</option>
+                      <option value="good">ممتازة</option>
+                      <option value="fair">مستعملة بحالة جيدة</option>
+                      <option value="poor">تحتاج صيانة</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label">ملاحظات وحالة تسليم العهدة</label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      value={editAssetForm.notes}
+                      onChange={e => setEditAssetForm({...editAssetForm, notes: e.target.value})}
+                      placeholder="تفاصيل الشنطة أو الملحقات المسلمة مع العهدة..."
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', padding: '1rem 1.5rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowEditAssetModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary" style={{ fontWeight: 600 }}>💾 حفظ التعديلات</button>
               </div>
             </form>
           </div>
