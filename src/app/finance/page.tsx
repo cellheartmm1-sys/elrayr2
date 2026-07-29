@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import PrintA4Template from '@/components/PrintA4Template';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { formatTimeDisplay } from '@/lib/dateUtils';
 import { exportJsonToExcel } from '@/lib/exportUtils';
 import { Line } from 'react-chartjs-2';
 import {
@@ -88,13 +89,20 @@ const categoryLabels: Record<string, string> = {
 
 export default function FinancePage() {
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  const [userRole, setUserRole] = useState('admin');
+  const [userName, setUserName] = useState('مستخدم النظام');
   const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
       setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+      setUserRole(localStorage.getItem('user_role') || 'admin');
+      setUserName(localStorage.getItem('user_name') || 'مستخدم النظام');
     }
   }, []);
+
+  const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
 
   const [activeTab, setActiveTab] = useState<TabType>('ipc');
   const lastTabRef = useRef<string | null>(null);
@@ -186,7 +194,7 @@ export default function FinancePage() {
   const [showEditClaimModal, setShowEditClaimModal] = useState(false);
   const [editingClaim, setEditingClaim] = useState<any>(null);
   const [editClaimForm, setEditClaimForm] = useState({
-    engineer_id: '', project_id: '', category: 'material', description: '', amount: '', claim_date: '', notes: ''
+    engineer_id: '', project_id: '', category: 'material', description: '', amount: '', claim_date: '', notes: '', receipt_image_url: ''
   });
 
 
@@ -333,10 +341,18 @@ export default function FinancePage() {
   };
 
   const handleApproveOrRejectClaim = async (claimId: string, action: 'approve' | 'reject') => {
+    if (!isManagerOrAdmin) {
+      alert('❌ ليس لديك صلاحية الاعتماد. الاعتماد والموافقة هي صلاحية حصرية لمدير النظام والمدير العام فقط.');
+      return;
+    }
     try {
       const res = await fetch('/api/finance/petty-cash', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole,
+          'x-user-name': encodeURIComponent(userName)
+        },
         body: JSON.stringify({ claim_id: claimId, action })
       });
       const data = await res.json();
@@ -388,7 +404,8 @@ export default function FinancePage() {
       description: claim.description || '',
       amount: String(claim.amount || ''),
       claim_date: claim.claim_date ? claim.claim_date.split('T')[0] : '',
-      notes: claim.notes || ''
+      notes: claim.notes || '',
+      receipt_image_url: claim.receipt_image_url || ''
     });
     setShowEditClaimModal(true);
   };
@@ -803,6 +820,16 @@ export default function FinancePage() {
           report: rData
         };
       }
+      else if (type === 'debts_report') {
+        const params = new URLSearchParams();
+        if (selectedReportProjectId) params.set('project_id', selectedReportProjectId);
+        if (debtTypeFilter) params.set('debt_type', debtTypeFilter);
+        const debtRes = await fetch(`/api/finance/debts?${params}`);
+        const debtData = await debtRes.json();
+        data = {
+          debts: Array.isArray(debtData) ? debtData : debtData.data || []
+        };
+      }
 
       setPrintReportData(data);
       setShowPrintModal(true);
@@ -814,6 +841,52 @@ export default function FinancePage() {
     }
   };
 
+  const handlePrintDebtsFromTab = () => {
+    const filtered = debts.filter(d => {
+      if (projectFilter && d.project_id !== projectFilter) return false;
+      if (debtTypeFilter && d.debt_type !== debtTypeFilter) return false;
+      return true;
+    });
+    setPrintReportData({ debts: filtered });
+    setActiveReportType('debts_report');
+    setShowPrintModal(true);
+  };
+
+  const handleExportDebtsExcel = (debtList: any[]) => {
+    if (!debtList || debtList.length === 0) {
+      alert('⚠️ لا توجد مديونيات للتصدير.');
+      return;
+    }
+    const debtTypeMap: Record<string, string> = {
+      project_finance: 'قرض تمويل مشروع',
+      subcontractor_ipc: 'مستخلص مقاول باطن',
+      supplier_invoice: 'فاتورة توريد',
+      other: 'التزام آخر'
+    };
+    const statusMap: Record<string, string> = {
+      paid: 'مسدد بالكامل',
+      partially_paid: 'مسدد جزئياً',
+      unpaid: 'غير مسدد'
+    };
+    const excelData = debtList.map((d, i) => ({
+      'م': i + 1,
+      'الجهة الدائنة / المقرض': d.creditor_name,
+      'نوع الالتزام': debtTypeMap[d.debt_type] || d.debt_type,
+      'المشروع الممول / المرتبط': d.project_name || 'غير محدد',
+      'القيمة الإجمالية': Number(d.amount || 0),
+      'المسدد': Number(d.paid_amount || 0),
+      'المتبقي': Number(d.amount || 0) - Number(d.paid_amount || 0),
+      'تاريخ الاستحقاق': d.due_date ? new Date(d.due_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
+      'الحالة': statusMap[d.status] || d.status,
+      'ملاحظات': d.notes || '-'
+    }));
+    exportJsonToExcel({
+      filename: `تقرير_مديونيات_وقروض_تمويل_${new Date().toISOString().split('T')[0]}`,
+      sheetName: 'المديونيات والتمويل',
+      data: excelData
+    });
+  };
+
   const handleExportIpcsExcel = () => {
     if (ipcs.length === 0) {
       alert('لا توجد مستخلصات لتصديرها.');
@@ -822,7 +895,7 @@ export default function FinancePage() {
     const exportData = ipcs.map(i => ({
       ipc_number: i.ipc_number,
       project_name: i.project_name || '-',
-      period: `${i.period_from ? new Date(i.period_from).toLocaleDateString('ar-SA') : ''} إلى ${i.period_to ? new Date(i.period_to).toLocaleDateString('ar-SA') : ''}`,
+      period: `${i.period_from ? new Date(i.period_from).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : ''} إلى ${i.period_to ? new Date(i.period_to).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : ''}`,
       items_total: Number(i.items_total || 0),
       vat_amount: Number(i.vat_amount || 0),
       retention_amount: Number(i.retention_amount || 0),
@@ -881,8 +954,8 @@ export default function FinancePage() {
     const singleData = [{
       ipc_number: ipc.ipc_number,
       project_name: ipc.project_name || '-',
-      period_from: ipc.period_from ? new Date(ipc.period_from).toLocaleDateString('ar-SA') : '-',
-      period_to: ipc.period_to ? new Date(ipc.period_to).toLocaleDateString('ar-SA') : '-',
+      period_from: ipc.period_from ? new Date(ipc.period_from).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
+      period_to: ipc.period_to ? new Date(ipc.period_to).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       items_total: Number(ipc.items_total || 0),
       vat_amount: Number(ipc.vat_amount || 0),
       retention_amount: Number(ipc.retention_amount || 0),
@@ -1165,7 +1238,7 @@ export default function FinancePage() {
                       <tr key={ipc.id}>
                         <td style={{ fontWeight: 700 }}>{ipc.ipc_number}</td>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ipc.project_name}</td>
-                        <td>{new Date(ipc.ipc_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(ipc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                         <td>{formatCurrency(ipc.items_total)}</td>
                         <td>{formatCurrency(ipc.vat_amount)}</td>
                         <td style={{ color: 'var(--status-warning)' }}>{formatCurrency(ipc.retention_amount)}</td>
@@ -1352,7 +1425,12 @@ export default function FinancePage() {
               <div className="page-title">🏛️ مديونيات المؤسسة وقروض تمويل المشاريع</div>
               <div className="page-description">تسجيل ومتابعة التزامات الشركة المالية ومبالغ التمويل الخارجي المؤقتة للمشاريع</div>
             </div>
-            <button className="btn btn-primary" onClick={() => setShowDebtModal(true)}>➕ تسجيل التزام / قرض جديد</button>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button className="btn btn-outline" onClick={handlePrintDebtsFromTab} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                🖨️ طباعة تقرير المديونيات والتمويل
+              </button>
+              <button className="btn btn-primary" onClick={() => setShowDebtModal(true)}>➕ تسجيل التزام / قرض جديد</button>
+            </div>
           </div>
 
           <div className="stat-grid mb-4">
@@ -1431,7 +1509,7 @@ export default function FinancePage() {
                           </td>
                           <td>{d.project_name || '-'}</td>
                           <td style={{ fontWeight: 600 }}>{formatCurrency(d.amount)}</td>
-                          <td>{d.due_date ? new Date(d.due_date).toLocaleDateString('ar-SA') : '-'}</td>
+                          <td>{d.due_date ? new Date(d.due_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                           <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{formatCurrency(d.paid_amount)}</td>
                           <td style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{formatCurrency(remaining)}</td>
                           <td>
@@ -1843,6 +1921,11 @@ export default function FinancePage() {
                       <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير كشف الخزينة والصندوق الكامل:</span>
                       <button className="btn btn-primary" onClick={() => handleGenerateReport('cashbox')} style={{ background: '#0dcaf0', borderColor: '#0dcaf0', whiteSpace: 'nowrap' }}>🖨️ طباعة الخزينة</button>
                     </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>تقرير 🏛️ المديونيات وقروض التمويل:</span>
+                      <button className="btn btn-primary" onClick={() => handleGenerateReport('debts_report')} style={{ background: '#6f42c1', borderColor: '#6f42c1', whiteSpace: 'nowrap' }}>🖨️ طباعة المديونيات والتمويل</button>
+                    </div>
                   </div>
                 </div>
 
@@ -2151,34 +2234,69 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           {claim.status === 'pending' ? (
-                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => {
+                                  if (claim.receipt_image_url) {
+                                    setSelectedReceiptUrl(claim.receipt_image_url);
+                                  } else {
+                                    handleOpenEditClaim(claim);
+                                  }
+                                }}
+                                style={{ color: claim.receipt_image_url ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+                                title={claim.receipt_image_url ? 'معاينة صورة الفاتورة/الإيصال' : 'إضافة/رفع صورة الفاتورة'}
+                              >
+                                📷 {claim.receipt_image_url ? 'معاينة الصورة' : 'إضافة صورة'}
+                              </button>
                               <button
                                 className="btn btn-outline btn-sm"
                                 onClick={() => handleOpenEditClaim(claim)}
                                 style={{ color: 'var(--brand-primary-light)' }}
                               >✏️ تعديل</button>
-                              <button
-                                className="btn btn-success btn-sm"
-                                onClick={() => handleApproveOrRejectClaim(claim.id, 'approve')}
-                                title="اعتماد الفاتورة وتخصيصها كـ مصروف مباشر في ميزانية المشروع"
-                              >
-                                ✅ اعتماد
-                              </button>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleApproveOrRejectClaim(claim.id, 'reject')}
-                              >
-                                🔴 رفض
-                              </button>
+                              {isManagerOrAdmin ? (
+                                <>
+                                  <button
+                                    className="btn btn-success btn-sm"
+                                    onClick={() => handleApproveOrRejectClaim(claim.id, 'approve')}
+                                    title="اعتماد الفاتورة وتخصيصها كـ مصروف مباشر في ميزانية المشروع"
+                                  >
+                                    ✅ اعتماد
+                                  </button>
+                                  <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => handleApproveOrRejectClaim(claim.id, 'reject')}
+                                  >
+                                    🔴 رفض
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="badge badge-warning" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }} title="الفاتورة المرفوعة بانتظار موافقة واعتماد المدير العام">
+                                  ⏳ بانتظار اعتماد المدير العام
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                               <button
                                 className="btn btn-outline btn-sm"
+                                onClick={() => {
+                                  if (claim.receipt_image_url) {
+                                    setSelectedReceiptUrl(claim.receipt_image_url);
+                                  } else {
+                                    handleOpenEditClaim(claim);
+                                  }
+                                }}
+                                style={{ color: claim.receipt_image_url ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+                                title={claim.receipt_image_url ? 'معاينة صورة الفاتورة/الإيصال' : 'إضافة/رفع صورة الفاتورة'}
+                              >
+                                📷 {claim.receipt_image_url ? 'معاينة الصورة' : 'إضافة صورة'}
+                              </button>
+                              <button
+                                className="btn btn-outline btn-sm"
                                 onClick={() => handleOpenEditClaim(claim)}
                                 style={{ color: 'var(--brand-primary-light)' }}
                               >✏️ تعديل</button>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', alignSelf: 'center' }}>مكتملة</span>
                             </div>
                           )}
                         </td>
@@ -2296,6 +2414,36 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                   <label className="form-label">ملاحظات</label>
                   <textarea className="form-control" rows={2} value={editClaimForm.notes}
                     onChange={e => setEditClaimForm({...editClaimForm, notes: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">📷 صورة الفاتورة / الإيصال الورقي (من كاميرا الموبايل)</label>
+                  <input
+                    className="form-control"
+                    type="file"
+                    accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setEditClaimForm({...editClaimForm, receipt_image_url: reader.result as string});
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  {editClaimForm.receipt_image_url && (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <img src={editClaimForm.receipt_image_url} alt="معاينة الإيصال" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm text-danger"
+                        onClick={() => setEditClaimForm({...editClaimForm, receipt_image_url: ''})}
+                      >
+                        🗑️ إزالة الصورة
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
@@ -2694,7 +2842,7 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
               documentTitle="مستخلص مستحقات عميل (مالك المشروع)"
               refNumber={printIpc.ipc_number}
               documentSubtitle={`المشروع: ${printIpc.project_name}`}
-              date={printIpc.ipc_date ? new Date(printIpc.ipc_date).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+              date={printIpc.ipc_date ? new Date(printIpc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : new Date().toLocaleDateString('ar-EG', { calendar: 'gregory' })}
             >
               <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.95rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -2707,13 +2855,13 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 'bold', minWidth: '110px' }}>تاريخ الإصدار:</span>
-                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-SA')}</span>
+                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 'bold', minWidth: '110px' }}>الفترة المالية:</span>
                   <span>
                     {printIpc.period_from && printIpc.period_to 
-                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-SA')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-SA')}` 
+                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-EG', { calendar: 'gregory' })} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-EG', { calendar: 'gregory' })}` 
                       : 'غير محددة'}
                   </span>
                 </div>
@@ -3032,6 +3180,9 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
             <div className="modal-header print-actions" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
               <div className="modal-title">🖨️ معاينة طباعة التقرير التفصيلي</div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {activeReportType === 'debts_report' && printReportData?.debts && (
+                  <button className="btn btn-secondary" onClick={() => handleExportDebtsExcel(printReportData.debts)}>📊 تصدير إلى Excel (.xlsx)</button>
+                )}
                 <button className="btn btn-primary" onClick={() => window.print()}>🖨️ طباعة التقرير الآن</button>
                 <button className="btn btn-ghost" onClick={() => setShowPrintModal(false)}>إغلاق</button>
               </div>
@@ -3135,6 +3286,7 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                   {activeReportType === 'revenues' && 'تقرير إجمالي التحصيلات والإيرادات'}
                   {activeReportType === 'profits' && 'تقرير الأرباح والخسائر والمؤشرات المالية'}
                   {activeReportType === 'cashbox' && 'تقرير حركة الخزينة والصندوق بالكامل'}
+                  {activeReportType === 'debts_report' && '🏛️ تقرير مديونيات المؤسسة وقروض تمويل المشاريع'}
                 </h3>
                 <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</div>
               </div>
@@ -3445,8 +3597,8 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                             <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG')}</td>
                             <td>{a.project_name || 'المكتب الرئيسي'}</td>
                             <td>{a.attendance_type === 'present' ? 'حاضر' : a.attendance_type === 'late' ? 'متأخر' : 'غياب'}</td>
-                            <td>{a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                            <td>{a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td>{formatTimeDisplay(a.check_in_time)}</td>
+                            <td>{formatTimeDisplay(a.check_out_time)}</td>
                             <td style={{ fontWeight: 'bold' }}>{a.overtime_hours || 0} ساعة</td>
                           </tr>
                         ))
@@ -3607,6 +3759,59 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                         <th>صافي أرباح ورصيد الصندوق المتاح</th>
                         <td style={{ fontWeight: 'bold', color: '#16a34a' }}>{formatCurrency(printReportData.report.summary?.net_cash_flow ?? printReportData.report.summary?.netCashFlow ?? 0)}</td>
                       </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 17. Debts & Project Financing Report */}
+              {activeReportType === 'debts_report' && printReportData.debts && (
+                <div>
+                  {/* Summary Box */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '1.25rem', border: '1px solid #000', padding: '0.75rem', borderRadius: '4px', background: '#f8fafc' }}>
+                    <div><strong>إجمالي التزامات والتمويل:</strong> {formatCurrency(printReportData.debts.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0))}</div>
+                    <div><strong>إجمالي المسدد:</strong> <span style={{ color: '#16a34a' }}>{formatCurrency(printReportData.debts.reduce((sum: number, d: any) => sum + Number(d.paid_amount || 0), 0))}</span></div>
+                    <div><strong>المتبقي المطلوب سداده:</strong> <span style={{ color: '#dc2626' }}>{formatCurrency(printReportData.debts.reduce((sum: number, d: any) => sum + (Number(d.amount || 0) - Number(d.paid_amount || 0)), 0))}</span></div>
+                    <div><strong>عدد السجلات والالتزامات:</strong> {printReportData.debts.length} بند</div>
+                  </div>
+
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'center', width: '35px' }}>م</th>
+                        <th>الجهة الدائنة / المقرض</th>
+                        <th>نوع الالتزام</th>
+                        <th>المشروع الممول / المرتبط</th>
+                        <th>القيمة الإجمالية ({currencySymbol})</th>
+                        <th>تاريخ الاستحقاق</th>
+                        <th>المسدد ({currencySymbol})</th>
+                        <th>المتبقي ({currencySymbol})</th>
+                        <th style={{ textAlign: 'center' }}>الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printReportData.debts.length === 0 ? (
+                        <tr><td colSpan={9} style={{ textAlign: 'center' }}>لا توجد مديونيات أو قروض مسجلة لهذه الفئة</td></tr>
+                      ) : (
+                        printReportData.debts.map((d: any, idx: number) => {
+                          const remaining = Number(d.amount || 0) - Number(d.paid_amount || 0);
+                          const debtTypeMap: Record<string, string> = { project_finance: 'قرض تمويل مشروع', subcontractor_ipc: 'مستخلص مقاول باطن', supplier_invoice: 'فاتورة توريد', other: 'التزام آخر' };
+                          const statusMap: Record<string, string> = { paid: 'مسدد بالكامل', partially_paid: 'مسدد جزئياً', unpaid: 'غير مسدد' };
+                          return (
+                            <tr key={idx}>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{idx + 1}</td>
+                              <td style={{ fontWeight: 'bold' }}>{d.creditor_name}</td>
+                              <td>{debtTypeMap[d.debt_type] || d.debt_type}</td>
+                              <td>{d.project_name || 'عام / غير محدد'}</td>
+                              <td style={{ fontWeight: 'bold' }}>{formatCurrency(d.amount)}</td>
+                              <td>{d.due_date ? new Date(d.due_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
+                              <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatCurrency(d.paid_amount)}</td>
+                              <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(remaining)}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{statusMap[d.status] || d.status}</td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>

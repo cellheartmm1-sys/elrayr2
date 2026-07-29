@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { formatTimeDisplay, isSameDate } from '@/lib/dateUtils';
 import Link from 'next/link';
 
 type TabType = 'employees' | 'payroll' | 'attendance' | 'overtime' | 'assets' | 'documents' | 'loans';
@@ -178,9 +179,9 @@ export default function HRPage() {
     employee_id: '',
     project_id: '',
     attendance_date: new Date().toISOString().split('T')[0],
-    check_in_time: '08:00',
+    check_in_time: '07:00',
     check_out_time: '17:00',
-    hours_worked: '8',
+    hours_worked: '10',
     overtime_hours: '0',
     attendance_type: 'present',
     notes: ''
@@ -299,6 +300,12 @@ export default function HRPage() {
     employee_id: '', amount: '', monthly_deduction: '', repayment_method: 'salary_deduction', notes: ''
   });
 
+  const [showEditLoanModal, setShowEditLoanModal] = useState(false);
+  const [editingLoan, setEditingLoan] = useState<any>(null);
+  const [editLoanForm, setEditLoanForm] = useState({
+    employee_id: '', amount: '', monthly_deduction: '', paid_amount: '', repayment_method: 'salary_deduction', status: 'active', notes: ''
+  });
+
   // Fetch functions
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -341,9 +348,9 @@ export default function HRPage() {
       employee_id: emp.id,
       project_id: selectedProject || projects[0]?.id || '',
       attendance_date: attendanceDateFilter,
-      check_in_time: '08:00',
+      check_in_time: '07:00',
       check_out_time: '17:00',
-      hours_worked: '8',
+      hours_worked: '10',
       overtime_hours: '0',
       attendance_type: 'present',
       notes: ''
@@ -427,7 +434,7 @@ export default function HRPage() {
         (a.attendance_type === 'leave' || a.attendance_type === 'holiday') &&
         new Date(a.attendance_date).getMonth() + 1 === m &&
         new Date(a.attendance_date).getFullYear() === y &&
-        a.attendance_date !== attendanceDateFilter
+        !isSameDate(a.attendance_date, attendanceDateFilter)
       ).length;
 
       if (takenLeaves >= 4) {
@@ -471,7 +478,7 @@ export default function HRPage() {
 
   const handleBulkAutoAbsent = async () => {
     const unrecordedEmps = employees.filter(emp => {
-      const rec = attendance.find(a => a.employee_id === emp.id && (a.attendance_date === attendanceDateFilter || a.attendance_date.startsWith(attendanceDateFilter)));
+      const rec = attendance.find(a => a.employee_id === emp.id && isSameDate(a.attendance_date, attendanceDateFilter));
       return !rec;
     });
 
@@ -740,6 +747,52 @@ export default function HRPage() {
       console.error(err);
     }
   };
+
+  const handleOpenEditLoan = (loan: any) => {
+    setEditingLoan(loan);
+    setEditLoanForm({
+      employee_id: loan.employee_id || '',
+      amount: String(loan.amount || ''),
+      monthly_deduction: String(loan.monthly_deduction || ''),
+      paid_amount: String(loan.paid_amount || '0'),
+      repayment_method: loan.repayment_method || 'salary_deduction',
+      status: loan.status || 'active',
+      notes: loan.notes || ''
+    });
+    setShowEditLoanModal(true);
+  };
+
+  const handleUpdateLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLoan) return;
+    try {
+      const res = await fetch('/api/hr/loans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingLoan.id,
+          amount: Number(editLoanForm.amount),
+          monthly_deduction: Number(editLoanForm.monthly_deduction),
+          paid_amount: Number(editLoanForm.paid_amount),
+          repayment_method: editLoanForm.repayment_method,
+          status: editLoanForm.status,
+          notes: editLoanForm.notes
+        })
+      });
+      if (res.ok) {
+        alert('✅ تم تعديل بيانات السلفة بنجاح!');
+        setShowEditLoanModal(false);
+        setEditingLoan(null);
+        fetchLoans();
+      } else {
+        const errData = await res.json();
+        alert(`❌ فشل التعديل: ${errData.error || 'حدث خطأ'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ حدث خطأ في الاتصال بالخادم.');
+    }
+  };
   const handleDeleteAsset = async (id: string) => {
     if (!confirm('⚠️ هل أنت متأكد من حذف هذه العهدة؟')) return;
     try {
@@ -855,9 +908,9 @@ export default function HRPage() {
           employee_id: '',
           project_id: '',
           attendance_date: new Date().toISOString().split('T')[0],
-          check_in_time: '08:00',
+          check_in_time: '07:00',
           check_out_time: '17:00',
-          hours_worked: '8',
+          hours_worked: '10',
           overtime_hours: '0',
           attendance_type: 'present',
           notes: ''
@@ -1181,7 +1234,7 @@ export default function HRPage() {
             <div className="stat-card danger">
               <div className="stat-card-icon">❌</div>
               <div className="stat-value">
-                {attendance.filter(a => a.attendance_type === 'absent').length + employees.filter(e => !attendance.some(a => a.employee_id === e.id && (a.attendance_date === attendanceDateFilter || a.attendance_date.startsWith(attendanceDateFilter)))).length}
+                {attendance.filter(a => a.attendance_type === 'absent').length + employees.filter(e => !attendance.some(a => a.employee_id === e.id && isSameDate(a.attendance_date, attendanceDateFilter))).length}
               </div>
               <div className="stat-label">إجمالي الغياب والغياب التلقائي</div>
             </div>
@@ -1226,7 +1279,7 @@ export default function HRPage() {
                     {employees
                       .filter(emp => emp.full_name.includes(attendanceEmpSearch) || emp.employee_number.includes(attendanceEmpSearch))
                       .map(emp => {
-                        const rec = attendance.find(a => a.employee_id === emp.id && (a.attendance_date === attendanceDateFilter || a.attendance_date.startsWith(attendanceDateFilter)));
+                        const rec = attendance.find(a => a.employee_id === emp.id && isSameDate(a.attendance_date, attendanceDateFilter));
                         const statusType = rec ? rec.attendance_type : 'none';
 
                         return (
@@ -1341,7 +1394,7 @@ export default function HRPage() {
                       <tr key={o.id}>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{o.employee_name}</td>
                         <td>{o.project_name || 'غير محدد'}</td>
-                        <td>{new Date(o.overtime_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(o.overtime_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                         <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{o.hours_requested} ساعة</td>
                         <td>{o.reason || '-'}</td>
                         <td>
@@ -1587,7 +1640,7 @@ export default function HRPage() {
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.full_name}</td>
                         <td><span className="badge badge-primary">{docLabels[d.document_type] || d.document_type}</span></td>
                         <td>{d.document_number || '-'}</td>
-                        <td>{d.expiry_date ? new Date(d.expiry_date).toLocaleDateString('ar-SA') : '-'}</td>
+                        <td>{d.expiry_date ? new Date(d.expiry_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                         <td style={{ fontWeight: 700, color: d.days_remaining <= 30 ? 'var(--status-danger)' : 'var(--status-success)' }}>
                           {d.days_remaining} يوم
                         </td>
@@ -1672,7 +1725,7 @@ export default function HRPage() {
                           <td>{l.employee_number}</td>
                           <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{l.employee_name}</td>
                           <td>{l.employee_job_title}</td>
-                          <td>{l.loan_date ? new Date(l.loan_date).toLocaleDateString('ar-SA') : '-'}</td>
+                          <td>{l.loan_date ? new Date(l.loan_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                           <td style={{ fontWeight: 600 }}>{formatCurrency(l.amount)}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{formatCurrency(l.monthly_deduction)}</td>
                           <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{formatCurrency(l.paid_amount)}</td>
@@ -1687,15 +1740,33 @@ export default function HRPage() {
                               {l.status === 'paid' ? 'مسددة بالكامل' : 'نشطة'}
                             </span>
                           </td>
-                          <td>
-                            {l.status !== 'paid' && (
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {l.status !== 'paid' && (
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handlePayLoanInstallment(l.id, Number(l.paid_amount), Number(l.amount))}
+                                  title="تسجيل دفع قسط أو مبلغ نقدي"
+                                >
+                                  💰 سداد نقدي
+                                </button>
+                              )}
                               <button
-                                className="btn btn-ghost text-primary btn-sm"
-                                onClick={() => handlePayLoanInstallment(l.id, Number(l.paid_amount), Number(l.amount))}
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleOpenEditLoan(l)}
+                                style={{ color: 'var(--brand-primary-light)' }}
+                                title="تعديل بيانات السلفة"
                               >
-                                💰 تسجيل سداد نقدي
+                                ✏️ تعديل
                               </button>
-                            )}
+                              <button
+                                className="btn btn-outline btn-sm text-danger"
+                                onClick={() => handleDeleteLoan(l.id)}
+                                title="حذف السلفة"
+                              >
+                                🗑️ حذف
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1781,6 +1852,93 @@ export default function HRPage() {
               <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setShowLoanModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">💾 حفظ السلفة</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: EDIT LOAN ======================== */}
+      {showEditLoanModal && editingLoan && (
+        <div className="modal-overlay" onClick={() => setShowEditLoanModal(false)}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">✏️ تعديل بيانات السلفة — {editingLoan.employee_name}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditLoanModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateLoan}>
+              <div className="form-grid form-grid-2">
+                <div className="form-group col-span-2">
+                  <label className="form-label required">اسم الموظف</label>
+                  <input className="form-control" value={editingLoan.employee_name} disabled style={{ background: 'var(--bg-subtle)' }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">إجمالي مبلغ السلفة ({currencySymbol})</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    step="any"
+                    required
+                    value={editLoanForm.amount}
+                    onChange={e => setEditLoanForm({ ...editLoanForm, amount: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">القسط الشهري</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    step="any"
+                    value={editLoanForm.monthly_deduction}
+                    onChange={e => setEditLoanForm({ ...editLoanForm, monthly_deduction: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">المبلغ المسدد حالياً</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    step="any"
+                    value={editLoanForm.paid_amount}
+                    onChange={e => setEditLoanForm({ ...editLoanForm, paid_amount: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">طريقة السداد</label>
+                  <select
+                    className="form-control"
+                    value={editLoanForm.repayment_method}
+                    onChange={e => setEditLoanForm({ ...editLoanForm, repayment_method: e.target.value })}
+                  >
+                    <option value="salary_deduction">استقطاع شهري من الراتب</option>
+                    <option value="cash">سداد نقدي مباشر</option>
+                    <option value="other">طريقة أخرى</option>
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">حالة السلفة</label>
+                  <select
+                    className="form-control"
+                    value={editLoanForm.status}
+                    onChange={e => setEditLoanForm({ ...editLoanForm, status: e.target.value })}
+                  >
+                    <option value="active">نشطة ومستمرة</option>
+                    <option value="paid">مسددة بالكامل</option>
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">ملاحظات وشروط السلفة</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={editLoanForm.notes}
+                    onChange={e => setEditLoanForm({ ...editLoanForm, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowEditLoanModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary">💾 حفظ التعديلات</button>
               </div>
             </form>
           </div>
@@ -2142,9 +2300,9 @@ export default function HRPage() {
             employee_id: '',
             project_id: '',
             attendance_date: new Date().toISOString().split('T')[0],
-            check_in_time: '08:00',
+            check_in_time: '07:00',
             check_out_time: '17:00',
-            hours_worked: '8',
+            hours_worked: '10',
             overtime_hours: '0',
             attendance_type: 'present',
             notes: ''
@@ -2159,9 +2317,9 @@ export default function HRPage() {
                   employee_id: '',
                   project_id: '',
                   attendance_date: new Date().toISOString().split('T')[0],
-                  check_in_time: '08:00',
+                  check_in_time: '07:00',
                   check_out_time: '17:00',
-                  hours_worked: '8',
+                  hours_worked: '10',
                   overtime_hours: '0',
                   attendance_type: 'present',
                   notes: ''
@@ -2314,9 +2472,9 @@ export default function HRPage() {
                     employee_id: '',
                     project_id: '',
                     attendance_date: new Date().toISOString().split('T')[0],
-                    check_in_time: '08:00',
+                    check_in_time: '07:00',
                     check_out_time: '17:00',
-                    hours_worked: '8',
+                    hours_worked: '10',
                     overtime_hours: '0',
                     attendance_type: 'present',
                     notes: ''
@@ -2666,7 +2824,7 @@ export default function HRPage() {
                   const dateStr = `${empMonthlyLogModal.year}-${String(empMonthlyLogModal.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                   const dtObj = new Date(empMonthlyLogModal.year, empMonthlyLogModal.month - 1, d);
                   const dayName = daysOfWeek[dtObj.getDay()];
-                  const rec = empMonthlyLogModal.records.find(r => r.attendance_date === dateStr || r.attendance_date.startsWith(dateStr));
+                  const rec = empMonthlyLogModal.records.find(r => isSameDate(r.attendance_date, dateStr));
                   dayList.push({ dayNum: d, dateStr, dayName, rec });
                 }
 

@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { approval_id, action, rejection_reason, approved_by } = body;
 
+    const userRole = request.headers.get('x-user-role') || body.user_role || '';
+    if (userRole && userRole !== 'admin' && userRole !== 'manager') {
+      return NextResponse.json({ error: 'صلاحية اعتماد أو رفض الطلبات حصرية للمدير العام ومدير النظام فقط.' }, { status: 403 });
+    }
+
     if (!approval_id || !['approve', 'reject'].includes(action)) {
       return NextResponse.json({ error: 'الطلب غير صالح' }, { status: 400 });
     }

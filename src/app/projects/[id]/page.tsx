@@ -926,7 +926,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             </span>
                           </td>
                           <td style={{ fontWeight: 600 }}>{formatCurrency(debt.amount)}</td>
-                          <td>{debt.due_date ? new Date(debt.due_date).toLocaleDateString('ar-SA') : '-'}</td>
+                          <td>{debt.due_date ? new Date(debt.due_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                           <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{formatCurrency(debt.paid_amount)}</td>
                           <td style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{formatCurrency(remaining)}</td>
                           <td>
@@ -1055,7 +1055,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             {doc.document_name}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            تاريخ الرفع: {new Date(doc.uploaded_at).toLocaleDateString('ar-SA')}
+                            تاريخ الرفع: {new Date(doc.uploaded_at).toLocaleDateString('ar-EG', { calendar: 'gregory' })}
                           </div>
                         </div>
                       </div>

@@ -51,7 +51,7 @@ export default function LaborPage() {
 
   const [attForm, setAttForm] = useState({
     worker_id: '', project_id: '', attendance_date: new Date().toISOString().split('T')[0],
-    is_present: true, hours_worked: '8', overtime_hours: '0', daily_rate: '150', overtime_rate: '25', notes: ''
+    is_present: true, hours_worked: '10', overtime_hours: '0', daily_rate: '150', overtime_rate: '25', notes: ''
   });
 
   const fetchLaborers = useCallback(async () => {
@@ -93,7 +93,7 @@ export default function LaborPage() {
         project_name: a.project_name,
         attendance_date: a.attendance_date,
         is_present: a.attendance_type === 'present',
-        hours_worked: '8',
+        hours_worked: '10',
         overtime_hours: String(a.overtime_hours ?? 0),
         total_pay: String(Number(a.base_salary || 150) + (Number(a.overtime_hours || 0) * 25))
       })));
@@ -163,9 +163,9 @@ export default function LaborPage() {
           project_id: attForm.project_id,
           attendance_date: attForm.attendance_date,
           status: attForm.is_present ? 'present' : 'absent',
-          hours_worked: attForm.is_present ? Number(attForm.hours_worked) || 8 : 0,
+          hours_worked: attForm.is_present ? Number(attForm.hours_worked) || 10 : 0,
           overtime_hours: Number(attForm.overtime_hours) || 0,
-          check_in: attForm.is_present ? `${attForm.attendance_date} 08:00:00` : null,
+          check_in: attForm.is_present ? `${attForm.attendance_date} 07:00:00` : null,
           check_out: attForm.is_present ? `${attForm.attendance_date} 17:00:00` : null,
           notes: attForm.notes || ''
         })
@@ -174,7 +174,7 @@ export default function LaborPage() {
         setShowAttendanceModal(false);
         setAttForm({
           worker_id: '', project_id: '', daily_rate: '150', attendance_date: new Date().toISOString().split('T')[0],
-          is_present: true, hours_worked: '8', overtime_hours: '0', overtime_rate: '25', notes: ''
+          is_present: true, hours_worked: '10', overtime_hours: '0', overtime_rate: '25', notes: ''
         });
         fetchAttendance();
       } else {

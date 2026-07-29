@@ -46,7 +46,7 @@ const submittalStatusBadge: Record<string, string> = {
 };
 
 function formatNumber(val: string | number) {
-  return Number(val).toLocaleString('ar-SA');
+  return Number(val).toLocaleString('ar-EG');
 }
 
 export default function ProcurementPage() {
@@ -909,7 +909,7 @@ export default function ProcurementPage() {
                         <td style={{ color: 'var(--text-primary)' }}>{s.item_description}</td>
                         <td>{s.brand || '-'}</td>
                         <td>{s.model || '-'}</td>
-                        <td>{new Date(s.submitted_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(s.submitted_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                         <td>{s.consultant_name || '-'}</td>
                         <td><span className={`badge ${submittalStatusBadge[s.status] || 'badge-muted'}`}>{submittalStatusLabels[s.status] || s.status}</span></td>
                       </tr>
@@ -1327,7 +1327,7 @@ export default function ProcurementPage() {
                                 <tr key={mi.id}>
                                   <td style={{ fontWeight: 700 }}>{mi.issue_number}</td>
                                   <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mi.project_name}</td>
-                                  <td>{new Date(mi.issue_date).toLocaleDateString('ar-SA')}</td>
+                                  <td>{new Date(mi.issue_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                                   <td>{mi.items_count} أصناف</td>
                                   <td style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>{formatCurrency(mi.total_cost)}</td>
                                   <td>
@@ -1425,7 +1425,7 @@ export default function ProcurementPage() {
                               <h2>شركة الريق للمقاولات الكهروميكانيكية</h2>
                               <h3>تقرير جرد ومخزون مستودع: ${selectedWarehouse.name}</h3>
                               <div class="meta">
-                                تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')} | الموقع: ${selectedWarehouse.location || 'غير محدد'}
+                                تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG', { calendar: 'gregory' })} | الموقع: ${selectedWarehouse.location || 'غير محدد'}
                               </div>
                               <table>
                                 <thead>
@@ -1612,7 +1612,7 @@ export default function ProcurementPage() {
                         <td style={{ fontWeight: 700 }}>{mi.issue_number}</td>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mi.project_name}</td>
                         <td>{mi.warehouse_name}</td>
-                        <td>{new Date(mi.issue_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(mi.issue_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                         <td style={{ fontWeight: 700, color: '#1e3a8a' }}>{formatCurrency(mi.total_cost)}</td>
                         <td>
                           {mi.boq_warning ? (
@@ -1670,7 +1670,7 @@ export default function ProcurementPage() {
                         <td style={{ fontWeight: 700 }}>{wt.transfer_number}</td>
                         <td style={{ color: '#dc2626', fontWeight: 600 }}>{wt.from_warehouse_name}</td>
                         <td style={{ color: '#16a34a', fontWeight: 600 }}>{wt.to_warehouse_name}</td>
-                        <td>{new Date(wt.transfer_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(wt.transfer_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                         <td style={{ fontWeight: 600 }}>{wt.items_count} صنف</td>
                         <td><span className="badge badge-success">تم التحويل وتحديث الأرصدة بنجاح</span></td>
                       </tr>

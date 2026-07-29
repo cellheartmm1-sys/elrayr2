@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { formatTimeDisplay } from '@/lib/dateUtils';
 import Link from 'next/link';
 
 interface Employee {
@@ -421,7 +422,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <div>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تاريخ انتهاء الإقامة</label>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {employee.iqama_expiry ? new Date(employee.iqama_expiry).toLocaleDateString('ar-SA') : '-'}
+                      {employee.iqama_expiry ? new Date(employee.iqama_expiry).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}
                     </div>
                   </div>
                 </div>
@@ -434,7 +435,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <div>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تاريخ ميلاد الموظف</label>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString('ar-SA') : '-'}
+                      {employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}
                     </div>
                   </div>
                 </div>
@@ -464,7 +465,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <div>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تاريخ التعيين والالتحاق</label>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('ar-SA') : '-'}
+                      {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}
                     </div>
                   </div>
                 </div>
@@ -788,12 +789,12 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   ) : (
                     attendance.map((a) => (
                       <tr key={a.id}>
-                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-SA')}</td>
+                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
                         <td style={{ color: 'var(--status-success)', fontFeatureSettings: '"tnum"' }}>
-                          {a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          {formatTimeDisplay(a.check_in_time)}
                         </td>
                         <td style={{ color: 'var(--status-warning)', fontFeatureSettings: '"tnum"' }}>
-                          {a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          {formatTimeDisplay(a.check_out_time)}
                         </td>
                         <td>
                           <span className={`badge ${a.attendance_type === 'present' ? 'badge-success' : a.attendance_type === 'late' ? 'badge-warning' : 'badge-danger'}`}>
@@ -906,15 +907,15 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               </tr>
               <tr>
                 <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>تاريخ انتهاء الإقامة:</td>
-                <td>{employee.iqama_expiry ? new Date(employee.iqama_expiry).toLocaleDateString('ar-SA') : '-'}</td>
+                <td>{employee.iqama_expiry ? new Date(employee.iqama_expiry).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                 <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>رقم الجواز:</td>
                 <td>{employee.passport_number || '-'}</td>
               </tr>
               <tr>
                 <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>تاريخ الميلاد:</td>
-                <td>{employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString('ar-SA') : '-'}</td>
+                <td>{employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                 <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>تاريخ التعيين:</td>
-                <td>{employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('ar-SA') : '-'}</td>
+                <td>{employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
               </tr>
               <tr>
                 <td style={{ fontWeight: 'bold', background: '#f8fafc' }}>رقم الجوال:</td>

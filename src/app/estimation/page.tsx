@@ -258,7 +258,7 @@ export default function EstimationPage() {
       tender_number: est.tender_number || '-',
       tender_name: est.tender_name,
       client_name: est.client_name || '-',
-      submission_date: est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-SA') : '-',
+      submission_date: est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       material_cost: Number(est.total_material_cost || 0),
       labor_cost: Number(est.total_labor_cost || 0),
       overhead_percentage: est.overhead_percentage ? `${est.overhead_percentage}%` : '0%',
@@ -291,7 +291,7 @@ export default function EstimationPage() {
       tender_number: est.tender_number || '-',
       tender_name: est.tender_name,
       client_name: est.client_name || '-',
-      submission_date: est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-SA') : '-',
+      submission_date: est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       material_cost: Number(est.total_material_cost || 0),
       labor_cost: Number(est.total_labor_cost || 0),
       overhead_percentage: est.overhead_percentage ? `${est.overhead_percentage}%` : '0%',
@@ -378,7 +378,7 @@ export default function EstimationPage() {
                     <td style={{ fontWeight: 700 }}>{est.tender_number || '-'}</td>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{est.tender_name}</td>
                     <td>{est.client_name || '-'}</td>
-                    <td>{est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-SA') : '-'}</td>
+                    <td>{est.submission_date ? new Date(est.submission_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                     <td>{formatCurrency(est.total_material_cost || 0)}</td>
                     <td>{formatCurrency(est.total_labor_cost || 0)}</td>
                     <td style={{ fontWeight: 700, color: 'var(--status-success)' }}>{formatCurrency(est.total_price || 0)}</td>
@@ -565,7 +565,7 @@ export default function EstimationPage() {
               documentTitle="عرض سعر ومقايسة مالية تقديرية"
               refNumber={printingEstimation.tender_number || '-'}
               documentSubtitle={`مناقصة: ${printingEstimation.tender_name}`}
-              date={printingEstimation.submission_date ? new Date(printingEstimation.submission_date).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+              date={printingEstimation.submission_date ? new Date(printingEstimation.submission_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : new Date().toLocaleDateString('ar-EG', { calendar: 'gregory' })}
             >
               <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.95rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -582,7 +582,7 @@ export default function EstimationPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 'bold', minWidth: '110px' }}>تاريخ التقديم:</span>
-                  <span>{printingEstimation.submission_date ? new Date(printingEstimation.submission_date).toLocaleDateString('ar-SA') : '-'}</span>
+                  <span>{printingEstimation.submission_date ? new Date(printingEstimation.submission_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 'bold', minWidth: '110px' }}>المشروع المرتبط:</span>

@@ -136,8 +136,8 @@ export default function Header({ title, subtitle, icon, onMenuToggle }: HeaderPr
           <span>{userRole === 'admin' ? '👑 مدير النظام' : '👤 ' + (roleLabels[userRole] || 'موظف')}</span>
         </div>
 
-        {/* Approval Center Button - Admin Only */}
-        {userRole === 'admin' && (
+        {/* Approval Center Button - Admin & Manager */}
+        {(userRole === 'admin' || userRole === 'manager') && (
           <button
             className="btn btn-outline btn-sm"
             style={{

@@ -234,9 +234,30 @@ export async function PUT(request: NextRequest) {
 
     // --- EDIT CLAIM ---
     if (type === 'edit_claim') {
-      const { id, engineer_id, project_id, category, description, amount, claim_date, notes: claimNotes } = body;
+      const { id, engineer_id, project_id, category, description, amount, claim_date, notes: claimNotes, receipt_image_url } = body;
       if (!id) return NextResponse.json({ error: 'id مطلوب' }, { status: 400 });
       const cleanUuid = (val: any) => (val && typeof val === 'string' && val.trim() !== '' ? val : null);
+
+      let updateReceiptClause = '';
+      const params: any[] = [
+        cleanUuid(engineer_id),
+        cleanUuid(project_id),
+        category || null,
+        description || null,
+        amount ? Number(amount) : null,
+        claim_date || null,
+        claimNotes ?? null
+      ];
+
+      if (receipt_image_url !== undefined) {
+        const imgVal = (typeof receipt_image_url === 'string' && receipt_image_url.trim() !== '') ? receipt_image_url : null;
+        params.push(imgVal);
+        updateReceiptClause = `, receipt_image_url = $${params.length}`;
+      }
+
+      params.push(id);
+      const idParamIdx = params.length;
+
       await query(
         `UPDATE petty_cash_claims
          SET engineer_id = COALESCE($1, engineer_id),
@@ -246,8 +267,9 @@ export async function PUT(request: NextRequest) {
              amount = COALESCE($5, amount),
              claim_date = COALESCE($6, claim_date),
              notes = $7
-         WHERE id = $8`,
-        [cleanUuid(engineer_id), cleanUuid(project_id), category || null, description || null, amount ? Number(amount) : null, claim_date || null, claimNotes ?? null, id]
+             ${updateReceiptClause}
+         WHERE id = $${idParamIdx}`,
+        params
       );
       return NextResponse.json({ message: 'تم تعديل بيانات الفاتورة بنجاح.' });
     }
@@ -255,6 +277,15 @@ export async function PUT(request: NextRequest) {
     // --- APPROVE / REJECT CLAIM (existing logic) ---
     if (!claim_id || !['approve', 'reject'].includes(action)) {
       return NextResponse.json({ error: 'claim_id و action مطلوبان بشكل صحيح' }, { status: 400 });
+    }
+
+    // Role check: Only admin or manager can approve or reject claims
+    const userRole = request.headers.get('x-user-role') || body.user_role || '';
+    if (userRole && userRole !== 'admin' && userRole !== 'manager') {
+      return NextResponse.json(
+        { error: 'ليس لديك صلاحية الاعتماد. الاعتماد والموافقة هي صلاحية حصرية لمدير النظام والمدير العام فقط.' },
+        { status: 403 }
+      );
     }
 
     const claimRes = await query(`SELECT * FROM petty_cash_claims WHERE id = $1`, [claim_id]);

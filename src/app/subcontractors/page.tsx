@@ -258,7 +258,7 @@ export default function SubcontractorsPage() {
       previous_payments: Number(i.previous_payments || 0),
       net_payable: Number(i.net_payable || 0),
       status: ipcStatusLabels[i.status] || i.status,
-      ipc_date: i.ipc_date ? new Date(i.ipc_date).toLocaleDateString('ar-SA') : '-'
+      ipc_date: i.ipc_date ? new Date(i.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'
     }));
 
     exportJsonToExcel({
@@ -282,8 +282,8 @@ export default function SubcontractorsPage() {
     const singleData = [{
       ipc_number: ipc.ipc_number,
       subcontractor_name: ipc.subcontractor_name || '-',
-      ipc_date: ipc.ipc_date ? new Date(ipc.ipc_date).toLocaleDateString('ar-SA') : '-',
-      period: `${ipc.period_from ? new Date(ipc.period_from).toLocaleDateString('ar-SA') : ''} إلى ${ipc.period_to ? new Date(ipc.period_to).toLocaleDateString('ar-SA') : ''}`,
+      ipc_date: ipc.ipc_date ? new Date(ipc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
+      period: `${ipc.period_from ? new Date(ipc.period_from).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : ''} إلى ${ipc.period_to ? new Date(ipc.period_to).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : ''}`,
       items_total: Number(ipc.items_total || 0),
       retention_amount: Number(ipc.retention_amount || 0),
       previous_payments: Number(ipc.previous_payments || 0),
@@ -557,7 +557,7 @@ export default function SubcontractorsPage() {
                       <tr key={ipc.id}>
                         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ipc.ipc_number}</td>
                         <td>{ipc.subcontractor_name}</td>
-                        <td>{ipc.ipc_date ? new Date(ipc.ipc_date).toLocaleDateString('ar-SA') : '-'}</td>
+                        <td>{ipc.ipc_date ? new Date(ipc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'}</td>
                         <td style={{ color: 'var(--text-primary)' }}>{formatCurrency(ipc.items_total)}</td>
                         <td style={{ color: 'var(--status-warning)' }}>{formatCurrency(ipc.retention_amount)}</td>
                         <td style={{ color: 'var(--status-success)', fontWeight: 700 }}>{formatCurrency(ipc.net_payable)}</td>
@@ -771,7 +771,7 @@ export default function SubcontractorsPage() {
               documentTitle="مستخلص مستحقات مقاول باطن"
               refNumber={printIpc.ipc_number}
               documentSubtitle={`المقاول: ${printIpc.subcontractor_name}`}
-              date={printIpc.ipc_date ? new Date(printIpc.ipc_date).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+              date={printIpc.ipc_date ? new Date(printIpc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : new Date().toLocaleDateString('ar-EG', { calendar: 'gregory' })}
             >
               <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.95rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -784,13 +784,13 @@ export default function SubcontractorsPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 'bold', minWidth: '110px' }}>تاريخ المستخلص:</span>
-                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-SA')}</span>
+                  <span>{new Date(printIpc.ipc_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 'bold', minWidth: '110px' }}>الفترة المالية:</span>
                   <span>
                     {printIpc.period_from && printIpc.period_to 
-                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-SA')} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-SA')}` 
+                      ? `من ${new Date(printIpc.period_from).toLocaleDateString('ar-EG', { calendar: 'gregory' })} إلى ${new Date(printIpc.period_to).toLocaleDateString('ar-EG', { calendar: 'gregory' })}` 
                       : 'غير محددة'}
                   </span>
                 </div>

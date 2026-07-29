@@ -36,8 +36,8 @@ const METRIC_CONFIGS: Record<string, {
     headers: ['اسم المشروع', 'كود المشروع', 'العميل', 'تاريخ البدء', 'تاريخ الانتهاء', 'قيمة العقد'],
     fields: ['name', 'code', 'client_name', 'start_date', 'end_date', 'contract_value'],
     formatters: {
-      start_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
-      end_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
+      start_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
+      end_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       contract_value: formatDynamic
     }
   },
@@ -89,7 +89,7 @@ const METRIC_CONFIGS: Record<string, {
     headers: ['اسم الموظف', 'الرقم الوظيفي', 'نوع الوثيقة', 'رقم الوثيقة', 'تاريخ الانتهاء', 'الأيام المتبقية'],
     fields: ['full_name', 'employee_number', 'document_type', 'document_number', 'expiry_date', 'days_remaining'],
     formatters: {
-      expiry_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
+      expiry_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       days_remaining: (val) => {
         const days = parseInt(val, 10);
         return <span className={`badge ${days <= 10 ? 'badge-danger' : 'badge-warning'}`}>{days} يوم متبقي</span>;
@@ -110,7 +110,7 @@ const METRIC_CONFIGS: Record<string, {
     headers: ['اسم الموظف', 'المشروع المرتبط', 'تاريخ العمل الإضافي', 'الساعات المطلوبة', 'السبب'],
     fields: ['employee_name', 'project_name', 'overtime_date', 'hours_requested', 'reason'],
     formatters: {
-      overtime_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
+      overtime_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       hours_requested: (val) => `${val} ساعة`
     }
   },
@@ -122,8 +122,8 @@ const METRIC_CONFIGS: Record<string, {
     fields: ['contract_number', 'client_name', 'contract_value', 'start_date', 'end_date'],
     formatters: {
       contract_value: formatDynamic,
-      start_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
-      end_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-'
+      start_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
+      end_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-'
     }
   },
   expenses: {
@@ -133,7 +133,7 @@ const METRIC_CONFIGS: Record<string, {
     headers: ['التاريخ', 'اسم البند / الوصف', 'المبلغ', 'المشروع المرتبط'],
     fields: ['expense_date', 'item_name', 'amount', 'project_name'],
     formatters: {
-      expense_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG') : '-',
+      expense_date: (val) => val ? new Date(val).toLocaleDateString('ar-EG', { calendar: 'gregory' }) : '-',
       amount: formatDynamic,
       project_name: (val) => val || 'مصاريف عمومية وإدارية'
     }

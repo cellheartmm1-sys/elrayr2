@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
           e.base_salary,
           a.project_id,
           p.name AS project_name,
-          a.attendance_date,
+          TO_CHAR(a.attendance_date::date, 'YYYY-MM-DD') AS attendance_date,
           a.attendance_type,
           a.attendance_type AS status,
           a.check_in_time,
@@ -147,12 +147,12 @@ export async function POST(request: NextRequest) {
     const empName = empRes.rows[0]?.full_name || 'عامل موقع';
     const baseDailyRate = Number(empRes.rows[0]?.base_salary || 150);
 
-    const totalWorkedHours = hours_worked ? Number(hours_worked) : 8;
+    const totalWorkedHours = hours_worked ? Number(hours_worked) : 10;
     let otHours = overtime_hours ? Number(overtime_hours) : 0;
 
-    // For rest_day attendance, calculate overtime for hours beyond 8 hours automatically if not explicitly given
-    if (resolvedType === 'rest_day' && totalWorkedHours > 8 && otHours === 0) {
-      otHours = totalWorkedHours - 8;
+    // For rest_day attendance, calculate overtime for hours beyond 10 hours automatically if not explicitly given
+    if (resolvedType === 'rest_day' && totalWorkedHours > 10 && otHours === 0) {
+      otHours = totalWorkedHours - 10;
     }
 
     const otRate = 25; // Hourly overtime rate
@@ -174,15 +174,15 @@ export async function POST(request: NextRequest) {
 
     if (rawCheckIn && typeof rawCheckIn === 'string') {
       if (rawCheckIn.includes('T')) {
-        const timePart = rawCheckIn.split('T')[1]?.replace('Z', '') || '08:00:00';
+        const timePart = rawCheckIn.split('T')[1]?.replace('Z', '') || '07:00:00';
         resolvedCheckIn = `${attendance_date} ${timePart}`;
       } else if (!rawCheckIn.includes(' ')) {
         resolvedCheckIn = `${attendance_date} ${rawCheckIn}`;
       } else {
         resolvedCheckIn = rawCheckIn;
       }
-    } else if (resolvedType === 'present') {
-      resolvedCheckIn = `${attendance_date} 08:00:00`;
+    } else if (resolvedType === 'present' || resolvedType === 'late') {
+      resolvedCheckIn = `${attendance_date} 07:00:00`;
     }
 
     if (rawCheckOut && typeof rawCheckOut === 'string') {
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
       } else {
         resolvedCheckOut = rawCheckOut;
       }
-    } else if (resolvedType === 'present') {
+    } else if (resolvedType === 'present' || resolvedType === 'late') {
       resolvedCheckOut = `${attendance_date} 17:00:00`;
     }
 
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
         resolvedType,
         resolvedCheckIn,
         resolvedCheckOut,
-        hours_worked ? Number(hours_worked) : null,
+        hours_worked ? Number(hours_worked) : 10,
         otHours,
         notes ?? null,
         refExpenseId
