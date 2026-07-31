@@ -178,42 +178,36 @@ export async function POST(request: NextRequest) {
         const fullBase = Number(emp.base_salary || 0);
         const dailyRate = daysInMonth > 0 ? fullBase / daysInMonth : 0;
         const totalAllowancesEmp = Number(emp.housing_allowance || 0) + Number(emp.transport_allowance || 0) + Number(emp.other_allowances || 0);
+        const monthStr = `${yearNum}-${String(monthNum).padStart(2, '0')}`;
 
         // Query attendance in month
         const attCountRes = await query(
           `SELECT 
+             COUNT(*) AS total_rec,
              COUNT(DISTINCT CASE WHEN attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day') THEN attendance_date END) AS att_count,
              COUNT(DISTINCT CASE WHEN attendance_type = 'absent' THEN attendance_date END) AS explicit_absent_count,
              COALESCE(SUM(overtime_hours), 0) AS total_ot
            FROM attendance_records 
-           WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date::date) = $2 AND EXTRACT(YEAR FROM attendance_date::date) = $3`,
-          [emp.id, monthNum, yearNum]
+           WHERE employee_id = $1 
+             AND (
+               (EXTRACT(MONTH FROM attendance_date::date) = $2 AND EXTRACT(YEAR FROM attendance_date::date) = $3)
+               OR TO_CHAR(attendance_date, 'YYYY-MM') = $4
+               OR TO_CHAR(attendance_date AT TIME ZONE 'UTC', 'YYYY-MM') = $4
+             )`,
+          [emp.id, monthNum, yearNum, monthStr]
         );
 
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1;
-        const currentDay = now.getDate();
-
-        const isPastMonth = yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth);
-        const isLastDayOrLaterOfCurrentMonth = (yearNum === currentYear && monthNum === currentMonth && currentDay >= daysInMonth);
-
-        const shouldInclude4PaidLeaves = isPastMonth || isLastDayOrLaterOfCurrentMonth;
-        const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
-
+        const totalRec = Number(attCountRes.rows[0]?.total_rec || 0);
         const attendedDays = Number(attCountRes.rows[0]?.att_count || 0);
         const explicitAbsentDays = Number(attCountRes.rows[0]?.explicit_absent_count || 0);
 
-        const isCompletedMonth = isPastMonth || isLastDayOrLaterOfCurrentMonth;
-        const totalAbsentDays = isCompletedMonth
-          ? Math.max(0, daysInMonth - (attendedDays + paidLeaveDays))
-          : explicitAbsentDays;
+        let absentDays = 0;
+        let paidDays = daysInMonth;
 
-        const absentPenaltyDays = totalAbsentDays * 2;
-
-        const paidDays = isCompletedMonth
-          ? Math.min(daysInMonth, Math.max(0, daysInMonth - absentPenaltyDays))
-          : Math.min(daysInMonth, Math.max(0, attendedDays + paidLeaveDays - absentPenaltyDays));
+        if (totalRec > 0) {
+          absentDays = explicitAbsentDays;
+          paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentDays));
+        }
 
         const earnedBase = Math.round(dailyRate * paidDays * 100) / 100;
 

@@ -50,51 +50,39 @@ async function processSingleEmployee({
   // Query actual recorded attendance days for this employee in this month
   let attendedDays = 0;
   let explicitAbsentDays = 0;
+  let totalRecords = 0;
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
   try {
     const attCountRes = await query(
       `SELECT 
+         COUNT(*) AS total_rec,
          COUNT(DISTINCT CASE WHEN attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day') THEN attendance_date END) AS attended_count,
          COUNT(DISTINCT CASE WHEN attendance_type = 'absent' THEN attendance_date END) AS explicit_absent_count
        FROM attendance_records 
        WHERE employee_id = $1 
-         AND EXTRACT(MONTH FROM attendance_date::date) = $2 
-         AND EXTRACT(YEAR FROM attendance_date::date) = $3`,
-      [empId, month, year]
+         AND (
+           (EXTRACT(MONTH FROM attendance_date::date) = $2 AND EXTRACT(YEAR FROM attendance_date::date) = $3)
+           OR TO_CHAR(attendance_date, 'YYYY-MM') = $4
+           OR TO_CHAR(attendance_date AT TIME ZONE 'UTC', 'YYYY-MM') = $4
+         )`,
+      [empId, month, year, monthStr]
     );
 
+    totalRecords = Number(attCountRes.rows[0]?.total_rec || 0);
     attendedDays = Number(attCountRes.rows[0]?.attended_count || 0);
     explicitAbsentDays = Number(attCountRes.rows[0]?.explicit_absent_count || 0);
   } catch (err) {
     console.warn('Attendance days calculation skipped:', err);
   }
 
-  // 4 days paid leave added per month condition:
-  // Included ONLY if status is approved/paid OR if it's a past month OR if current month reaches the start of the last day (currentDay >= daysInMonth)
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
+  let absentDays = 0;
+  let paidDays = daysInMonth;
 
-  const isPastMonth = year < currentYear || (year === currentYear && month < currentMonth);
-  const isLastDayOrLaterOfCurrentMonth = (year === currentYear && month === currentMonth && currentDay >= daysInMonth);
-  const isApprovedOrPaid = status === 'approved' || status === 'paid';
-
-  const shouldInclude4PaidLeaves = isApprovedOrPaid || isPastMonth || isLastDayOrLaterOfCurrentMonth;
-  const paidLeaveDays = shouldInclude4PaidLeaves ? 4 : 0;
-
-  // Deduction rule: 2 days deducted for every 1 day of absence
-  const isCompletedMonth = isPastMonth || isLastDayOrLaterOfCurrentMonth;
-  const totalAbsentDays = isCompletedMonth
-    ? Math.max(0, daysInMonth - (attendedDays + paidLeaveDays))
-    : explicitAbsentDays;
-
-  const absentPenaltyDays = totalAbsentDays * 2;
-
-  const paidDays = isCompletedMonth
-    ? Math.min(daysInMonth, Math.max(0, daysInMonth - absentPenaltyDays))
-    : Math.min(daysInMonth, Math.max(0, attendedDays + paidLeaveDays - absentPenaltyDays));
-
-  const absentDays = totalAbsentDays;
+  if (totalRecords > 0) {
+    absentDays = explicitAbsentDays;
+    paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentDays));
+  }
 
   // Daily rate & earned base salary
   const fullBaseSalary = Number(salaryData.base_salary || 0);

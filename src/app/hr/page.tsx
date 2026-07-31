@@ -1152,7 +1152,7 @@ export default function HRPage() {
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                             <span className="badge badge-info">
-                              {p.actual_days || p.working_days || 30} / {p.working_days || 30} يوم
+                              {p.actual_days !== undefined && p.actual_days !== null ? p.actual_days : (p.working_days || 30)} / {p.working_days || 30} يوم
                             </span>
                             <button
                               className="btn btn-ghost btn-sm"
