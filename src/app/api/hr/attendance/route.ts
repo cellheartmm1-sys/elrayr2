@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
     await ensureAttendanceSchema();
     const body = await request.json();
     const {
+      id,
       employee_id,
       project_id,
       attendance_date,
@@ -122,6 +123,19 @@ export async function POST(request: NextRequest) {
       const prjCheck = await query('SELECT id FROM projects LIMIT 1');
       if (prjCheck.rows.length > 0 && !project_id) {
         return NextResponse.json({ error: 'إجبارياً: يجب اختيار المشروع/الموقع المرتبط بالحضور' }, { status: 400 });
+      }
+    }
+
+    // If explicit record id passed when editing, delete old record by id first
+    if (id) {
+      const target = await query('SELECT id, reference_expense_id FROM attendance_records WHERE id = $1', [id]);
+      if (target.rows.length > 0) {
+        if (target.rows[0].reference_expense_id) {
+          try {
+            await query('DELETE FROM project_expenses WHERE id = $1', [target.rows[0].reference_expense_id]);
+          } catch (err) {}
+        }
+        await query('DELETE FROM attendance_records WHERE id = $1', [id]);
       }
     }
 
@@ -221,6 +235,10 @@ export async function POST(request: NextRequest) {
     console.error('[POST /api/hr/attendance]', error);
     return NextResponse.json({ error: error?.message || 'فشل تسجيل حضور اليومية' }, { status: 500 });
   }
+}
+
+export async function PUT(request: NextRequest) {
+  return POST(request);
 }
 
 export async function DELETE(request: NextRequest) {

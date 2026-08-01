@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const [docs, assets, attendance, allocations] = await Promise.all([
       query(`SELECT * FROM employee_documents WHERE employee_id = $1`, [id]),
       query(`SELECT * FROM personal_assets WHERE assigned_to = $1`, [id]),
-      query(`SELECT * FROM attendance_records WHERE employee_id = $1 ORDER BY attendance_date DESC LIMIT 30`, [id]),
+      query(`SELECT a.*, p.name as project_name FROM attendance_records a LEFT JOIN projects p ON p.id = a.project_id WHERE a.employee_id = $1 ORDER BY a.attendance_date DESC LIMIT 50`, [id]),
       query(`SELECT sa.*, p.name as project_name FROM salary_allocations sa JOIN projects p ON p.id = sa.project_id WHERE sa.employee_id = $1`, [id]),
     ]);
 

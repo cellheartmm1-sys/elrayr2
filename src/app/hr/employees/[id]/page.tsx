@@ -62,7 +62,11 @@ interface Attendance {
   check_in_time?: string;
   check_out_time?: string;
   attendance_type: string;
-  overtime_hours?: string;
+  overtime_hours?: string | number;
+  hours_worked?: string | number;
+  project_id?: string;
+  project_name?: string;
+  notes?: string;
 }
 
 interface Allocation {
@@ -139,6 +143,112 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     year: String(new Date().getFullYear()),
     notes: ''
   });
+
+  // Attendance CRUD states & handlers
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [editingAttendance, setEditingAttendance] = useState<Attendance | null>(null);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [attendanceForm, setAttendanceForm] = useState({
+    project_id: '',
+    attendance_date: new Date().toISOString().split('T')[0],
+    check_in_time: '07:00',
+    check_out_time: '17:00',
+    hours_worked: '10',
+    overtime_hours: '0',
+    attendance_type: 'present',
+    notes: ''
+  });
+
+  const handleOpenCreateAttendance = () => {
+    setEditingAttendance(null);
+    setAttendanceForm({
+      project_id: (employee as any)?.project_id || '',
+      attendance_date: new Date().toISOString().split('T')[0],
+      check_in_time: '07:00',
+      check_out_time: '17:00',
+      hours_worked: '10',
+      overtime_hours: '0',
+      attendance_type: 'present',
+      notes: ''
+    });
+    setShowAttendanceModal(true);
+  };
+
+  const handleOpenEditAttendance = (a: Attendance) => {
+    setEditingAttendance(a);
+    const parseTime = (timeStr?: string) => {
+      if (!timeStr) return '';
+      const parts = timeStr.includes('T') ? timeStr.split('T')[1] : timeStr.includes(' ') ? timeStr.split(' ')[1] : timeStr;
+      const match = parts.match(/(\d{1,2}):(\d{2})/);
+      return match ? `${match[1].padStart(2, '0')}:${match[2]}` : '';
+    };
+
+    setAttendanceForm({
+      project_id: a.project_id || '',
+      attendance_date: a.attendance_date ? a.attendance_date.slice(0, 10) : new Date().toISOString().split('T')[0],
+      check_in_time: parseTime(a.check_in_time) || '07:00',
+      check_out_time: parseTime(a.check_out_time) || '17:00',
+      hours_worked: String(a.hours_worked ?? 10),
+      overtime_hours: String(a.overtime_hours ?? 0),
+      attendance_type: a.attendance_type || 'present',
+      notes: a.notes || ''
+    });
+    setShowAttendanceModal(true);
+  };
+
+  const handleSaveAttendance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingAttendance(true);
+    try {
+      const body = {
+        id: editingAttendance?.id,
+        employee_id: id,
+        project_id: attendanceForm.project_id || null,
+        attendance_date: attendanceForm.attendance_date,
+        check_in_time: attendanceForm.check_in_time,
+        check_out_time: attendanceForm.check_out_time,
+        hours_worked: Number(attendanceForm.hours_worked || 10),
+        overtime_hours: Number(attendanceForm.overtime_hours || 0),
+        attendance_type: attendanceForm.attendance_type,
+        notes: attendanceForm.notes
+      };
+
+      const res = await fetch('/api/hr/attendance', {
+        method: editingAttendance ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setShowAttendanceModal(false);
+        setEditingAttendance(null);
+        fetchDetails();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حفظ سجل الحضور: ${err.error || 'خطأ غير معروف'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ في الاتصال بالخادم: ${err.message}`);
+    } finally {
+      setSavingAttendance(false);
+    }
+  };
+
+  const handleDeleteAttendance = async (attId: string) => {
+    if (!confirm('⚠️ هل أنت متأكد من حذف سجل الحضور هذا؟')) return;
+    try {
+      const res = await fetch(`/api/hr/attendance?id=${attId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchDetails();
+      } else {
+        const err = await res.json();
+        alert(`❌ فشل حذف سجل الحضور: ${err.error || 'حدث خطأ'}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('❌ حدث خطأ أثناء الاتصال بالخادم.');
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -767,29 +877,41 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         {/* Attendance Logs */}
         {activeSubTab === 'logs' && (
           <div className="card">
-            <div className="card-header"><div className="card-title">📍 سجلات الحضور والانصراف الجغرافية (آخر 30 يوم)</div></div>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div className="card-title">📍 سجلات الحضور والانصراف الجغرافية واليدوية</div>
+                <div className="card-subtitle">إدارة وتعديل سجلات حضور وانصراف الموظف وساعات العمل والإضافي</div>
+              </div>
+              <button className="btn btn-primary" onClick={handleOpenCreateAttendance}>
+                ➕ تسجيل حضور جديد
+              </button>
+            </div>
             <div className="table-wrapper">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>التاريخ</th>
+                    <th>المشروع / الموقع</th>
                     <th>وقت الحضور</th>
                     <th>وقت الانصراف</th>
-                    <th>نوع التحضير</th>
-                    <th>العمل الإضافي</th>
+                    <th>حالة الحضور</th>
+                    <th>ساعات العمل / الإضافي</th>
+                    <th>ملاحظات</th>
+                    <th style={{ textAlign: 'center', width: '120px' }}>العمليات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {attendance.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                         لا توجد سجلات حضور مسجلة للموظف مؤخراً.
                       </td>
                     </tr>
                   ) : (
                     attendance.map((a) => (
                       <tr key={a.id}>
-                        <td>{new Date(a.attendance_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
+                        <td style={{ fontWeight: 600 }}>{new Date(a.attendance_date).toLocaleDateString('ar-EG', { calendar: 'gregory' })}</td>
+                        <td style={{ color: 'var(--brand-primary-light)', fontWeight: 500 }}>{a.project_name || '-'}</td>
                         <td style={{ color: 'var(--status-success)', fontFeatureSettings: '"tnum"' }}>
                           {formatTimeDisplay(a.check_in_time)}
                         </td>
@@ -797,11 +919,37 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                           {formatTimeDisplay(a.check_out_time)}
                         </td>
                         <td>
-                          <span className={`badge ${a.attendance_type === 'present' ? 'badge-success' : a.attendance_type === 'late' ? 'badge-warning' : 'badge-danger'}`}>
-                            {a.attendance_type === 'present' ? 'حاضر' : a.attendance_type === 'late' ? 'متأخر' : 'غياب'}
+                          <span className={`badge ${
+                            a.attendance_type === 'present' ? 'badge-success' : 
+                            a.attendance_type === 'late' ? 'badge-warning' : 
+                            a.attendance_type === 'half_day' ? 'badge-purple' :
+                            a.attendance_type === 'leave' ? 'badge-muted' :
+                            a.attendance_type === 'rest_day' ? 'badge-warning' : 'badge-danger'
+                          }`}>
+                            {
+                              a.attendance_type === 'present' ? 'حاضر' :
+                              a.attendance_type === 'late' ? 'متأخر' :
+                              a.attendance_type === 'half_day' ? 'نصف يومية' :
+                              a.attendance_type === 'leave' ? 'إجازة' :
+                              a.attendance_type === 'rest_day' ? 'حضور يوم راحة' : 'غياب'
+                            }
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600, color: 'var(--status-purple)' }}>{a.overtime_hours || 0} ساعة</td>
+                        <td style={{ fontWeight: 600 }}>
+                          <span>{a.hours_worked || 8} س عمل</span>
+                          {Number(a.overtime_hours || 0) > 0 && (
+                            <span style={{ color: 'var(--status-purple)', marginRight: '0.4rem' }}>
+                              (+{a.overtime_hours} س إضافي)
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.notes || '-'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditAttendance(a)} title="تعديل الحضور">✏️</button>
+                            <button className="btn btn-outline btn-sm text-danger" onClick={() => handleDeleteAttendance(a.id)} title="حذف السجل">🗑️</button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -1131,6 +1279,126 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <button type="button" className="btn btn-outline" onClick={() => setShowAllocationModal(false)}>إلغاء</button>
                 <button type="submit" className="btn btn-primary">
                   {editingAllocation ? '💾 حفظ التعديلات' : '💾 إضافة التوزيع'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== MODAL: ADD / EDIT ATTENDANCE RECORD ======================== */}
+      {showAttendanceModal && (
+        <div className="modal-overlay" onClick={() => setShowAttendanceModal(false)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <div className="modal-title">{editingAttendance ? '✏️ تعديل سجل الحضور والانصراف' : '📍 تسجيل حضور جديد للموظف'}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowAttendanceModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveAttendance} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.5rem' }}>
+                <div className="form-grid form-grid-2">
+                  <div className="form-group">
+                    <label className="form-label required">تاريخ الحضور</label>
+                    <input
+                      className="form-control"
+                      type="date"
+                      required
+                      value={attendanceForm.attendance_date}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, attendance_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">المشروع / الموقع المرتبط</label>
+                    <select
+                      className="form-control"
+                      value={attendanceForm.project_id}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, project_id: e.target.value })}
+                    >
+                      <option value="">بدون مشروع (إدارة عامة / لا يوجد)</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">حالة الحضور</label>
+                    <select
+                      className="form-control"
+                      value={attendanceForm.attendance_type}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, attendance_type: e.target.value })}
+                    >
+                      <option value="present">حاضر (يومية كاملة)</option>
+                      <option value="half_day">نصف يومية</option>
+                      <option value="late">حاضر مع تأخر</option>
+                      <option value="absent">غياب</option>
+                      <option value="leave">إجازة</option>
+                      <option value="rest_day">حضور يوم راحة</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">وقت الحضور الفعلي</label>
+                    <input
+                      className="form-control"
+                      type="time"
+                      value={attendanceForm.check_in_time}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, check_in_time: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">وقت الانصراف الفعلي</label>
+                    <input
+                      className="form-control"
+                      type="time"
+                      value={attendanceForm.check_out_time}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, check_out_time: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">ساعات العمل العادية</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      step="0.5"
+                      value={attendanceForm.hours_worked}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, hours_worked: e.target.value })}
+                      placeholder="8"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">ساعات العمل الإضافي</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      step="0.5"
+                      value={attendanceForm.overtime_hours}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, overtime_hours: e.target.value })}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label">ملاحظات اليومية</label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      value={attendanceForm.notes}
+                      onChange={e => setAttendanceForm({ ...attendanceForm, notes: e.target.value })}
+                      placeholder="ملاحظات الحضور أو الاعتماد..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid var(--border-normal)', padding: '1rem 1.5rem', marginTop: 0 }}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowAttendanceModal(false)}>إلغاء</button>
+                <button type="submit" className="btn btn-primary" disabled={savingAttendance}>
+                  {savingAttendance ? 'جاري الحفظ...' : (editingAttendance ? '💾 حفظ التعديلات' : '💾 تسجيل الحضور')}
                 </button>
               </div>
             </form>
