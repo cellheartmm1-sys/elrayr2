@@ -80,8 +80,8 @@ async function processSingleEmployee({
   let paidDays = daysInMonth;
 
   if (totalRecords > 0) {
-    absentDays = explicitAbsentDays;
-    paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentDays));
+    paidDays = Math.min(daysInMonth, Math.max(0, attendedDays));
+    absentDays = Math.max(0, daysInMonth - paidDays);
   }
 
   // Daily rate & earned base salary

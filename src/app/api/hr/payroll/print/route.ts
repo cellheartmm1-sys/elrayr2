@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         let overtimeHours = 0;
         if (attRes.rows.length > 0) {
           const rec = attRes.rows[0];
-          attended = ['present', 'late', 'half_day', 'leave', 'holiday'].includes(rec.attendance_type);
+          attended = ['present', 'late', 'half_day', 'leave', 'holiday', 'rest_day'].includes(rec.attendance_type);
           overtimeHours = Number(rec.overtime_hours || 0);
         }
 
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
           `SELECT COUNT(DISTINCT attendance_date) AS att_count, COALESCE(SUM(overtime_hours), 0) AS total_ot
            FROM attendance_records 
            WHERE employee_id = $1 AND attendance_date >= $2 AND attendance_date <= $3
-             AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday')`,
+             AND attendance_type IN ('present', 'late', 'half_day', 'leave', 'holiday', 'rest_day')`,
           [emp.id, startDate, endDate]
         );
 
@@ -205,8 +205,8 @@ export async function POST(request: NextRequest) {
         let paidDays = daysInMonth;
 
         if (totalRec > 0) {
-          absentDays = explicitAbsentDays;
-          paidDays = Math.min(daysInMonth, Math.max(0, daysInMonth - absentDays));
+          paidDays = Math.min(daysInMonth, Math.max(0, attendedDays));
+          absentDays = Math.max(0, daysInMonth - paidDays);
         }
 
         const earnedBase = Math.round(dailyRate * paidDays * 100) / 100;
