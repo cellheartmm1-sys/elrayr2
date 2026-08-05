@@ -6,6 +6,7 @@ import PrintA4Template from '@/components/PrintA4Template';
 import { formatCurrency } from '@/lib/currencyHelper';
 import { formatTimeDisplay } from '@/lib/dateUtils';
 import { exportJsonToExcel } from '@/lib/exportUtils';
+import { isReadOnlyRole } from '@/lib/authHelper';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -103,6 +104,7 @@ export default function FinancePage() {
   }, []);
 
   const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
+  const isReadOnly = isReadOnlyRole(userRole);
 
   const [activeTab, setActiveTab] = useState<TabType>('ipc');
   const lastTabRef = useRef<string | null>(null);
@@ -1175,7 +1177,7 @@ export default function FinancePage() {
             </div>
             <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn btn-secondary" onClick={handleExportIpcsExcel}>📊 تصدير إلى Excel (.xlsx)</button>
-              <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ إصدار مستخلص جديد</button>
+              {!isReadOnly && <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ إصدار مستخلص جديد</button>}
             </div>
           </div>
 
@@ -1246,13 +1248,13 @@ export default function FinancePage() {
                         <td><span className={`badge ${statusBadge[ipc.status] || 'badge-muted'}`}>{statusLabels[ipc.status] || ipc.status}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
+                            {!isReadOnly && <button
                               className="btn btn-ghost text-primary btn-sm"
                               onClick={() => handleOpenEditIpc(ipc)}
                               title="تعديل"
                             >
                               ✏️
-                            </button>
+                            </button>}
                             <button
                               className="btn btn-ghost text-success btn-sm"
                               onClick={() => setPrintIpc(ipc)}
@@ -1260,13 +1262,13 @@ export default function FinancePage() {
                             >
                               🖨️
                             </button>
-                            <button
+                            {!isReadOnly && <button
                               className="btn btn-ghost text-danger btn-sm"
                               onClick={() => handleDeleteIPC(ipc.id)}
                               title="حذف"
                             >
                               🗑️
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>
@@ -1288,7 +1290,7 @@ export default function FinancePage() {
               <div className="page-description">تسجيل ومراقبة تكاليف المواد، أجور المصنعيات، المشتريات والمصروفات العامة لكل موقع</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setShowExpenseModal(true)}>+ تسجيل مصروف جديد</button>
+              {!isReadOnly && <button className="btn btn-primary" onClick={() => setShowExpenseModal(true)}>+ تسجيل مصروف جديد</button>}
             </div>
           </div>
 
@@ -1346,22 +1348,26 @@ export default function FinancePage() {
                         <td>{e.invoice_number || '-'}</td>
                         <td style={{ fontWeight: 700, color: 'var(--status-danger)' }}>{formatCurrency(e.amount)}</td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                            <button
-                              className="btn btn-outline btn-sm"
-                              onClick={() => handleOpenEditExpense(e)}
-                              title="تعديل المصروف"
-                            >
-                              ✏️ تعديل
-                            </button>
-                            <button
-                              className="btn btn-outline btn-sm text-danger"
-                              onClick={() => handleDeleteExpense(e.id)}
-                              title="حذف المصروف"
-                            >
-                              🗑️ حذف
-                            </button>
-                          </div>
+                          {!isReadOnly ? (
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleOpenEditExpense(e)}
+                                title="تعديل المصروف"
+                              >
+                                ✏️ تعديل
+                              </button>
+                              <button
+                                className="btn btn-outline btn-sm text-danger"
+                                onClick={() => handleDeleteExpense(e.id)}
+                                title="حذف المصروف"
+                              >
+                                🗑️ حذف
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>عرض فقط</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1429,7 +1435,7 @@ export default function FinancePage() {
               <button className="btn btn-outline" onClick={handlePrintDebtsFromTab} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 🖨️ طباعة تقرير المديونيات والتمويل
               </button>
-              <button className="btn btn-primary" onClick={() => setShowDebtModal(true)}>➕ تسجيل التزام / قرض جديد</button>
+              {!isReadOnly && <button className="btn btn-primary" onClick={() => setShowDebtModal(true)}>➕ تسجيل التزام / قرض جديد</button>}
             </div>
           </div>
 
@@ -1518,7 +1524,7 @@ export default function FinancePage() {
                             </span>
                           </td>
                           <td>
-                            {d.status !== 'paid' && (
+                            {!isReadOnly && d.status !== 'paid' && (
                               <button
                                 className="btn btn-ghost text-primary btn-sm"
                                 onClick={() => handlePayDebt(d.id, Number(d.paid_amount), Number(d.amount))}
@@ -2094,8 +2100,8 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
               >
                 🖨️ طباعة كشف العُهد
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowClaimModal(true)}>📸 رفع فاتورة عُهدة من الموقع</button>
-              <button className="btn btn-primary" onClick={() => setShowCustodyModal(true)}>+ تسليم عُهدة نقدية لمهندس</button>
+              {!isReadOnly && <button className="btn btn-secondary" onClick={() => setShowClaimModal(true)}>📸 رفع فاتورة عُهدة من الموقع</button>}
+              {!isReadOnly && <button className="btn btn-primary" onClick={() => setShowCustodyModal(true)}>+ تسليم عُهدة نقدية لمهندس</button>}
             </div>
           </div>
 
@@ -2249,11 +2255,11 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                               >
                                 📷 {claim.receipt_image_url ? 'معاينة الصورة' : 'إضافة صورة'}
                               </button>
-                              <button
+                              {!isReadOnly && <button
                                 className="btn btn-outline btn-sm"
                                 onClick={() => handleOpenEditClaim(claim)}
                                 style={{ color: 'var(--brand-primary-light)' }}
-                              >✏️ تعديل</button>
+                              >✏️ تعديل</button>}
                               {isManagerOrAdmin ? (
                                 <>
                                   <button

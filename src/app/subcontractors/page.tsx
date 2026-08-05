@@ -5,6 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import PrintA4Template from '@/components/PrintA4Template';
 import { formatCurrency } from '@/lib/currencyHelper';
 import { exportJsonToExcel } from '@/lib/exportUtils';
+import { isReadOnlyRole } from '@/lib/authHelper';
 
 type TabType = 'contractors' | 'contracts' | 'ipc';
 
@@ -51,9 +52,11 @@ const ipcStatusBadge: Record<string, string> = {
 
 export default function SubcontractorsPage() {
   const [currencySymbol, setCurrencySymbol] = useState('ج.م');
+  const [isReadOnly, setIsReadOnly] = useState(false);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setCurrencySymbol(localStorage.getItem('system_currency_symbol') || 'ج.م');
+      setIsReadOnly(isReadOnlyRole(localStorage.getItem('user_role')));
     }
   }, []);
   const [activeTab, setActiveTab] = useState<TabType>('contractors');
@@ -393,7 +396,7 @@ export default function SubcontractorsPage() {
               <div className="page-description">مقاولو الباطن المسجلون في النظام</div>
             </div>
             <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={handleOpenCreateContractor}>+ إضافة مقاول</button>
+              {!isReadOnly && <button className="btn btn-primary" onClick={handleOpenCreateContractor}>+ إضافة مقاول</button>}
             </div>
           </div>
 
@@ -435,7 +438,7 @@ export default function SubcontractorsPage() {
                 <div className="empty-state">
                   <div className="empty-state-icon">🏢</div>
                   <div className="empty-state-title">لا يوجد مقاولون مسجلون</div>
-                  <button className="btn btn-primary" onClick={handleOpenCreateContractor}>إضافة أول مقاول</button>
+                  {!isReadOnly && <button className="btn btn-primary" onClick={handleOpenCreateContractor}>إضافة أول مقاول</button>}
                 </div>
               ) : (
                 <table className="data-table">
@@ -464,20 +467,24 @@ export default function SubcontractorsPage() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                            <button
-                              className="btn btn-outline btn-sm"
-                              onClick={() => handleOpenEditContractor(s)}
-                            >
-                              ✏️ تعديل
-                            </button>
-                            <button
-                              className="btn btn-outline btn-sm text-danger"
-                              onClick={() => handleDeleteContractor(s)}
-                            >
-                              🗑️ حذف
-                            </button>
-                          </div>
+                          {!isReadOnly ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleOpenEditContractor(s)}
+                              >
+                                ✏️ تعديل
+                              </button>
+                              <button
+                                className="btn btn-outline btn-sm text-danger"
+                                onClick={() => handleDeleteContractor(s)}
+                              >
+                                🗑️ حذف
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>عرض فقط</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -500,7 +507,7 @@ export default function SubcontractorsPage() {
             </div>
             <div className="page-header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn btn-secondary" onClick={handleExportSubIpcsExcel}>📊 تصدير إلى Excel (.xlsx)</button>
-              <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ مستخلص جديد</button>
+              {!isReadOnly && <button className="btn btn-primary" onClick={() => setShowIpcModal(true)}>+ مستخلص جديد</button>}
             </div>
           </div>
 
@@ -564,7 +571,7 @@ export default function SubcontractorsPage() {
                         <td><span className={`badge ${ipcStatusBadge[ipc.status] || 'badge-muted'}`}>{ipcStatusLabels[ipc.status] || ipc.status}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
+                            {!isReadOnly && <button
                               className="btn btn-ghost text-primary btn-sm"
                               onClick={() => {
                                 setEditingIpc(ipc);
@@ -584,7 +591,7 @@ export default function SubcontractorsPage() {
                               title="تعديل"
                             >
                               ✏️
-                            </button>
+                            </button>}
                             <button
                               className="btn btn-ghost text-success btn-sm"
                               onClick={() => setPrintIpc(ipc)}
@@ -592,13 +599,13 @@ export default function SubcontractorsPage() {
                             >
                               🖨️
                             </button>
-                            <button
+                            {!isReadOnly && <button
                               className="btn btn-ghost text-danger btn-sm"
                               onClick={() => handleDeleteIPC(ipc.id)}
                               title="حذف"
                             >
                               🗑️
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>
