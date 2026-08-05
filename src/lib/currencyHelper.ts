@@ -3,5 +3,13 @@ export function formatCurrency(val: string | number) {
   if (typeof window !== 'undefined') {
     symbol = localStorage.getItem('system_currency_symbol') || 'ج.م';
   }
-  return Number(val).toLocaleString('ar-EG') + ' ' + symbol;
+  const num = Number(val || 0);
+  if (isNaN(num)) return `0 ${symbol}`;
+
+  const formatted = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+
+  return `${formatted} ${symbol}`;
 }
