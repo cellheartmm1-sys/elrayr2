@@ -20,6 +20,7 @@ interface Estimation {
   total_material_cost: string;
   total_labor_cost: string;
   total_price: string;
+  notes?: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -43,6 +44,20 @@ export default function EstimationPage() {
   const [editingEstimation, setEditingEstimation] = useState<Estimation | null>(null);
   const [printingEstimation, setPrintingEstimation] = useState<Estimation | null>(null);
   const [printingDocs, setPrintingDocs] = useState<Array<{ id: string; document_name: string; file_url: string }>>([]);
+  const [printingItems, setPrintingItems] = useState<Array<{
+    id: string;
+    description: string;
+    name_ar?: string;
+    name_en?: string;
+    unit: string;
+    quantity: number;
+    material_unit_cost: number;
+    labor_unit_cost: number;
+    total_material_cost?: number;
+    total_labor_cost?: number;
+    section?: string;
+  }>>([]);
+  const [printingNotes, setPrintingNotes] = useState<string>('');
 
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ key: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
@@ -82,31 +97,35 @@ export default function EstimationPage() {
     setUploadedFiles(prev => prev.filter(f => f.key !== keyToRemove));
   };
 
-  // Trigger loading documents when printingEstimation is selected
+  // Trigger loading documents, items, and notes when printingEstimation is selected
   useEffect(() => {
     if (!printingEstimation) {
       setPrintingDocs([]);
+      setPrintingItems([]);
+      setPrintingNotes('');
       return;
     }
-    const loadDocs = async () => {
+    const loadDetails = async () => {
       try {
         const res = await fetch(`/api/estimation/${printingEstimation.id}`);
         if (res.ok) {
           const data = await res.json();
           setPrintingDocs(data.documents || []);
+          setPrintingItems(data.items || []);
+          setPrintingNotes(data.estimation?.notes || printingEstimation.notes || '');
         }
       } catch (err) {
         console.error(err);
       }
     };
-    loadDocs();
+    loadDetails();
   }, [printingEstimation]);
 
   // Form State
   const [form, setForm] = useState({
     project_id: '', tender_name: '', tender_number: '', client_name: '',
     submission_date: '', status: 'draft', overhead_percentage: '15', profit_percentage: '10',
-    total_material_cost: '0', total_labor_cost: '0'
+    total_material_cost: '0', total_labor_cost: '0', notes: ''
   });
 
   const fetchEstimations = useCallback(async () => {
@@ -153,7 +172,7 @@ export default function EstimationPage() {
     setForm({
       project_id: '', tender_name: '', tender_number: '', client_name: '',
       submission_date: '', status: 'draft', overhead_percentage: '15', profit_percentage: '10',
-      total_material_cost: '0', total_labor_cost: '0'
+      total_material_cost: '0', total_labor_cost: '0', notes: ''
     });
     setShowModal(true);
   };
@@ -171,7 +190,8 @@ export default function EstimationPage() {
       overhead_percentage: String(est.overhead_percentage ?? '15'),
       profit_percentage: String(est.profit_percentage ?? '10'),
       total_material_cost: String(est.total_material_cost ?? '0'),
-      total_labor_cost: String(est.total_labor_cost ?? '0')
+      total_labor_cost: String(est.total_labor_cost ?? '0'),
+      notes: est.notes || ''
     });
     setShowModal(true);
 
@@ -179,6 +199,9 @@ export default function EstimationPage() {
       const res = await fetch(`/api/estimation/${est.id}`);
       if (res.ok) {
         const data = await res.json();
+        if (data.estimation?.notes) {
+          setForm(prev => ({ ...prev, notes: data.estimation.notes }));
+        }
         if (data.documents && Array.isArray(data.documents)) {
           setUploadedFiles(data.documents.map((doc: any) => ({
             key: doc.file_url,
@@ -221,6 +244,19 @@ export default function EstimationPage() {
           uploaded_files: uploadedFiles
         })
       });
+
+      if (res.ok) {
+        setShowModal(false);
+        setUploadedFiles([]);
+        fetchEstimations();
+      } else {
+        const data = await res.json();
+        alert(`❌ فشل حفظ عرض السعر: ${data.error || 'حدث خطأ ما'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ خطأ في الاتصال بالخادم: ${err.message}`);
+    }
+  };
 
       if (res.ok) {
         setShowModal(false);
@@ -455,6 +491,18 @@ export default function EstimationPage() {
                     {Object.entries(statusLabels).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
+
+                <div className="form-group col-span-3">
+                  <label className="form-label">شروط وملاحظات خاصة بعرض السعر</label>
+                  <textarea 
+                    className="form-control" 
+                    rows={3} 
+                    value={form.notes} 
+                    onChange={e => setForm({...form, notes: e.target.value})} 
+                    placeholder="أدخل أي شروط خاصة بالدفع، التوريد، مدة التنفيذ، الصلاحية، أو الضمان..."
+                  />
+                </div>
+
                 <div className="form-group col-span-3" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
                   <label className="form-label" style={{ fontWeight: 700, color: 'var(--brand-primary-light)' }}>📁 المستندات والملفات المرفقة لعرض السعر (المواصفات، الكتالوجات، الصور)</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
@@ -549,7 +597,7 @@ export default function EstimationPage() {
       {/* ======================== MODAL: PRINT PREVIEW ======================== */}
       {printingEstimation && (
         <div className="print-modal-overlay" onClick={() => setPrintingEstimation(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: '2rem' }}>
-          <div className="print-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '900px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+          <div className="print-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '950px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
             
             <div className="print-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1rem', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button className="btn btn-outline" onClick={() => setPrintingEstimation(null)}>✕ إغلاق المعاينة</button>
@@ -594,10 +642,59 @@ export default function EstimationPage() {
                 </div>
               </div>
 
+              {/* Detailed BOQ Items Table if available */}
+              {printingItems && printingItems.length > 0 && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1e3a8a', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span>📋</span>
+                    <span>جدول بنود المقايسة والتسعير التفصيلي (BOQ):</span>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', color: '#1e293b' }}>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center', width: '35px' }}>#</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'right' }}>بيان الأعمال / البند</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center', width: '80px' }}>القسم</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center', width: '60px' }}>الوحدة</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'center', width: '70px' }}>الكمية</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'left', width: '90px' }}>سعر المواد</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'left', width: '90px' }}>سعر المصنعية</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '0.5rem', textAlign: 'left', width: '110px' }}>إجمالي البند</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printingItems.map((item, idx) => {
+                        const q = Number(item.quantity || 0);
+                        const mat = Number(item.material_unit_cost || 0);
+                        const lab = Number(item.labor_unit_cost || 0);
+                        const lineTotal = q * (mat + lab);
+                        return (
+                          <tr key={item.id || idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'center' }}>{idx + 1}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', fontWeight: 600 }}>{item.description || item.name_ar || item.name_en || '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'center', fontSize: '0.75rem', color: '#64748b' }}>{item.section || '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'center' }}>{item.unit || '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'center', fontWeight: 600 }}>{q.toLocaleString('en-US')}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'left' }}>{formatCurrency(mat)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'left' }}>{formatCurrency(lab)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '0.45rem', textAlign: 'left', fontWeight: 700, color: '#1e3a8a' }}>{formatCurrency(lineTotal)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Financial Analysis & Summary */}
+              <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1e3a8a', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>💰</span>
+                <span>الملخص المالي والتحليل التقديري للعرض:</span>
+              </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.25rem' }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', textAlign: 'right' }}>البند / الوصف المالي</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', textAlign: 'right' }}>البند / التحليل المالي</th>
                     <th style={{ border: '1px solid #cbd5e1', padding: '0.625rem', width: '220px', textAlign: 'left' }}>القيمة ({currencySymbol})</th>
                   </tr>
                 </thead>
@@ -639,17 +736,25 @@ export default function EstimationPage() {
                 </tbody>
               </table>
 
-              <div style={{ marginTop: '1.5rem', fontSize: '0.85rem', color: '#4b5563', lineHeight: '1.5', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              {printingNotes && (
+                <div style={{ marginTop: '1rem', marginBottom: '1rem', fontSize: '0.88rem', color: '#1e293b', lineHeight: '1.6', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} className="avoid-page-break">
+                  <strong style={{ color: '#1e3a8a', display: 'block', marginBottom: '0.35rem' }}>📝 ملاحظات وشروط خاصة بعرض السعر:</strong>
+                  <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{printingNotes}</p>
+                </div>
+              )}
+
+              <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#4b5563', lineHeight: '1.5', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} className="avoid-page-break">
                 <strong style={{ color: '#1e293b' }}>شروط وأحكام عامة:</strong>
                 <ul style={{ paddingRight: '1.25rem', margin: '0.5rem 0 0 0' }}>
-                  <li>يعتبر هذا العرض صالحاً لمدة 30 يوماً من تاريخ التقديم المذكور أعلاه.</li>
-                  <li>الأسعار المذكورة أعلاه لا تشمل ضريبة القيمة المضافة ما لم يذكر خلاف ذلك في الشروط الخاصة.</li>
+                  <li>يعتبر هذا العرض صالحاً لمدة 30 يوماً من تاريخ التقديم المذكور أعلاه ما لم يتم الاتفاق على غير ذلك كتابةً.</li>
+                  <li>الأسعار المذكورة أعلاه لا تشمل ضريبة القيمة المضافة ما لم يذكر خلاف ذلك صراحة في الشروط الخاصة.</li>
                   <li>تتم مراجعة الدفعات وطريقة التسليم والجدول الزمني للأعمال بالتوافق مع شروط المالك واستشاري المشروع.</li>
+                  <li>أي أعمال إضافية غير مشمولة في نطاق هذا العرض تتم تسويتها عبر أوامر تغيير (Change Orders) معتمدة.</li>
                 </ul>
               </div>
 
-              {printingDocs.length > 0 && (
-                <div style={{ marginTop: '1.5rem', borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }} className="print-actions">
+              {printingDocs && printingDocs.length > 0 && (
+                <div style={{ marginTop: '1.5rem', borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }} className="avoid-page-break">
                   <strong style={{ fontSize: '0.95rem' }}>📎 الملفات والمستندات المرفقة لعرض السعر:</strong>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
                     {printingDocs.map((doc) => {
@@ -678,3 +783,4 @@ export default function EstimationPage() {
     </AppLayout>
   );
 }
+

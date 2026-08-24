@@ -1913,3 +1913,134 @@ textarea.form-control {
   text-decoration: none;
   color: #fff;
 }
+
+/* ============================================================
+   GLOBAL PRINT & PDF EXPORT STYLES
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 12mm 12mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app navigation, headers, sidebars, buttons, and decorative elements */
+  .sidebar,
+  .main-content > header,
+  header,
+  nav,
+  .no-print,
+  .print-actions,
+  .back-to-home-btn,
+  .modal-header,
+  .filter-bar,
+  .page-header,
+  .card:not(.print-modal-content):not(.print-card),
+  .table-wrapper:not(.print-table-wrapper),
+  .kpi-detail-btn,
+  button:not(.allow-print-btn) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Unconstrain layout wrappers */
+  .layout-wrapper,
+  .main-content,
+  .page-content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+    min-height: auto !important;
+    max-height: none !important;
+    height: auto !important;
+    background: #ffffff !important;
+  }
+
+  /* Modal overlay reset to static full-bleed document */
+  .modal-overlay,
+  .print-modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: auto !important;
+  }
+
+  .modal,
+  .modal-xl,
+  .print-modal-content {
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  /* Table styling for clean printing */
+  table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th, td {
+    color: #000000 !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Section page break control */
+  .print-header,
+  .print-banner,
+  .print-signatures,
+  .print-footer,
+  .avoid-page-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+

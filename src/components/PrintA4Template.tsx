@@ -46,23 +46,144 @@ export default function PrintA4Template({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 15mm 15mm 15mm;
+            margin: 10mm 12mm 12mm 12mm;
           }
-          body {
-            background: #fff !important;
-            color: #000 !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+          
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .no-print, header, nav, sidebar, .print-actions {
+
+          /* Hide background and unnecessary UI elements */
+          .sidebar,
+          header,
+          nav,
+          .no-print,
+          .print-actions,
+          .back-to-home-btn,
+          .modal-header,
+          .filter-bar,
+          .page-header,
+          .card:not(.print-modal-content),
+          .table-wrapper:not(.print-table-wrapper),
+          button:not(.allow-print-btn) {
             display: none !important;
+            visibility: hidden !important;
           }
-          .print-a4-container {
+
+          /* Reset Layout and Scroll Constraints */
+          .layout-wrapper,
+          .main-content,
+          .page-content {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            width: 100% !important;
+            min-height: auto !important;
+            max-height: none !important;
+            height: auto !important;
+            background: #ffffff !important;
+          }
+
+          /* Unclamp fixed/modal containers */
+          .modal-overlay,
+          .print-modal-overlay {
+            position: static !important;
+            display: block !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            min-height: auto !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            border: none !important;
+            z-index: auto !important;
+          }
+
+          .modal,
+          .modal-xl,
+          .print-modal-content {
+            position: static !important;
+            display: block !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: auto !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            border: none !important;
+          }
+
+          .print-a4-wrapper {
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
+          }
+
+          .print-a4-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            color: #111827 !important;
+            overflow: visible !important;
+          }
+
+          /* Table formatting for clean multi-page printing */
+          table {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          
+          thead {
+            display: table-header-group !important;
+          }
+
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          th, td {
+            color: #000 !important;
+            border-color: #cbd5e1 !important;
+          }
+
+          /* Prevent break inside critical sections */
+          .print-a4-header,
+          .print-doc-banner,
+          .print-grid,
+          .print-signatures-grid,
+          .print-footer-info {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
 
