@@ -258,19 +258,6 @@ export default function EstimationPage() {
     }
   };
 
-      if (res.ok) {
-        setShowModal(false);
-        setUploadedFiles([]);
-        fetchEstimations();
-      } else {
-        const data = await res.json();
-        alert(`❌ فشل حفظ عرض السعر: ${data.error || 'حدث خطأ ما'}`);
-      }
-    } catch (err: any) {
-      alert(`❌ خطأ في الاتصال بالخادم: ${err.message}`);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     if (!confirm('⚠️ هل أنت متأكد من حذف عرض السعر هذا نهائياً؟')) return;
     try {
