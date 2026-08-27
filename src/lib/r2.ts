@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { query } from './db';
 
 export async function getR2Config() {
@@ -42,6 +43,7 @@ export async function getR2Config() {
   const bucketName = process.env.CLOUDFLARE_R2_BUCKET || process.env.R2_BUCKET_NAME || company.r2_bucket_name || 'elraye2';
   const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID || company.r2_access_key_id;
   const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY || company.r2_secret_access_key;
+  const publicDomain = process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN || process.env.R2_PUBLIC_DOMAIN || company.r2_public_domain;
   const backupIntervalHours = Number(process.env.CLOUDFLARE_R2_BACKUP_INTERVAL || process.env.R2_BACKUP_INTERVAL || company.r2_backup_interval_hours) || 8;
 
   if (!accessKeyId || !secretAccessKey) return null;
@@ -52,6 +54,7 @@ export async function getR2Config() {
     bucketName,
     accessKeyId,
     secretAccessKey,
+    publicDomain,
     backupIntervalHours,
     lastBackupAt: company.r2_last_backup_at,
     isEnvConfigured: !!(process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID)
@@ -59,7 +62,7 @@ export async function getR2Config() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function createS3Client(config: any) {
+export function createS3Client(config: any) {
   return new S3Client({
     region: 'auto',
     endpoint: config.endpoint,
@@ -68,6 +71,65 @@ function createS3Client(config: any) {
       secretAccessKey: config.secretAccessKey,
     },
   });
+}
+
+/**
+ * Generate a presigned PUT URL for direct upload from browser to Cloudflare R2
+ * This completely bypasses Vercel servers and costs 0 bytes of Vercel bandwidth!
+ */
+export async function getPresignedUploadUrl(
+  filename: string,
+  contentType: string = 'application/octet-stream',
+  folder: string = 'documents'
+) {
+  const config = await getR2Config();
+  if (!config) {
+    throw new Error('بيانات الاتصال بـ Cloudflare R2 غير مهيأة.');
+  }
+
+  const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const key = `${folder}/${Date.now()}_${sanitizedFilename}`;
+
+  const s3 = createS3Client(config);
+  const command = new PutObjectCommand({
+    Bucket: config.bucketName,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  // Presigned URL valid for 15 minutes (900 seconds)
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
+
+  return {
+    uploadUrl,
+    key,
+    filename,
+    bucket: config.bucketName
+  };
+}
+
+/**
+ * Generate a presigned GET URL for direct file download/viewing from Cloudflare R2
+ * This redirects browser directly to R2 and costs 0 bytes of Vercel download bandwidth!
+ */
+export async function getPresignedDownloadUrl(key: string, expiresInSeconds: number = 3600) {
+  const config = await getR2Config();
+  if (!config) {
+    throw new Error('بيانات الاتصال بـ Cloudflare R2 غير مهيأة.');
+  }
+
+  if (config.publicDomain) {
+    const cleanDomain = config.publicDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    return `https://${cleanDomain}/${encodeURI(key)}`;
+  }
+
+  const s3 = createS3Client(config);
+  const command = new GetObjectCommand({
+    Bucket: config.bucketName,
+    Key: key,
+  });
+
+  return await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
 }
 
 // Full database backup structure query matching database/route.ts
@@ -173,52 +235,4 @@ export async function getBackupFromR2(key: string, config: any) {
   }
 
   return await response.Body.transformToString();
-}
-
-let schedulerStarted = false;
-
-export function initBackupScheduler() {
-  if (schedulerStarted) return;
-  
-  // Only start in a Node environment on the server side
-  if (typeof window !== 'undefined') return;
-
-  schedulerStarted = true;
-  console.log('🔄 [R2 Backup Worker] Initializing background scheduler...');
-  
-  // Run check immediately on start, then every 10 minutes
-  checkAndTriggerBackup().catch(err => console.error('Error in initial backup check:', err));
-  
-  setInterval(() => {
-    checkAndTriggerBackup().catch(err => console.error('Error in backup scheduler loop:', err));
-  }, 10 * 60 * 1000); // 10 minutes
-}
-
-async function checkAndTriggerBackup() {
-  try {
-    const config = await getR2Config();
-    if (!config) return; // Not configured
-
-    const now = new Date();
-    const intervalMs = config.backupIntervalHours * 60 * 60 * 1000;
-    
-    let shouldBackup = false;
-    if (!config.lastBackupAt) {
-      shouldBackup = true;
-    } else {
-      const lastBackup = new Date(config.lastBackupAt);
-      const timePassed = now.getTime() - lastBackup.getTime();
-      if (timePassed >= intervalMs) {
-        shouldBackup = true;
-      }
-    }
-
-    if (shouldBackup) {
-      console.log(`⏰ [R2 Backup Worker] Time for backup! Interval: ${config.backupIntervalHours}h. Triggering upload to R2...`);
-      const result = await uploadBackupToR2(config);
-      console.log(`✅ [R2 Backup Worker] Auto-backup uploaded successfully: ${result.filename}`);
-    }
-  } catch (err) {
-    console.error('❌ [R2 Backup Worker] Failed to run auto-backup:', err);
-  }
 }

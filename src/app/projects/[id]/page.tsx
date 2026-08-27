@@ -4,6 +4,7 @@ import { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
+import { uploadFileDirectlyToR2 } from '@/lib/uploadHelper';
 
 interface PageParams {
   id: string;
@@ -965,39 +966,27 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   try {
                     for (let i = 0; i < files.length; i++) {
                       const file = files[i];
-                      const formData = new FormData();
-                      formData.append('file', file);
-
-                      const uploadRes = await fetch('/api/employees/upload', {
+                      const uploadData = await uploadFileDirectlyToR2(file, 'projects');
+                      // Save document to DB
+                      const saveRes = await fetch('/api/projects/documents', {
                         method: 'POST',
-                        body: formData
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          project_id: id,
+                          document_name: file.name,
+                          file_url: uploadData.key
+                        })
                       });
 
-                      if (uploadRes.ok) {
-                        const uploadData = await uploadRes.json();
-                        // Save document to DB
-                        const saveRes = await fetch('/api/projects/documents', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            project_id: id,
-                            document_name: file.name,
-                            file_url: uploadData.key
-                          })
-                        });
-
-                        if (saveRes.ok) {
-                          fetchDetails();
-                        } else {
-                          alert('فشل حفظ معلومات الملف في قاعدة البيانات.');
-                        }
+                      if (saveRes.ok) {
+                        fetchDetails();
                       } else {
-                        alert(`فشل رفع الملف ${file.name}`);
+                        alert('فشل حفظ معلومات الملف في قاعدة البيانات.');
                       }
                     }
-                  } catch(err) {
+                  } catch(err: any) {
                     console.error(err);
-                    alert('حدث خطأ أثناء رفع الملفات.');
+                    alert(err.message || 'حدث خطأ أثناء رفع الملفات.');
                   } finally {
                     setUploading(false);
                   }

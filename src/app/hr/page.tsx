@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 import { formatTimeDisplay, isSameDate } from '@/lib/dateUtils';
+import { uploadFileDirectlyToR2 } from '@/lib/uploadHelper';
 import Link from 'next/link';
 
 type TabType = 'employees' | 'payroll' | 'attendance' | 'overtime' | 'assets' | 'documents' | 'loans';
@@ -197,24 +198,12 @@ export default function HRPage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const res = await fetch('/api/employees/upload', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setUploadedFiles(prev => [...prev, { key: data.key, name: data.filename }]);
-        } else {
-          alert(`فشل رفع الملف ${file.name}`);
-        }
+        const uploaded = await uploadFileDirectlyToR2(file, 'employees');
+        setUploadedFiles(prev => [...prev, { key: uploaded.key, name: uploaded.filename }]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('حدث خطأ أثناء رفع الملفات.');
+      alert(err.message || 'حدث خطأ أثناء رفع الملفات.');
     } finally {
       setUploading(false);
     }

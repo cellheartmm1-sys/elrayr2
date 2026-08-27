@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { formatCurrency } from '@/lib/currencyHelper';
 import { formatTimeDisplay } from '@/lib/dateUtils';
+import { uploadFileDirectlyToR2 } from '@/lib/uploadHelper';
 import Link from 'next/link';
 
 interface Employee {
@@ -365,7 +366,6 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   };
 
 
-  // Wait! Let's implement document upload directly to the database for this employee
   const uploadAndAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -374,41 +374,30 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
+        const uploadData = await uploadFileDirectlyToR2(file, 'employees');
 
-        const uploadRes = await fetch('/api/employees/upload', {
+        // Save to employee_documents via a simple API call
+        const saveRes = await fetch('/api/hr/documents', {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employee_id: id,
+            document_type: 'other',
+            document_number: file.name,
+            file_url: uploadData.key,
+            notes: 'ملف مرفوع من الصفحة التفصيلية للموظف'
+          })
         });
 
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          // Save to employee_documents via a simple API call
-          const saveRes = await fetch('/api/hr/documents', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              employee_id: id,
-              document_type: 'other',
-              document_number: file.name,
-              file_url: uploadData.key,
-              notes: 'ملف مرفوع من الصفحة التفصيلية للموظف'
-            })
-          });
-
-          if (saveRes.ok) {
-            fetchDetails();
-          } else {
-            alert('فشل حفظ تفاصيل الملف في قاعدة البيانات.');
-          }
+        if (saveRes.ok) {
+          fetchDetails();
         } else {
-          alert(`فشل رفع الملف ${file.name}`);
+          alert('فشل حفظ تفاصيل الملف في قاعدة البيانات.');
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('حدث خطأ أثناء رفع الملفات.');
+      alert(err.message || 'حدث خطأ أثناء رفع الملفات.');
     } finally {
       setUploading(false);
     }
