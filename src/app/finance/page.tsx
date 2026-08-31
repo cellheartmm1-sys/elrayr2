@@ -190,6 +190,7 @@ export default function FinancePage() {
   // Edit Claim states
   const [showEditClaimModal, setShowEditClaimModal] = useState(false);
   const [editingClaim, setEditingClaim] = useState<any>(null);
+  const [editClaimReceiptChanged, setEditClaimReceiptChanged] = useState(false);
   const [editClaimForm, setEditClaimForm] = useState({
     engineer_id: '', project_id: '', category: 'material', description: '', amount: '', claim_date: '', notes: '', receipt_image_url: ''
   });
@@ -396,6 +397,7 @@ export default function FinancePage() {
 
   const handleOpenEditClaim = (claim: any) => {
     setEditingClaim(claim);
+    setEditClaimReceiptChanged(false);
     setEditClaimForm({
       engineer_id: claim.engineer_id || '',
       project_id: claim.project_id || '',
@@ -404,7 +406,7 @@ export default function FinancePage() {
       amount: String(claim.amount || ''),
       claim_date: claim.claim_date ? claim.claim_date.split('T')[0] : '',
       notes: claim.notes || '',
-      receipt_image_url: claim.receipt_image_url || ''
+      receipt_image_url: claim.has_receipt ? `/api/finance/petty-cash/receipt/${claim.id}` : ''
     });
     setShowEditClaimModal(true);
   };
@@ -413,16 +415,23 @@ export default function FinancePage() {
     e.preventDefault();
     if (!editingClaim) return;
     try {
+      const { receipt_image_url, ...claimFields } = editClaimForm;
       const res = await fetch('/api/finance/petty-cash', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'edit_claim', id: editingClaim.id, ...editClaimForm })
+        body: JSON.stringify({
+          type: 'edit_claim',
+          id: editingClaim.id,
+          ...claimFields,
+          ...(editClaimReceiptChanged ? { receipt_image_url } : {})
+        })
       });
       const data = await res.json();
       if (res.ok) {
         alert(`✅ ${data.message}`);
         setShowEditClaimModal(false);
         setEditingClaim(null);
+        setEditClaimReceiptChanged(false);
         fetchPettyCashData();
       } else { alert(`❌ فشل التعديل: ${data.error || 'حدث خطأ'}`); }
     } catch (err) { console.error(err); alert('❌ حدث خطأ بالاتصال'); }
@@ -2217,10 +2226,10 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                         <td style={{ fontWeight: 600, color: 'var(--brand-primary-light)' }}>{claim.project_name || 'غير محدد'}</td>
                         <td>{new Date(claim.claim_date).toLocaleDateString('ar-EG')}</td>
                         <td>
-                          {claim.receipt_image_url ? (
+                          {claim.has_receipt ? (
                             <button
                               className="btn btn-outline btn-sm"
-                              onClick={() => setSelectedReceiptUrl(claim.receipt_image_url)}
+                              onClick={() => setSelectedReceiptUrl(`/api/finance/petty-cash/receipt/${claim.id}`)}
                             >
                               🖼️ معاينة الصورة
                             </button>
@@ -2244,16 +2253,16 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                               <button
                                 className="btn btn-outline btn-sm"
                                 onClick={() => {
-                                  if (claim.receipt_image_url) {
-                                    setSelectedReceiptUrl(claim.receipt_image_url);
+                                  if (claim.has_receipt) {
+                                    setSelectedReceiptUrl(`/api/finance/petty-cash/receipt/${claim.id}`);
                                   } else {
                                     handleOpenEditClaim(claim);
                                   }
                                 }}
-                                style={{ color: claim.receipt_image_url ? 'var(--brand-primary)' : 'var(--text-muted)' }}
-                                title={claim.receipt_image_url ? 'معاينة صورة الفاتورة/الإيصال' : 'إضافة/رفع صورة الفاتورة'}
+                                style={{ color: claim.has_receipt ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+                                title={claim.has_receipt ? 'معاينة صورة الفاتورة/الإيصال' : 'إضافة/رفع صورة الفاتورة'}
                               >
-                                📷 {claim.receipt_image_url ? 'معاينة الصورة' : 'إضافة صورة'}
+                                📷 {claim.has_receipt ? 'معاينة الصورة' : 'إضافة صورة'}
                               </button>
                               {!isReadOnly && <button
                                 className="btn btn-outline btn-sm"
@@ -2287,16 +2296,16 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                               <button
                                 className="btn btn-outline btn-sm"
                                 onClick={() => {
-                                  if (claim.receipt_image_url) {
-                                    setSelectedReceiptUrl(claim.receipt_image_url);
+                                  if (claim.has_receipt) {
+                                    setSelectedReceiptUrl(`/api/finance/petty-cash/receipt/${claim.id}`);
                                   } else {
                                     handleOpenEditClaim(claim);
                                   }
                                 }}
-                                style={{ color: claim.receipt_image_url ? 'var(--brand-primary)' : 'var(--text-muted)' }}
-                                title={claim.receipt_image_url ? 'معاينة صورة الفاتورة/الإيصال' : 'إضافة/رفع صورة الفاتورة'}
+                                style={{ color: claim.has_receipt ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+                                title={claim.has_receipt ? 'معاينة صورة الفاتورة/الإيصال' : 'إضافة/رفع صورة الفاتورة'}
                               >
-                                📷 {claim.receipt_image_url ? 'معاينة الصورة' : 'إضافة صورة'}
+                                📷 {claim.has_receipt ? 'معاينة الصورة' : 'إضافة صورة'}
                               </button>
                               <button
                                 className="btn btn-outline btn-sm"
@@ -2433,6 +2442,7 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           setEditClaimForm({...editClaimForm, receipt_image_url: reader.result as string});
+                          setEditClaimReceiptChanged(true);
                         };
                         reader.readAsDataURL(file);
                       }
@@ -2444,7 +2454,10 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
                       <button
                         type="button"
                         className="btn btn-outline btn-sm text-danger"
-                        onClick={() => setEditClaimForm({...editClaimForm, receipt_image_url: ''})}
+                        onClick={() => {
+                          setEditClaimForm({...editClaimForm, receipt_image_url: ''});
+                          setEditClaimReceiptChanged(true);
+                        }}
                       >
                         🗑️ إزالة الصورة
                       </button>

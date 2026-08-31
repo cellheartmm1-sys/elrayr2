@@ -47,7 +47,6 @@ async function ensurePettyCashSchema() {
 
 export async function GET(request: NextRequest) {
   try {
-    await ensurePettyCashSchema();
     const { searchParams } = request.nextUrl;
     const engineerId = searchParams.get('engineer_id') ?? '';
     const projectId = searchParams.get('project_id') ?? '';
@@ -80,7 +79,21 @@ export async function GET(request: NextRequest) {
       ),
       query(
         `SELECT
-            pcm.*,
+            pcm.id,
+            pcm.custody_id,
+            pcm.engineer_id,
+            pcm.project_id,
+            pcm.claim_number,
+            pcm.claim_date,
+            pcm.category,
+            pcm.description,
+            pcm.amount,
+            pcm.status,
+            pcm.approved_by,
+            pcm.approval_date,
+            pcm.notes,
+            pcm.created_at,
+            (pcm.receipt_image_url IS NOT NULL AND pcm.receipt_image_url <> '') AS has_receipt,
             e.full_name AS engineer_name,
             p.name AS project_name,
             pcc.custody_number
