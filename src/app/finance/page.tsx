@@ -118,19 +118,14 @@ export default function FinancePage() {
   };
 
   useEffect(() => {
-    const syncTab = () => {
-      if (typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        const tab = params.get('tab');
-        if (tab && tab !== lastTabRef.current && ['ipc', 'expenses', 'cashflow', 'debts', 'reports', 'petty_cash'].includes(tab)) {
-          lastTabRef.current = tab;
-          setActiveTab(tab as TabType);
-        }
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['ipc', 'expenses', 'cashflow', 'debts', 'reports', 'petty_cash'].includes(tab)) {
+        lastTabRef.current = tab;
+        setActiveTab(tab as TabType);
       }
-    };
-    syncTab();
-    const interval = setInterval(syncTab, 200);
-    return () => clearInterval(interval);
+    }
   }, []);
   const [ipcs, setIpcs] = useState<IPC[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -275,15 +270,17 @@ export default function FinancePage() {
     creditor_name: '', debt_type: 'project_finance', project_id: '', amount: '', due_date: '', notes: ''
   });
 
+  const [pettyLoading, setPettyLoading] = useState(false);
+
   const fetchPettyCashData = useCallback(async () => {
-    setLoading(true);
+    setPettyLoading(true);
     try {
       const res = await fetch('/api/finance/petty-cash');
       const data = await res.json();
       setPettyCustodies(data?.custodies || []);
       setPettyClaims(data?.claims || []);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { setPettyLoading(false); }
   }, []);
 
   const fetchEmployees = useCallback(async () => {
@@ -570,12 +567,10 @@ export default function FinancePage() {
     if (activeTab === 'cashflow') fetchCashflow();
     if (activeTab === 'debts') fetchDebts();
     if (activeTab === 'reports') {
-      fetchFinancialReport();
-      fetchEmployees();
+      Promise.all([fetchFinancialReport(), fetchEmployees()]);
     }
     if (activeTab === 'petty_cash') {
-      fetchPettyCashData();
-      fetchEmployees();
+      Promise.all([fetchPettyCashData(), fetchEmployees()]);
     }
   }, [activeTab, fetchIPCs, fetchExpenses, fetchCashflow, fetchDebts, fetchFinancialReport, fetchPettyCashData, fetchEmployees]);
 
@@ -2134,7 +2129,12 @@ td{padding:5px;border:1px solid #e2e8f0;vertical-align:middle}
               <span>👷‍♂️ رصيد العُهَد النقدية للمهندسين بالمواقف</span>
               <button className="btn btn-outline btn-sm" onClick={() => setShowCustodyModal(true)}>+ صرف عُهدة جديدة</button>
             </div>
-            {pettyCustodies.length === 0 ? (
+            {pettyLoading ? (
+              <div className="empty-state">
+                <div className="loading-spinner" style={{ width: '32px', height: '32px', margin: '0 auto' }} />
+                <div className="empty-state-title" style={{ marginTop: '1rem' }}>جاري تحميل بيانات العُهَد...</div>
+              </div>
+            ) : pettyCustodies.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">💵</div>
                 <div className="empty-state-title">لا توجد عُهد نقدية مسلمة لمهندسين حالياً</div>

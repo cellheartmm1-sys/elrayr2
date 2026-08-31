@@ -1,7 +1,11 @@
 import { query } from '@/lib/db';
 import { NextResponse, NextRequest } from 'next/server';
 
+// Run schema creation only once per cold start, not on every request
+let schemaEnsured = false;
+
 async function ensurePettyCashSchema() {
+  if (schemaEnsured) return;
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS petty_cash_custodies (
@@ -35,6 +39,7 @@ async function ensurePettyCashSchema() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+    schemaEnsured = true;
   } catch (err) {
     console.error('Failed to ensure petty cash schema:', err);
   }
@@ -46,46 +51,48 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const engineerId = searchParams.get('engineer_id') ?? '';
     const projectId = searchParams.get('project_id') ?? '';
-    const view = searchParams.get('view') ?? 'all'; // 'custodies', 'claims', 'all'
 
-    const custodiesRes = await query(
-      `SELECT
-          pcc.*,
-          COALESCE((
-            SELECT SUM(amount)
+    // Run both queries in parallel instead of sequentially
+    const [custodiesRes, claimsRes] = await Promise.all([
+      query(
+        // Use a single LEFT JOIN aggregation instead of correlated subqueries for each row
+        `SELECT
+            pcc.*,
+            COALESCE(agg.total_spent, 0) AS amount_spent,
+            (pcc.amount_given - COALESCE(agg.total_spent, 0)) AS amount_remaining,
+            e.full_name AS engineer_name,
+            p.name AS project_name
+          FROM petty_cash_custodies pcc
+          LEFT JOIN employees e ON e.id = pcc.engineer_id
+          LEFT JOIN projects p ON p.id = pcc.project_id
+          LEFT JOIN (
+            SELECT
+              custody_id,
+              engineer_id,
+              SUM(amount) AS total_spent
             FROM petty_cash_claims
-            WHERE (custody_id = pcc.id OR (custody_id IS NULL AND engineer_id = pcc.engineer_id))
-              AND status = 'approved'
-          ), 0) AS amount_spent,
-          (pcc.amount_given - COALESCE((
-            SELECT SUM(amount)
-            FROM petty_cash_claims
-            WHERE (custody_id = pcc.id OR (custody_id IS NULL AND engineer_id = pcc.engineer_id))
-              AND status = 'approved'
-          ), 0)) AS amount_remaining,
-          e.full_name AS engineer_name,
-          p.name AS project_name
-        FROM petty_cash_custodies pcc
-        LEFT JOIN employees e ON e.id = pcc.engineer_id
-        LEFT JOIN projects p ON p.id = pcc.project_id
-        ${engineerId ? 'WHERE pcc.engineer_id = $1' : ''}
-        ORDER BY pcc.issue_date DESC, pcc.created_at DESC`,
-      engineerId ? [engineerId] : []
-    );
-
-    const claimsRes = await query(
-      `SELECT
-          pcm.*,
-          e.full_name AS engineer_name,
-          p.name AS project_name,
-          pcc.custody_number
-        FROM petty_cash_claims pcm
-        LEFT JOIN employees e ON e.id = pcm.engineer_id
-        LEFT JOIN projects p ON p.id = pcm.project_id
-        LEFT JOIN petty_cash_custodies pcc ON pcc.id = pcm.custody_id
-        ${projectId ? 'WHERE pcm.project_id = $1' : ''}
-        ORDER BY pcm.claim_date DESC, pcm.created_at DESC`
-    );
+            WHERE status = 'approved'
+            GROUP BY custody_id, engineer_id
+          ) agg ON (agg.custody_id = pcc.id OR (agg.custody_id IS NULL AND agg.engineer_id = pcc.engineer_id))
+          ${engineerId ? 'WHERE pcc.engineer_id = $1' : ''}
+          ORDER BY pcc.issue_date DESC, pcc.created_at DESC`,
+        engineerId ? [engineerId] : []
+      ),
+      query(
+        `SELECT
+            pcm.*,
+            e.full_name AS engineer_name,
+            p.name AS project_name,
+            pcc.custody_number
+          FROM petty_cash_claims pcm
+          LEFT JOIN employees e ON e.id = pcm.engineer_id
+          LEFT JOIN projects p ON p.id = pcm.project_id
+          LEFT JOIN petty_cash_custodies pcc ON pcc.id = pcm.custody_id
+          ${projectId ? 'WHERE pcm.project_id = $1' : ''}
+          ORDER BY pcm.claim_date DESC, pcm.created_at DESC`,
+        projectId ? [projectId] : []
+      )
+    ]);
 
     return NextResponse.json({
       custodies: custodiesRes.rows,
@@ -274,12 +281,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'تم تعديل بيانات الفاتورة بنجاح.' });
     }
 
-    // --- APPROVE / REJECT CLAIM (existing logic) ---
+    // --- APPROVE / REJECT CLAIM ---
     if (!claim_id || !['approve', 'reject'].includes(action)) {
       return NextResponse.json({ error: 'claim_id و action مطلوبان بشكل صحيح' }, { status: 400 });
     }
 
-    // Role check: Only admin or manager can approve or reject claims
     const userRole = request.headers.get('x-user-role') || body.user_role || '';
     if (userRole && userRole !== 'admin' && userRole !== 'manager') {
       return NextResponse.json(
@@ -306,7 +312,7 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      // 1. Update claim status & custody_id
+      // Run update + expense insert in parallel where possible
       await query(
         `UPDATE petty_cash_claims
          SET status = 'approved', approval_date = CURRENT_DATE, custody_id = COALESCE($1, custody_id), notes = COALESCE($2, notes)
@@ -314,40 +320,42 @@ export async function PUT(request: NextRequest) {
         [targetCustodyId ?? null, notes ?? null, claim_id]
       );
 
-      // 2. Update custody spent amount if targetCustodyId exists
+      const updatePromises: Promise<any>[] = [];
+
       if (targetCustodyId) {
-        await query(
+        updatePromises.push(query(
           `UPDATE petty_cash_custodies
            SET amount_spent = COALESCE((SELECT SUM(amount) FROM petty_cash_claims WHERE custody_id = $1 AND status = 'approved'), 0)
            WHERE id = $1`,
           [targetCustodyId]
-        );
+        ));
       }
 
-      // 3. Auto-post Direct Expense to project_expenses if project_id exists
       if (claim.project_id) {
-        const engRes = await query(`SELECT full_name FROM employees WHERE id = $1`, [claim.engineer_id]);
-        const engName = engRes.rows[0]?.full_name || 'مهندس الموقع';
-
-        await query(
-          `INSERT INTO project_expenses (project_id, expense_date, category, description, amount, supplier, invoice_number)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            claim.project_id,
-            claim.claim_date,
-            claim.category || 'material',
-            `تصفية عُهدة نقدية: ${claim.description} (بواسطة ${engName})`,
-            claim.amount,
-            `عُهدة المهندس: ${engName}`,
-            claim.claim_number
-          ]
+        updatePromises.push(
+          query(`SELECT full_name FROM employees WHERE id = $1`, [claim.engineer_id]).then(engRes => {
+            const engName = engRes.rows[0]?.full_name || 'مهندس الموقع';
+            return query(
+              `INSERT INTO project_expenses (project_id, expense_date, category, description, amount, supplier, invoice_number)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                claim.project_id,
+                claim.claim_date,
+                claim.category || 'material',
+                `تصفية عُهدة نقدية: ${claim.description} (بواسطة ${engName})`,
+                claim.amount,
+                `عُهدة المهندس: ${engName}`,
+                claim.claim_number
+              ]
+            );
+          })
         );
       }
 
+      await Promise.all(updatePromises);
       return NextResponse.json({ message: `تم اعتماد فاتورة العُهدة وترحيل التكلفة المباشرة لميزانية المشروع بنجاح.` });
 
     } else {
-      // Reject claim
       await query(
         `UPDATE petty_cash_claims SET status = 'rejected', notes = COALESCE($1, notes) WHERE id = $2`,
         [notes ?? null, claim_id]
